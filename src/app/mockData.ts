@@ -94,36 +94,7 @@ export type ConnectionTestResult = {
   message: string;
 };
 
-export const mockConnections: ConnectionProfile[] = [
-  {
-    id: "local-postgres",
-    name: "Local PostgreSQL",
-    engine: "PostgreSQL",
-    engineVersion: "16",
-    host: "localhost",
-    port: 5432,
-    database: "databara_dev",
-    user: "postgres",
-    status: "connected",
-    latencyMs: 12,
-    defaultSchema: "public",
-    sslMode: "Prefer",
-  },
-  {
-    id: "warehouse-readonly",
-    name: "Warehouse Readonly",
-    engine: "PostgreSQL",
-    engineVersion: "15",
-    host: "warehouse.internal",
-    port: 5432,
-    database: "analytics",
-    user: "readonly",
-    status: "disconnected",
-    latencyMs: 38,
-    defaultSchema: "analytics",
-    sslMode: "Require",
-  },
-];
+export const mockConnections: ConnectionProfile[] = [];
 
 export const mockExplorerTree: DatabaseTreeNode[] = [
   {

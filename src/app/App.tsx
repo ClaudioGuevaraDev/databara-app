@@ -120,6 +120,7 @@ export function App() {
   const runTokenRef = useRef(0);
 
   const activeConnection = connections[0] ?? null;
+  const requiresConnection = connections.length === 0;
   const activeTab = sqlTabs.find((tab) => tab.id === activeTabId) ?? sqlTabs[0];
 
   useEffect(() => {
@@ -134,8 +135,12 @@ export function App() {
 
       if (cancelled) return;
       setConnections(loadedConnections);
-      setExplorerTree(loadedTree);
-      setSelectedObject(loadedDetails);
+      setExplorerTree(loadedConnections.length > 0 ? loadedTree : []);
+      setSelectedObject(loadedConnections.length > 0 ? loadedDetails : null);
+      if (loadedConnections.length === 0) {
+        setConnectionDialogOpen(true);
+        notify("Create a connection to start using Databara", "warning");
+      }
     }
 
     void loadWorkspace();
@@ -149,6 +154,7 @@ export function App() {
     let cancelled = false;
 
     async function loadSelectedObject() {
+      if (requiresConnection) return;
       const details = await getObjectDetails(selectedObjectId);
       if (!cancelled) setSelectedObject(details);
     }
@@ -158,7 +164,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedObjectId]);
+  }, [requiresConnection, selectedObjectId]);
 
   const statusText = useMemo(() => {
     if (queryState === "running") return "Running query...";
@@ -167,8 +173,9 @@ export function App() {
     }
     if (queryState === "cancelled") return "Query cancelled";
     if (queryState === "error") return "Query failed";
+    if (requiresConnection) return "No connection configured";
     return toast.text;
-  }, [queryResult, queryState, toast.text]);
+  }, [queryResult, queryState, requiresConnection, toast.text]);
 
   function notify(text: string, tone: Toast["tone"] = "default") {
     setToast({ text, tone });
@@ -204,6 +211,12 @@ export function App() {
   }
 
   function runQuery(sql = activeTab?.sql ?? mockSampleSql) {
+    if (requiresConnection) {
+      setConnectionDialogOpen(true);
+      notify("Create a connection before running queries", "warning");
+      return;
+    }
+
     const token = runTokenRef.current + 1;
     runTokenRef.current = token;
     setResultsOpen(true);
@@ -225,6 +238,12 @@ export function App() {
   }
 
   async function refreshAll() {
+    if (requiresConnection) {
+      setConnectionDialogOpen(true);
+      notify("Create a connection before refreshing", "warning");
+      return;
+    }
+
     setRefreshing(true);
     const result = await refreshWorkspace(activeConnection?.id ?? "local-postgres");
     setExplorerTree(result.tree);
@@ -233,6 +252,12 @@ export function App() {
   }
 
   async function previewObject(objectId = selectedObjectId) {
+    if (requiresConnection) {
+      setConnectionDialogOpen(true);
+      notify("Create a connection before previewing objects", "warning");
+      return;
+    }
+
     setResultsOpen(true);
     setResultTab("results");
     setQueryState("running");
@@ -243,6 +268,12 @@ export function App() {
   }
 
   async function loadDdl() {
+    if (requiresConnection) {
+      setConnectionDialogOpen(true);
+      notify("Create a connection before loading DDL", "warning");
+      return;
+    }
+
     const ddl = await getObjectDdl(selectedObjectId);
     createSqlTab(ddl);
     notify("DDL loaded into a new tab", "success");
@@ -300,6 +331,12 @@ export function App() {
       connection,
       ...current.filter((item) => item.id !== connection.id),
     ]);
+    const [loadedTree, loadedDetails] = await Promise.all([
+      getExplorerTree(connection.id),
+      getObjectDetails(defaultSelectedObjectId),
+    ]);
+    setExplorerTree(loadedTree);
+    setSelectedObject(loadedDetails);
     setConnectionDialogOpen(false);
     notify(`${connection.name} saved as a mock connection`, "success");
   }
@@ -389,7 +426,11 @@ export function App() {
         toast={toast}
       />
       {connectionDialogOpen ? (
-        <ConnectionDialog onClose={() => setConnectionDialogOpen(false)} onSave={saveConnection} />
+        <ConnectionDialog
+          required={requiresConnection}
+          onClose={() => setConnectionDialogOpen(false)}
+          onSave={saveConnection}
+        />
       ) : null}
     </div>
   );
@@ -865,9 +906,11 @@ function ObjectDetails({
 function ConnectionDialog({
   onClose,
   onSave,
+  required,
 }: {
   onClose: () => void;
   onSave: (draft: ConnectionDraft) => void;
+  required: boolean;
 }) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -903,9 +946,11 @@ function ConnectionDialog({
             <KeyRound size={16} className="text-primary" />
             New PostgreSQL connection
           </div>
-          <IconButton title="Close" onClick={onClose}>
-            <X size={15} />
-          </IconButton>
+          {required ? null : (
+            <IconButton title="Close" onClick={onClose}>
+              <X size={15} />
+            </IconButton>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3 p-4">
           <Field
@@ -944,7 +989,9 @@ function ConnectionDialog({
               <span className="text-emerald-300">{testResult}</span>
             ) : (
               <span className="text-muted-foreground">
-                This saves a mock connection only. No database driver is called.
+                {required
+                  ? "Create a mock connection to unlock the workspace. No database driver is called."
+                  : "This saves a mock connection only. No database driver is called."}
               </span>
             )}
           </div>
