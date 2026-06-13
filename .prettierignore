@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.agents/
+src-tauri/target/
+src-tauri/gen/
+
+pnpm-lock.yaml
+Cargo.lock
+
+*.log
