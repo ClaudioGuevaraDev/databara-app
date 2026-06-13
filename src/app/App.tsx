@@ -18,22 +18,22 @@ import {
   RefreshCw,
   Square,
   Table2,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../lib/utils";
 import {
-  createMockConnection,
-  exportQueryResultCsv,
-  getExplorerTree,
-  getObjectDdl,
-  getObjectDetails,
-  getPreviewResult,
-  listConnections,
-  refreshWorkspace,
-  runQuery as runMockQuery,
-  testConnection as testMockConnection,
-} from "./mockDatabaraService";
+  connectPostgres,
+  deleteStoredConnection,
+  getPostgresObjectDetails,
+  listPostgresTree,
+  loadStoredConnections,
+  saveStoredConnection,
+  testPostgresConnection,
+  type StoredConnectionDraft,
+} from "./databaraService";
+import { exportQueryResultCsv } from "./mockDatabaraService";
 import {
   mockSampleSql,
   mockSqlTabs,
@@ -51,9 +51,148 @@ import {
 type QueryState = "idle" | "running" | "success" | "error" | "cancelled";
 type Toast = { text: string; tone?: "default" | "success" | "warning" };
 
-const defaultSelectedObjectId = "table:public.customers";
 const rowLimits = [25, 50, 100, 500];
 const schemas = ["public", "analytics"];
+
+function serverNodeId(host: string, port: number) {
+  return `server:${host}:${port}`;
+}
+
+function savedConnectionNodeId(connection: StoredConnectionDraft) {
+  return `saved-connection:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
+}
+
+function activeDatabaseNodeId(connection: StoredConnectionDraft) {
+  return `database:${connection.database}`;
+}
+
+function isSavedConnectionNodeId(nodeId: string) {
+  return nodeId.startsWith("saved-connection:");
+}
+
+function buildStoredConnectionTree(
+  storedConnections: StoredConnectionDraft[],
+  activeTree: DatabaseTreeNode[],
+) {
+  const serverNodes = new Map<string, DatabaseTreeNode>();
+
+  for (const node of activeTree) {
+    serverNodes.set(node.id, node);
+  }
+
+  for (const connection of storedConnections) {
+    const serverId = serverNodeId(connection.host, connection.port);
+    const serverNode = serverNodes.get(serverId) ?? {
+      id: serverId,
+      label: `${connection.host}:${connection.port}`,
+      kind: "database" as const,
+      open: true,
+      children: [],
+    };
+    const children = serverNode.children ?? [];
+    const hasDatabase = children.some((node) => node.label === connection.database);
+
+    if (!hasDatabase) {
+      children.push({
+        id: savedConnectionNodeId(connection),
+        label: connection.database,
+        kind: "database",
+      });
+    }
+
+    serverNodes.set(serverId, { ...serverNode, children });
+  }
+
+  return [...serverNodes.values()].sort((first, second) => first.label.localeCompare(second.label));
+}
+
+function mergeExplorerTree(currentTree: DatabaseTreeNode[], incomingTree: DatabaseTreeNode[]) {
+  const nextServers = new Map(currentTree.map((node) => [node.id, node]));
+
+  for (const incomingServer of incomingTree) {
+    const currentServer = nextServers.get(incomingServer.id);
+    if (!currentServer) {
+      nextServers.set(incomingServer.id, incomingServer);
+      continue;
+    }
+
+    const databaseNodes = new Map((currentServer.children ?? []).map((node) => [node.label, node]));
+
+    for (const incomingDatabase of incomingServer.children ?? []) {
+      databaseNodes.set(incomingDatabase.label, incomingDatabase);
+    }
+
+    nextServers.set(incomingServer.id, {
+      ...incomingServer,
+      children: [...databaseNodes.values()].sort((first, second) =>
+        first.label.localeCompare(second.label),
+      ),
+    });
+  }
+
+  return [...nextServers.values()].sort((first, second) => first.label.localeCompare(second.label));
+}
+
+function removeConnectionFromTree(
+  tree: DatabaseTreeNode[],
+  connectionToDelete: StoredConnectionDraft,
+) {
+  const serverId = serverNodeId(connectionToDelete.host, connectionToDelete.port);
+  const databaseIds = new Set([
+    savedConnectionNodeId(connectionToDelete),
+    activeDatabaseNodeId(connectionToDelete),
+  ]);
+
+  return tree
+    .map((serverNode) => {
+      if (serverNode.id !== serverId) return serverNode;
+
+      const children = (serverNode.children ?? []).filter((child) => !databaseIds.has(child.id));
+      return { ...serverNode, children };
+    })
+    .filter((serverNode) => (serverNode.children?.length ?? 0) > 0);
+}
+
+function findServerForNode(
+  nodes: DatabaseTreeNode[],
+  nodeId: string,
+  serverId = "",
+): string | null {
+  for (const node of nodes) {
+    const currentServerId = node.id.startsWith("server:") ? node.id : serverId;
+    if (node.id === nodeId) return currentServerId || null;
+
+    const childMatch = node.children
+      ? findServerForNode(node.children, nodeId, currentServerId)
+      : null;
+    if (childMatch) return childMatch;
+  }
+
+  return null;
+}
+
+function findStoredConnectionForNode(
+  node: DatabaseTreeNode,
+  tree: DatabaseTreeNode[],
+  storedConnections: StoredConnectionDraft[],
+) {
+  if (isSavedConnectionNodeId(node.id)) {
+    return storedConnections.find((connection) => savedConnectionNodeId(connection) === node.id);
+  }
+
+  if (!node.id.startsWith("database:")) return null;
+
+  const serverId = findServerForNode(tree, node.id);
+  if (!serverId) return null;
+
+  return (
+    storedConnections.find(
+      (connection) =>
+        serverNodeId(connection.host, connection.port) === serverId &&
+        activeDatabaseNodeId(connection) === node.id,
+    ) ?? null
+  );
+}
 
 function getExplorerStats(nodes: DatabaseTreeNode[]) {
   return nodes.reduce(
@@ -100,63 +239,69 @@ async function copyText(text: string) {
   textArea.remove();
 }
 
+function readErrorMessage(error: unknown) {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  return "Unexpected error";
+}
+
+function connectionDisplayName(draft: Pick<ConnectionDraft, "database" | "host" | "port">) {
+  return `${draft.database} (${draft.host}:${draft.port})`;
+}
+
 export function App() {
-  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
+  const [storedConnections, setStoredConnections] = useState<StoredConnectionDraft[]>(() =>
+    loadStoredConnections(),
+  );
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(
+    () => storedConnections.length === 0,
+  );
+  const [dialogInitialDraft, setDialogInitialDraft] = useState<StoredConnectionDraft | null>(null);
+  const [passwordConnection, setPasswordConnection] = useState<StoredConnectionDraft | null>(null);
+  const [deleteConnectionRequest, setDeleteConnectionRequest] =
+    useState<StoredConnectionDraft | null>(null);
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
-  const [explorerTree, setExplorerTree] = useState<DatabaseTreeNode[]>([]);
+  const [activeExplorerTree, setActiveExplorerTree] = useState<DatabaseTreeNode[]>([]);
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
-  const [selectedObjectId, setSelectedObjectId] = useState(defaultSelectedObjectId);
+  const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedObject, setSelectedObject] = useState<DatabaseObjectDetails | null>(null);
   const [sqlTabs, setSqlTabs] = useState<SqlTab[]>(mockSqlTabs);
   const [activeTabId, setActiveTabId] = useState(mockSqlTabs[0].id);
   const [queryState, setQueryState] = useState<QueryState>("idle");
-  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
+  const [queryResult] = useState<QueryResult | null>(null);
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
   const [resultsOpen, setResultsOpen] = useState(true);
   const [rowLimit, setRowLimit] = useState(100);
   const [schema, setSchema] = useState("public");
-  const [toast, setToast] = useState<Toast>({ text: "Ready" });
+  const [toast, setToast] = useState<Toast>(() => ({
+    text: "Ready",
+  }));
   const [refreshing, setRefreshing] = useState(false);
   const runTokenRef = useRef(0);
 
   const activeConnection = connections[0] ?? null;
   const requiresConnection = connections.length === 0;
   const activeTab = sqlTabs.find((tab) => tab.id === activeTabId) ?? sqlTabs[0];
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      const [loadedConnections, loadedTree, loadedDetails] = await Promise.all([
-        listConnections(),
-        getExplorerTree("local-postgres"),
-        getObjectDetails(defaultSelectedObjectId),
-      ]);
-
-      if (cancelled) return;
-      setConnections(loadedConnections);
-      setExplorerTree(loadedConnections.length > 0 ? loadedTree : []);
-      setSelectedObject(loadedConnections.length > 0 ? loadedDetails : null);
-      if (loadedConnections.length === 0) {
-        setConnectionDialogOpen(true);
-        notify("Create a connection to start using Databara", "warning");
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const hasStoredConnections = storedConnections.length > 0;
+  const explorerTree = useMemo(
+    () => buildStoredConnectionTree(storedConnections, activeExplorerTree),
+    [activeExplorerTree, storedConnections],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadSelectedObject() {
-      if (requiresConnection) return;
-      const details = await getObjectDetails(selectedObjectId);
-      if (!cancelled) setSelectedObject(details);
+      if (requiresConnection || !activeConnection || !selectedObjectId) return;
+      try {
+        const details = await getPostgresObjectDetails(activeConnection.id, selectedObjectId);
+        if (!cancelled) setSelectedObject(details);
+      } catch (error) {
+        if (!cancelled) {
+          setSelectedObject(null);
+          notify(readErrorMessage(error), "warning");
+        }
+      }
     }
 
     void loadSelectedObject();
@@ -164,7 +309,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [requiresConnection, selectedObjectId]);
+  }, [activeConnection, requiresConnection, selectedObjectId]);
 
   const statusText = useMemo(() => {
     if (queryState === "running") return "Running query...";
@@ -173,7 +318,7 @@ export function App() {
     }
     if (queryState === "cancelled") return "Query cancelled";
     if (queryState === "error") return "Query failed";
-    if (requiresConnection) return "No connection configured";
+    if (requiresConnection) return "";
     return toast.text;
   }, [queryResult, queryState, requiresConnection, toast.text]);
 
@@ -210,73 +355,51 @@ export function App() {
     notify("Query cancelled", "warning");
   }
 
-  function runQuery(sql = activeTab?.sql ?? mockSampleSql) {
+  function runQuery() {
     if (requiresConnection) {
-      setConnectionDialogOpen(true);
+      openNewConnectionDialog();
       notify("Create a connection before running queries", "warning");
       return;
     }
 
-    const token = runTokenRef.current + 1;
-    runTokenRef.current = token;
-    setResultsOpen(true);
-    setResultTab("results");
-    setQueryState("running");
-
-    runMockQuery(sql, rowLimit)
-      .then((result) => {
-        if (runTokenRef.current !== token) return;
-        setQueryResult(result);
-        setQueryState("success");
-        notify(result.message, "success");
-      })
-      .catch(() => {
-        if (runTokenRef.current !== token) return;
-        setQueryState("error");
-        notify("Query failed", "warning");
-      });
+    notify("SQL execution is not enabled yet", "warning");
   }
 
   async function refreshAll() {
     if (requiresConnection) {
-      setConnectionDialogOpen(true);
       notify("Create a connection before refreshing", "warning");
       return;
     }
 
     setRefreshing(true);
-    const result = await refreshWorkspace(activeConnection?.id ?? "local-postgres");
-    setExplorerTree(result.tree);
-    setRefreshing(false);
-    notify(`Workspace refreshed at ${result.refreshedAt}`, "success");
+    try {
+      const tree = await listPostgresTree(activeConnection!.id);
+      setActiveExplorerTree((current) => mergeExplorerTree(current, tree));
+      setRefreshing(false);
+      notify("Workspace refreshed", "success");
+    } catch (error) {
+      setRefreshing(false);
+      notify(readErrorMessage(error), "warning");
+    }
   }
 
   async function previewObject(objectId = selectedObjectId) {
     if (requiresConnection) {
-      setConnectionDialogOpen(true);
       notify("Create a connection before previewing objects", "warning");
       return;
     }
 
-    setResultsOpen(true);
-    setResultTab("results");
-    setQueryState("running");
-    const result = await getPreviewResult(objectId, rowLimit);
-    setQueryResult(result);
-    setQueryState("success");
-    notify(`Preview loaded for ${result.rowCount} rows`, "success");
+    void objectId;
+    notify("Preview is not enabled until SQL execution is implemented", "warning");
   }
 
   async function loadDdl() {
     if (requiresConnection) {
-      setConnectionDialogOpen(true);
       notify("Create a connection before loading DDL", "warning");
       return;
     }
 
-    const ddl = await getObjectDdl(selectedObjectId);
-    createSqlTab(ddl);
-    notify("DDL loaded into a new tab", "success");
+    notify("DDL generation is not enabled yet", "warning");
   }
 
   function cycleLimit() {
@@ -325,29 +448,104 @@ export function App() {
     notify("Object name copied", "success");
   }
 
-  async function saveConnection(draft: ConnectionDraft) {
-    const connection = await createMockConnection(draft);
+  async function connectAndStoreConnection(draft: ConnectionDraft) {
+    const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
+    const result = await connectPostgres(connectionDraft);
+    const nextStoredConnections = saveStoredConnection(connectionDraft);
+    setStoredConnections(nextStoredConnections);
     setConnections((current) => [
-      connection,
-      ...current.filter((item) => item.id !== connection.id),
+      result.connection,
+      ...current.filter((item) => item.id !== result.connection.id),
     ]);
-    const [loadedTree, loadedDetails] = await Promise.all([
-      getExplorerTree(connection.id),
-      getObjectDetails(defaultSelectedObjectId),
-    ]);
-    setExplorerTree(loadedTree);
-    setSelectedObject(loadedDetails);
-    setConnectionDialogOpen(false);
-    notify(`${connection.name} saved as a mock connection`, "success");
+    setActiveExplorerTree((current) => mergeExplorerTree(current, result.tree));
+    setSelectedObjectId(result.selectedObjectId ?? "");
+    setSelectedObject(result.selectedObject);
+    notify(`${result.connection.name} connected`, "success");
+  }
+
+  async function saveConnection(draft: ConnectionDraft) {
+    try {
+      await connectAndStoreConnection(draft);
+      setConnectionDialogOpen(false);
+    } catch (error) {
+      notify(readErrorMessage(error), "warning");
+    }
+  }
+
+  function openNewConnectionDialog() {
+    setDialogInitialDraft(null);
+    setConnectionDialogOpen(true);
+  }
+
+  function openSavedConnection(nodeId: string) {
+    const connection = storedConnections.find((item) => savedConnectionNodeId(item) === nodeId);
+    if (!connection) return;
+
+    setPasswordConnection(connection);
+    notify(`Enter the password for ${connection.database}`, "warning");
+  }
+
+  async function connectStoredConnection(connection: StoredConnectionDraft, password: string) {
+    await connectAndStoreConnection({
+      ...connection,
+      name: connectionDisplayName(connection),
+      password,
+    });
+    setPasswordConnection(null);
+  }
+
+  function deleteConnection(nodeId: string) {
+    const connection = storedConnections.find((item) => savedConnectionNodeId(item) === nodeId);
+    if (!connection) return;
+
+    setDeleteConnectionRequest(connection);
+  }
+
+  function confirmDeleteConnection(connection: StoredConnectionDraft) {
+    const nextStoredConnections = deleteStoredConnection(connection);
+    setStoredConnections(nextStoredConnections);
+    setActiveExplorerTree((current) => removeConnectionFromTree(current, connection));
+    setConnections((current) =>
+      current.filter(
+        (item) =>
+          !(
+            item.host === connection.host &&
+            item.port === connection.port &&
+            item.database === connection.database &&
+            item.user === connection.user
+          ),
+      ),
+    );
+
+    if (selectedObjectId && activeConnection?.database === connection.database) {
+      setSelectedObjectId("");
+      setSelectedObject(null);
+    }
+
+    if (nextStoredConnections.length === 0) {
+      setDialogInitialDraft(null);
+      setConnectionDialogOpen(true);
+    }
+
+    notify(`${connection.database} removed`, "success");
+    setDeleteConnectionRequest(null);
   }
 
   return (
     <div className="flex h-screen min-h-0 flex-col bg-background text-[13px] text-foreground">
-      <TopBar onNewConnection={() => setConnectionDialogOpen(true)} />
-      <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(560px,1fr)_336px]">
+      <TopBar onNewConnection={openNewConnectionDialog} />
+      <div
+        className={cn(
+          "grid min-h-0 flex-1",
+          requiresConnection
+            ? "grid-cols-[288px_minmax(560px,1fr)]"
+            : "grid-cols-[288px_minmax(560px,1fr)_336px]",
+        )}
+      >
         <Explorer
           activeConnection={activeConnection}
           nodes={explorerTree}
+          storedConnections={storedConnections}
           collapsedNodes={collapsedNodes}
           refreshing={refreshing}
           selectedObjectId={selectedObjectId}
@@ -360,64 +558,77 @@ export function App() {
             })
           }
           onSelectObject={setSelectedObjectId}
-          onNewConnection={() => setConnectionDialogOpen(true)}
+          onConnectSaved={openSavedConnection}
+          onDeleteSaved={deleteConnection}
+          onNewConnection={openNewConnectionDialog}
           onRefresh={refreshAll}
         />
         <main className="flex min-w-0 flex-col">
-          <EditorTabs
-            tabs={sqlTabs}
-            activeTabId={activeTabId}
-            onSelect={setActiveTabId}
-            onNewTab={() => createSqlTab()}
-          />
-          <QueryToolbar
-            queryState={queryState}
-            rowLimit={rowLimit}
-            schema={schema}
-            onRun={() => runQuery()}
-            onStop={stopQuery}
-            onCycleLimit={cycleLimit}
-            onCycleSchema={cycleSchema}
-          />
-          <section className="min-h-0 flex-1 bg-[hsl(220_13%_8%)]">
-            <Editor
-              key={activeTab?.id}
-              defaultLanguage="sql"
-              value={activeTab?.sql ?? mockSampleSql}
-              theme="vs-dark"
-              onChange={(value) => updateActiveSql(value ?? "")}
-              options={{
-                minimap: { enabled: false },
-                fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
-                fontSize: 13,
-                lineHeight: 21,
-                padding: { top: 16, bottom: 16 },
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                automaticLayout: true,
-              }}
+          {requiresConnection ? (
+            <EmptyWorkspace
+              hasStoredConnections={hasStoredConnections}
+              onNewConnection={openNewConnectionDialog}
             />
-          </section>
-          {resultsOpen ? (
-            <ResultsPanel
-              activeTab={resultTab}
-              details={selectedObject}
-              queryResult={queryResult}
-              queryState={queryState}
-              onClose={() => setResultsOpen(false)}
-              onCopy={copyResult}
-              onExport={exportCsv}
-              onTabChange={setResultTab}
-            />
-          ) : null}
+          ) : (
+            <>
+              <EditorTabs
+                tabs={sqlTabs}
+                activeTabId={activeTabId}
+                onSelect={setActiveTabId}
+                onNewTab={() => createSqlTab()}
+              />
+              <QueryToolbar
+                queryState={queryState}
+                rowLimit={rowLimit}
+                schema={schema}
+                onRun={() => runQuery()}
+                onStop={stopQuery}
+                onCycleLimit={cycleLimit}
+                onCycleSchema={cycleSchema}
+              />
+              <section className="min-h-0 flex-1 bg-[hsl(220_13%_8%)]">
+                <Editor
+                  key={activeTab?.id}
+                  defaultLanguage="sql"
+                  value={activeTab?.sql ?? mockSampleSql}
+                  theme="vs-dark"
+                  onChange={(value) => updateActiveSql(value ?? "")}
+                  options={{
+                    minimap: { enabled: false },
+                    fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
+                    fontSize: 13,
+                    lineHeight: 21,
+                    padding: { top: 16, bottom: 16 },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "on",
+                    automaticLayout: true,
+                  }}
+                />
+              </section>
+              {resultsOpen ? (
+                <ResultsPanel
+                  activeTab={resultTab}
+                  details={selectedObject}
+                  queryResult={queryResult}
+                  queryState={queryState}
+                  onClose={() => setResultsOpen(false)}
+                  onCopy={copyResult}
+                  onExport={exportCsv}
+                  onTabChange={setResultTab}
+                />
+              ) : null}
+            </>
+          )}
         </main>
-        <ObjectDetails
-          details={selectedObject}
-          onCopyName={copyObjectName}
-          onLoadDdl={loadDdl}
-          onPreview={() => previewObject()}
-          onRefresh={refreshAll}
-        />
+        {requiresConnection ? null : (
+          <ObjectDetails
+            details={selectedObject}
+            onCopyName={copyObjectName}
+            onLoadDdl={loadDdl}
+            onPreview={() => previewObject()}
+            onRefresh={refreshAll}
+          />
+        )}
       </div>
       <StatusBar
         activeConnection={activeConnection}
@@ -427,9 +638,23 @@ export function App() {
       />
       {connectionDialogOpen ? (
         <ConnectionDialog
-          required={requiresConnection}
+          initialDraft={dialogInitialDraft}
           onClose={() => setConnectionDialogOpen(false)}
           onSave={saveConnection}
+        />
+      ) : null}
+      {passwordConnection ? (
+        <PasswordConnectionDialog
+          connection={passwordConnection}
+          onClose={() => setPasswordConnection(null)}
+          onConnect={connectStoredConnection}
+        />
+      ) : null}
+      {deleteConnectionRequest ? (
+        <DeleteConnectionDialog
+          connection={deleteConnectionRequest}
+          onCancel={() => setDeleteConnectionRequest(null)}
+          onConfirm={confirmDeleteConnection}
         />
       ) : null}
     </div>
@@ -458,9 +683,12 @@ function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
 function Explorer({
   activeConnection,
   nodes,
+  storedConnections,
   collapsedNodes,
   refreshing,
   selectedObjectId,
+  onConnectSaved,
+  onDeleteSaved,
   onToggleNode,
   onSelectObject,
   onNewConnection,
@@ -468,9 +696,12 @@ function Explorer({
 }: {
   activeConnection: ConnectionProfile | null;
   nodes: DatabaseTreeNode[];
+  storedConnections: StoredConnectionDraft[];
   collapsedNodes: Set<string>;
   refreshing: boolean;
   selectedObjectId: string;
+  onConnectSaved: (nodeId: string) => void;
+  onDeleteSaved: (nodeId: string) => void;
   onToggleNode: (nodeId: string) => void;
   onSelectObject: (objectId: string) => void;
   onNewConnection: () => void;
@@ -509,7 +740,12 @@ function Explorer({
             collapsedNodes={collapsedNodes}
             depth={0}
             node={node}
+            rootNodes={nodes}
+            activeConnection={activeConnection}
             selectedObjectId={selectedObjectId}
+            storedConnections={storedConnections}
+            onConnectSaved={onConnectSaved}
+            onDeleteSaved={onDeleteSaved}
             onSelectObject={onSelectObject}
             onToggleNode={onToggleNode}
           />
@@ -522,21 +758,40 @@ function Explorer({
 function TreeNode({
   collapsedNodes,
   node,
+  rootNodes,
+  activeConnection,
   depth,
   selectedObjectId,
+  storedConnections,
+  onConnectSaved,
+  onDeleteSaved,
   onSelectObject,
   onToggleNode,
 }: {
   collapsedNodes: Set<string>;
   node: DatabaseTreeNode;
+  rootNodes: DatabaseTreeNode[];
+  activeConnection: ConnectionProfile | null;
   depth: number;
   selectedObjectId: string;
+  storedConnections: StoredConnectionDraft[];
+  onConnectSaved: (nodeId: string) => void;
+  onDeleteSaved: (nodeId: string) => void;
   onSelectObject: (objectId: string) => void;
   onToggleNode: (nodeId: string) => void;
 }) {
   const hasChildren = Boolean(node.children?.length);
   const collapsed = collapsedNodes.has(node.id) || node.open === false;
   const selectable = node.kind === "table" || node.kind === "view";
+  const savedConnection = isSavedConnectionNodeId(node.id);
+  const deletableConnection = findStoredConnectionForNode(node, rootNodes, storedConnections);
+  const activeDatabase =
+    Boolean(deletableConnection) &&
+    Boolean(activeConnection) &&
+    activeConnection?.host === deletableConnection?.host &&
+    activeConnection?.port === deletableConnection?.port &&
+    activeConnection?.database === deletableConnection?.database &&
+    activeConnection?.user === deletableConnection?.user;
   const selected = node.id === selectedObjectId;
 
   return (
@@ -545,6 +800,7 @@ function TreeNode({
         onClick={() => {
           if (hasChildren) onToggleNode(node.id);
           if (selectable) onSelectObject(node.id);
+          if (savedConnection) onConnectSaved(node.id);
         }}
         className={cn(
           "group flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
@@ -567,8 +823,42 @@ function TreeNode({
           className={cn(selected ? "text-primary" : "text-muted-foreground")}
         />
         <span className="truncate">{node.label}</span>
-        {node.id === "connection:local-postgres" ? (
+        {node.id.startsWith("connection:") ? (
           <Circle size={7} className="ml-auto fill-emerald-400 text-emerald-400" />
+        ) : deletableConnection ? (
+          <span className="ml-auto flex items-center gap-1">
+            <span
+              title={activeDatabase ? "Active connection" : "Inactive connection"}
+              className={cn(
+                "h-2.5 w-2.5 rounded-full border",
+                activeDatabase
+                  ? "border-emerald-300/80 bg-emerald-400 shadow-[0_0_10px_hsl(142_76%_55%/0.45)]"
+                  : "border-amber-300/70 bg-amber-300/75 shadow-[0_0_6px_hsl(43_96%_56%/0.16)]",
+              )}
+            />
+            <span
+              role="button"
+              tabIndex={0}
+              title="Delete connection"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDeleteSaved(
+                  savedConnection ? node.id : savedConnectionNodeId(deletableConnection),
+                );
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                event.stopPropagation();
+                onDeleteSaved(
+                  savedConnection ? node.id : savedConnectionNodeId(deletableConnection),
+                );
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus:bg-muted focus:text-destructive"
+            >
+              <Trash2 size={12} />
+            </span>
+          </span>
         ) : null}
       </button>
       {!collapsed && hasChildren ? (
@@ -579,7 +869,12 @@ function TreeNode({
               collapsedNodes={collapsedNodes}
               depth={depth + 1}
               node={child}
+              rootNodes={rootNodes}
+              activeConnection={activeConnection}
               selectedObjectId={selectedObjectId}
+              storedConnections={storedConnections}
+              onConnectSaved={onConnectSaved}
+              onDeleteSaved={onDeleteSaved}
               onSelectObject={onSelectObject}
               onToggleNode={onToggleNode}
             />
@@ -637,6 +932,151 @@ function EditorTabs({
   );
 }
 
+function EmptyWorkspace({
+  hasStoredConnections,
+  onNewConnection,
+}: {
+  hasStoredConnections: boolean;
+  onNewConnection: () => void;
+}) {
+  return (
+    <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[hsl(220_13%_8%)] px-8">
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.28)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.22)_1px,transparent_1px)] bg-[size:44px_44px] opacity-30" />
+      <div className="relative grid max-w-[520px] justify-items-center gap-5 text-center">
+        {hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
+        <div className="grid gap-2">
+          <h2 className="text-[18px] font-semibold text-foreground">
+            {hasStoredConnections ? "No active database connection" : "No connections yet"}
+          </h2>
+          <p className="max-w-[460px] text-[13px] leading-6 text-muted-foreground">
+            {hasStoredConnections
+              ? "Select a saved database from the explorer and enter its password to unlock the workspace."
+              : "Add a PostgreSQL connection to inspect schemas, tables, views, columns, and indexes."}
+          </p>
+        </div>
+        <button
+          onClick={onNewConnection}
+          className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
+        >
+          <Plus size={15} />
+          Connection
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function NoConnectionEmptySvg() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 180 136"
+      className="h-28 w-40 text-primary drop-shadow-[0_0_24px_hsl(var(--primary)/0.16)]"
+    >
+      <rect
+        x="34"
+        y="22"
+        width="112"
+        height="76"
+        rx="8"
+        fill="hsl(var(--panel-soft))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M52 44h76M52 62h52M52 80h64"
+        stroke="hsl(var(--muted-foreground))"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M58 116h64M74 98l-10 18M106 98l10 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="137"
+        cy="31"
+        r="15"
+        fill="hsl(var(--background))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path d="M131 31h12M137 25v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SavedConnectionEmptySvg() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 180 136"
+      className="h-28 w-40 text-primary drop-shadow-[0_0_24px_hsl(var(--primary)/0.16)]"
+    >
+      <rect
+        x="28"
+        y="26"
+        width="52"
+        height="70"
+        rx="8"
+        fill="hsl(var(--panel-soft))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <rect
+        x="100"
+        y="26"
+        width="52"
+        height="70"
+        rx="8"
+        fill="hsl(var(--panel-soft))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M80 61h20"
+        stroke="hsl(var(--muted-foreground))"
+        strokeWidth="2"
+        strokeDasharray="4 5"
+        strokeLinecap="round"
+      />
+      <circle cx="54" cy="48" r="5" fill="currentColor" />
+      <circle cx="126" cy="48" r="5" fill="currentColor" />
+      <path
+        d="M46 70h16M118 70h16M46 82h22M118 82h22"
+        stroke="hsl(var(--muted-foreground))"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M78 111c10-14 14-14 24 0 10 14 14 14 24 0"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <circle
+        cx="90"
+        cy="111"
+        r="4"
+        fill="hsl(var(--background))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle
+        cx="114"
+        cy="111"
+        r="4"
+        fill="hsl(var(--background))"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function QueryToolbar({
   onCycleLimit,
   onCycleSchema,
@@ -688,7 +1128,7 @@ function QueryToolbar({
           <ChevronDown size={13} />
         </button>
       </div>
-      <div className="pr-2 text-[12px] text-muted-foreground">Mock workspace</div>
+      <div className="pr-2 text-[12px] text-muted-foreground">PostgreSQL metadata</div>
     </div>
   );
 }
@@ -774,7 +1214,7 @@ function DataGrid({ queryResult }: { queryResult: QueryResult | null }) {
   if (!queryResult) {
     return (
       <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground">
-        Run a query to load dummy results.
+        SQL execution is not enabled yet.
       </div>
     );
   }
@@ -904,23 +1344,29 @@ function ObjectDetails({
 }
 
 function ConnectionDialog({
+  initialDraft,
   onClose,
   onSave,
-  required,
 }: {
+  initialDraft: StoredConnectionDraft | null;
   onClose: () => void;
-  onSave: (draft: ConnectionDraft) => void;
-  required: boolean;
+  onSave: (draft: ConnectionDraft) => Promise<void>;
 }) {
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [draft, setDraft] = useState<ConnectionDraft>({
+  const defaultDraft: ConnectionDraft = {
     name: "Local PostgreSQL",
     host: "localhost",
     port: 5432,
     database: "databara_dev",
     user: "postgres",
+    password: "",
     sslMode: "Prefer",
+  };
+  const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [draft, setDraft] = useState<ConnectionDraft>({
+    ...defaultDraft,
+    ...initialDraft,
   });
 
   function updateDraft(key: keyof ConnectionDraft, value: string) {
@@ -930,12 +1376,27 @@ function ConnectionDialog({
     }));
   }
 
-  function testConnection() {
+  async function testConnection() {
     setTesting(true);
     setTestResult(null);
-    testMockConnection(draft)
-      .then((result) => setTestResult(result.message))
-      .finally(() => setTesting(false));
+    try {
+      const result = await testPostgresConnection({
+        ...draft,
+        name: connectionDisplayName(draft),
+      });
+      setTestResult(result.message);
+    } catch (error) {
+      setTestResult(readErrorMessage(error));
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function saveConnection() {
+    setSaving(true);
+    setTestResult(null);
+    await onSave({ ...draft, name: connectionDisplayName(draft) });
+    setSaving(false);
   }
 
   return (
@@ -944,21 +1405,13 @@ function ConnectionDialog({
         <div className="flex h-11 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2 font-medium">
             <KeyRound size={16} className="text-primary" />
-            New PostgreSQL connection
+            PostgreSQL connection
           </div>
-          {required ? null : (
-            <IconButton title="Close" onClick={onClose}>
-              <X size={15} />
-            </IconButton>
-          )}
+          <IconButton title="Close" onClick={onClose}>
+            <X size={15} />
+          </IconButton>
         </div>
         <div className="grid grid-cols-2 gap-3 p-4">
-          <Field
-            label="Name"
-            value={draft.name}
-            onChange={(value) => updateDraft("name", value)}
-            className="col-span-2"
-          />
           <Field label="Host" value={draft.host} onChange={(value) => updateDraft("host", value)} />
           <Field
             label="Port"
@@ -971,7 +1424,12 @@ function ConnectionDialog({
             onChange={(value) => updateDraft("database", value)}
           />
           <Field label="User" value={draft.user} onChange={(value) => updateDraft("user", value)} />
-          <Field label="Password" value="********" onChange={() => undefined} type="password" />
+          <Field
+            label="Password"
+            value={draft.password}
+            onChange={(value) => updateDraft("password", value)}
+            type="password"
+          />
           <label className="grid gap-1.5 text-[12px] text-muted-foreground">
             SSL mode
             <select
@@ -989,9 +1447,7 @@ function ConnectionDialog({
               <span className="text-emerald-300">{testResult}</span>
             ) : (
               <span className="text-muted-foreground">
-                {required
-                  ? "Create a mock connection to unlock the workspace. No database driver is called."
-                  : "This saves a mock connection only. No database driver is called."}
+                Password is used for this session only and is not saved.
               </span>
             )}
           </div>
@@ -999,16 +1455,140 @@ function ConnectionDialog({
         <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
           <button
             onClick={testConnection}
+            disabled={testing || saving}
             className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
           >
             {testing ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
             Test connection
           </button>
           <button
-            onClick={() => onSave(draft)}
-            className="h-8 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
+            onClick={saveConnection}
+            disabled={testing || saving}
+            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Save
+            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+            Connect
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordConnectionDialog({
+  connection,
+  onClose,
+  onConnect,
+}: {
+  connection: StoredConnectionDraft;
+  onClose: () => void;
+  onConnect: (connection: StoredConnectionDraft, password: string) => Promise<void>;
+}) {
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function connect() {
+    setSaving(true);
+    setError(null);
+    try {
+      await onConnect(connection, password);
+    } catch (connectError) {
+      setError(readErrorMessage(connectError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6 backdrop-blur-sm">
+      <div className="chrome-panel hairline w-full max-w-[420px] rounded border border-border shadow-2xl">
+        <div className="flex h-11 items-center justify-between border-b border-border px-4">
+          <div className="flex min-w-0 items-center gap-2 font-medium">
+            <KeyRound size={16} className="shrink-0 text-primary" />
+            <span className="truncate">Connect to {connection.database}</span>
+          </div>
+          <IconButton title="Close" onClick={onClose}>
+            <X size={15} />
+          </IconButton>
+        </div>
+        <div className="grid gap-3 p-4">
+          <div className="grid gap-1 text-[12px] text-muted-foreground">
+            <div className="truncate font-mono text-foreground">
+              {connection.user}@{connection.host}:{connection.port}
+            </div>
+            <div>Enter the password for this session.</div>
+          </div>
+          <Field
+            label="Password"
+            value={password}
+            onChange={setPassword}
+            type="password"
+            className="col-span-1"
+          />
+          <div className="min-h-5 text-[12px]">
+            {error ? <span className="text-destructive">{error}</span> : null}
+          </div>
+        </div>
+        <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
+          <button onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
+            Cancel
+          </button>
+          <button
+            onClick={connect}
+            disabled={saving}
+            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+            Connect
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConnectionDialog({
+  connection,
+  onCancel,
+  onConfirm,
+}: {
+  connection: StoredConnectionDraft;
+  onCancel: () => void;
+  onConfirm: (connection: StoredConnectionDraft) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-6 backdrop-blur-sm">
+      <div className="chrome-panel hairline w-full max-w-[420px] rounded border border-border shadow-2xl">
+        <div className="flex h-11 items-center justify-between border-b border-border px-4">
+          <div className="flex min-w-0 items-center gap-2 font-medium">
+            <Trash2 size={16} className="shrink-0 text-destructive" />
+            <span className="truncate">Delete connection</span>
+          </div>
+          <IconButton title="Close" onClick={onCancel}>
+            <X size={15} />
+          </IconButton>
+        </div>
+        <div className="grid gap-3 p-4 text-[12px] text-muted-foreground">
+          <div>
+            Delete the saved connection for{" "}
+            <span className="font-mono text-foreground">{connection.database}</span>?
+          </div>
+          <div className="truncate font-mono text-foreground">
+            {connection.user}@{connection.host}:{connection.port}
+          </div>
+          <div>This removes the saved profile from this device.</div>
+        </div>
+        <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
+          <button onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(connection)}
+            className="flex h-8 items-center gap-1.5 rounded bg-destructive px-3 text-[12px] font-semibold text-destructive-foreground hover:brightness-110"
+          >
+            <Trash2 size={14} />
+            Delete
           </button>
         </div>
       </div>
@@ -1036,24 +1616,26 @@ function StatusBar({
             ? `${activeConnection.engine} ${activeConnection.engineVersion}`
             : "PostgreSQL"}
         </span>
-        <span>{activeConnection?.database ?? "databara_dev"}</span>
-        <span>{activeConnection?.defaultSchema ?? "public"}</span>
+        <span>{activeConnection?.database ?? "No database connected"}</span>
+        <span>{activeConnection?.defaultSchema ?? "--"}</span>
       </div>
-      <div
-        className={cn(
-          "flex items-center gap-1.5",
-          queryState === "success" && "text-emerald-300",
-          queryState === "error" && "text-destructive",
-          toast.tone === "warning" && "text-amber-300",
-        )}
-      >
-        {queryState === "running" ? (
-          <Loader2 size={13} className="animate-spin" />
-        ) : (
-          <Activity size={13} />
-        )}
-        {statusText}
-      </div>
+      {statusText ? (
+        <div
+          className={cn(
+            "flex items-center gap-1.5",
+            queryState === "success" && "text-emerald-300",
+            queryState === "error" && "text-destructive",
+            toast.tone === "warning" && "text-amber-300",
+          )}
+        >
+          {queryState === "running" ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <Activity size={13} />
+          )}
+          {statusText}
+        </div>
+      ) : null}
     </footer>
   );
 }
