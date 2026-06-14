@@ -50,6 +50,7 @@ import {
 
 type QueryState = "idle" | "running" | "success" | "error" | "cancelled";
 type Toast = { text: string; tone?: "default" | "success" | "warning" };
+type ConnectionFormDraft = Omit<ConnectionDraft, "port"> & { port: string };
 
 const rowLimits = [25, 50, 100, 500];
 const schemas = ["public", "analytics"];
@@ -64,6 +65,10 @@ function savedConnectionNodeId(connection: StoredConnectionDraft) {
 
 function activeDatabaseNodeId(connection: StoredConnectionDraft) {
   return `database:${connection.database}`;
+}
+
+function connectionKey(connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">) {
+  return `${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
 function isSavedConnectionNodeId(nodeId: string) {
@@ -249,6 +254,31 @@ function connectionDisplayName(draft: Pick<ConnectionDraft, "database" | "host" 
   return `${draft.database} (${draft.host}:${draft.port})`;
 }
 
+function buildConnectionDraft(formDraft: ConnectionFormDraft): ConnectionDraft {
+  const host = formDraft.host.trim();
+  const port = formDraft.port.trim();
+  const database = formDraft.database.trim();
+  const user = formDraft.user.trim();
+
+  if (!host || !port || !database || !user) {
+    throw new Error("Host, port, database, and user are required.");
+  }
+
+  const parsedPort = Number(port);
+  if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
+    throw new Error("Port must be a valid positive number.");
+  }
+
+  return {
+    ...formDraft,
+    host,
+    port: parsedPort,
+    database,
+    user,
+    password: formDraft.password,
+  };
+}
+
 export function App() {
   const [storedConnections, setStoredConnections] = useState<StoredConnectionDraft[]>(() =>
     loadStoredConnections(),
@@ -273,7 +303,7 @@ export function App() {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [rowLimit, setRowLimit] = useState(100);
   const [schema, setSchema] = useState("public");
-  const [toast, setToast] = useState<Toast>(() => ({
+  const [, setToast] = useState<Toast>(() => ({
     text: "Ready",
   }));
   const [refreshing, setRefreshing] = useState(false);
@@ -286,6 +316,10 @@ export function App() {
   const explorerTree = useMemo(
     () => buildStoredConnectionTree(storedConnections, activeExplorerTree),
     [activeExplorerTree, storedConnections],
+  );
+  const connectedConnectionKeys = useMemo(
+    () => new Set(connections.map((connection) => connectionKey(connection))),
+    [connections],
   );
 
   useEffect(() => {
@@ -310,17 +344,6 @@ export function App() {
       cancelled = true;
     };
   }, [activeConnection, requiresConnection, selectedObjectId]);
-
-  const statusText = useMemo(() => {
-    if (queryState === "running") return "Running query...";
-    if (queryState === "success" && queryResult) {
-      return `${queryResult.rowCount} rows returned in ${queryResult.durationMs} ms`;
-    }
-    if (queryState === "cancelled") return "Query cancelled";
-    if (queryState === "error") return "Query failed";
-    if (requiresConnection) return "";
-    return toast.text;
-  }, [queryResult, queryState, requiresConnection, toast.text]);
 
   function notify(text: string, tone: Toast["tone"] = "default") {
     setToast({ text, tone });
@@ -544,6 +567,7 @@ export function App() {
       >
         <Explorer
           activeConnection={activeConnection}
+          connectedConnectionKeys={connectedConnectionKeys}
           nodes={explorerTree}
           storedConnections={storedConnections}
           collapsedNodes={collapsedNodes}
@@ -632,9 +656,6 @@ export function App() {
       </div>
       <StatusBar
         activeConnection={activeConnection}
-        queryState={queryState}
-        statusText={statusText}
-        toast={toast}
       />
       {connectionDialogOpen ? (
         <ConnectionDialog
@@ -682,6 +703,7 @@ function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
 
 function Explorer({
   activeConnection,
+  connectedConnectionKeys,
   nodes,
   storedConnections,
   collapsedNodes,
@@ -695,6 +717,7 @@ function Explorer({
   onRefresh,
 }: {
   activeConnection: ConnectionProfile | null;
+  connectedConnectionKeys: Set<string>;
   nodes: DatabaseTreeNode[];
   storedConnections: StoredConnectionDraft[];
   collapsedNodes: Set<string>;
@@ -741,7 +764,7 @@ function Explorer({
             depth={0}
             node={node}
             rootNodes={nodes}
-            activeConnection={activeConnection}
+            connectedConnectionKeys={connectedConnectionKeys}
             selectedObjectId={selectedObjectId}
             storedConnections={storedConnections}
             onConnectSaved={onConnectSaved}
@@ -759,7 +782,7 @@ function TreeNode({
   collapsedNodes,
   node,
   rootNodes,
-  activeConnection,
+  connectedConnectionKeys,
   depth,
   selectedObjectId,
   storedConnections,
@@ -771,7 +794,7 @@ function TreeNode({
   collapsedNodes: Set<string>;
   node: DatabaseTreeNode;
   rootNodes: DatabaseTreeNode[];
-  activeConnection: ConnectionProfile | null;
+  connectedConnectionKeys: Set<string>;
   depth: number;
   selectedObjectId: string;
   storedConnections: StoredConnectionDraft[];
@@ -785,13 +808,9 @@ function TreeNode({
   const selectable = node.kind === "table" || node.kind === "view";
   const savedConnection = isSavedConnectionNodeId(node.id);
   const deletableConnection = findStoredConnectionForNode(node, rootNodes, storedConnections);
-  const activeDatabase =
-    Boolean(deletableConnection) &&
-    Boolean(activeConnection) &&
-    activeConnection?.host === deletableConnection?.host &&
-    activeConnection?.port === deletableConnection?.port &&
-    activeConnection?.database === deletableConnection?.database &&
-    activeConnection?.user === deletableConnection?.user;
+  const connectedDatabase = deletableConnection
+    ? connectedConnectionKeys.has(connectionKey(deletableConnection))
+    : false;
   const selected = node.id === selectedObjectId;
 
   return (
@@ -828,10 +847,10 @@ function TreeNode({
         ) : deletableConnection ? (
           <span className="ml-auto flex items-center gap-1">
             <span
-              title={activeDatabase ? "Active connection" : "Inactive connection"}
+              title={connectedDatabase ? "Connected" : "Saved connection"}
               className={cn(
                 "h-2.5 w-2.5 rounded-full border",
-                activeDatabase
+                connectedDatabase
                   ? "border-emerald-300/80 bg-emerald-400 shadow-[0_0_10px_hsl(142_76%_55%/0.45)]"
                   : "border-amber-300/70 bg-amber-300/75 shadow-[0_0_6px_hsl(43_96%_56%/0.16)]",
               )}
@@ -870,7 +889,7 @@ function TreeNode({
               depth={depth + 1}
               node={child}
               rootNodes={rootNodes}
-              activeConnection={activeConnection}
+              connectedConnectionKeys={connectedConnectionKeys}
               selectedObjectId={selectedObjectId}
               storedConnections={storedConnections}
               onConnectSaved={onConnectSaved}
@@ -1352,37 +1371,50 @@ function ConnectionDialog({
   onClose: () => void;
   onSave: (draft: ConnectionDraft) => Promise<void>;
 }) {
-  const defaultDraft: ConnectionDraft = {
-    name: "Local PostgreSQL",
-    host: "localhost",
-    port: 5432,
-    database: "databara_dev",
-    user: "postgres",
+  const defaultDraft: ConnectionFormDraft = {
+    name: "",
+    host: "",
+    port: "",
+    database: "",
+    user: "",
     password: "",
     sslMode: "Prefer",
   };
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
-  const [draft, setDraft] = useState<ConnectionDraft>({
+  const [draft, setDraft] = useState<ConnectionFormDraft>({
     ...defaultDraft,
-    ...initialDraft,
+    ...(initialDraft
+      ? {
+          ...initialDraft,
+          port: String(initialDraft.port),
+        }
+      : null),
   });
 
-  function updateDraft(key: keyof ConnectionDraft, value: string) {
+  function updateDraft(key: keyof ConnectionFormDraft, value: string) {
     setDraft((current) => ({
       ...current,
-      [key]: key === "port" ? Number(value) : value,
+      [key]: value,
     }));
   }
 
   async function testConnection() {
-    setTesting(true);
     setTestResult(null);
+    let nextDraft: ConnectionDraft;
+    try {
+      nextDraft = buildConnectionDraft(draft);
+    } catch (error) {
+      setTestResult(readErrorMessage(error));
+      return;
+    }
+
+    setTesting(true);
     try {
       const result = await testPostgresConnection({
-        ...draft,
-        name: connectionDisplayName(draft),
+        ...nextDraft,
+        name: connectionDisplayName(nextDraft),
       });
       setTestResult(result.message);
     } catch (error) {
@@ -1393,10 +1425,21 @@ function ConnectionDialog({
   }
 
   async function saveConnection() {
-    setSaving(true);
     setTestResult(null);
-    await onSave({ ...draft, name: connectionDisplayName(draft) });
-    setSaving(false);
+    let nextDraft: ConnectionDraft;
+    try {
+      nextDraft = buildConnectionDraft(draft);
+    } catch (error) {
+      setTestResult(readErrorMessage(error));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave({ ...nextDraft, name: connectionDisplayName(nextDraft) });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -1411,65 +1454,87 @@ function ConnectionDialog({
             <X size={15} />
           </IconButton>
         </div>
-        <div className="grid grid-cols-2 gap-3 p-4">
-          <Field label="Host" value={draft.host} onChange={(value) => updateDraft("host", value)} />
-          <Field
-            label="Port"
-            value={String(draft.port)}
-            onChange={(value) => updateDraft("port", value)}
-          />
-          <Field
-            label="Database"
-            value={draft.database}
-            onChange={(value) => updateDraft("database", value)}
-          />
-          <Field label="User" value={draft.user} onChange={(value) => updateDraft("user", value)} />
-          <Field
-            label="Password"
-            value={draft.password}
-            onChange={(value) => updateDraft("password", value)}
-            type="password"
-          />
-          <label className="grid gap-1.5 text-[12px] text-muted-foreground">
-            SSL mode
-            <select
-              value={draft.sslMode}
-              onChange={(event) => updateDraft("sslMode", event.target.value)}
-              className="h-8 rounded border border-border bg-[hsl(var(--panel-soft))] px-2 text-foreground outline-none focus:border-primary"
-            >
-              <option>Prefer</option>
-              <option>Require</option>
-              <option>Disable</option>
-            </select>
-          </label>
-          <div className="col-span-2 min-h-6 text-[12px]">
-            {testResult ? (
-              <span className="text-emerald-300">{testResult}</span>
-            ) : (
-              <span className="text-muted-foreground">
-                Password is used for this session only and is not saved.
-              </span>
-            )}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveConnection();
+          }}
+        >
+          <div className="grid grid-cols-2 gap-3 p-4">
+            <Field
+              label="Host"
+              value={draft.host}
+              onChange={(value) => updateDraft("host", value)}
+              placeholder="localhost"
+              autoFocus
+            />
+            <Field
+              label="Port"
+              value={draft.port}
+              onChange={(value) => updateDraft("port", value)}
+              placeholder="5432"
+            />
+            <Field
+              label="Database"
+              value={draft.database}
+              onChange={(value) => updateDraft("database", value)}
+              placeholder="databara_dev"
+            />
+            <Field
+              label="User"
+              value={draft.user}
+              onChange={(value) => updateDraft("user", value)}
+              placeholder="postgres"
+            />
+            <Field
+              label="Password"
+              value={draft.password}
+              onChange={(value) => updateDraft("password", value)}
+              type="password"
+              placeholder="Enter password"
+            />
+            <label className="grid gap-1.5 text-[12px] text-muted-foreground">
+              SSL mode
+              <select
+                value={draft.sslMode}
+                onChange={(event) => updateDraft("sslMode", event.target.value)}
+                className="h-8 rounded border border-border bg-[hsl(var(--panel-soft))] px-2 text-foreground outline-none focus:border-primary"
+              >
+                <option>Prefer</option>
+                <option>Require</option>
+                <option>Disable</option>
+              </select>
+            </label>
+            <div className="col-span-2 min-h-6 text-[12px]">
+              {testResult ? (
+                <span className="text-emerald-300">{testResult}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Password is used for this session only and is not saved.
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
-          <button
-            onClick={testConnection}
-            disabled={testing || saving}
-            className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
-          >
-            {testing ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
-            Test connection
-          </button>
-          <button
-            onClick={saveConnection}
-            disabled={testing || saving}
-            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Connect
-          </button>
-        </div>
+          <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
+            <button
+              type="button"
+              onClick={() => void testConnection()}
+              disabled={testing || saving}
+              className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
+            >
+              {testing ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
+              Test connection
+            </button>
+            <button
+              type="submit"
+              disabled={testing || saving}
+              className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+              Connect
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -1512,37 +1577,46 @@ function PasswordConnectionDialog({
             <X size={15} />
           </IconButton>
         </div>
-        <div className="grid gap-3 p-4">
-          <div className="grid gap-1 text-[12px] text-muted-foreground">
-            <div className="truncate font-mono text-foreground">
-              {connection.user}@{connection.host}:{connection.port}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void connect();
+          }}
+        >
+          <div className="grid gap-3 p-4">
+            <div className="grid gap-1 text-[12px] text-muted-foreground">
+              <div className="truncate font-mono text-foreground">
+                {connection.user}@{connection.host}:{connection.port}
+              </div>
+              <div>Enter the password for this session.</div>
             </div>
-            <div>Enter the password for this session.</div>
+            <Field
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              type="password"
+              className="col-span-1"
+              placeholder="Enter password"
+              autoFocus
+            />
+            <div className="min-h-5 text-[12px]">
+              {error ? <span className="text-destructive">{error}</span> : null}
+            </div>
           </div>
-          <Field
-            label="Password"
-            value={password}
-            onChange={setPassword}
-            type="password"
-            className="col-span-1"
-          />
-          <div className="min-h-5 text-[12px]">
-            {error ? <span className="text-destructive">{error}</span> : null}
+          <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
+            <button type="button" onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+              Connect
+            </button>
           </div>
-        </div>
-        <div className="flex h-12 items-center justify-end gap-2 border-t border-border px-4">
-          <button onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
-            Cancel
-          </button>
-          <button
-            onClick={connect}
-            disabled={saving}
-            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Connect
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -1596,19 +1670,9 @@ function DeleteConnectionDialog({
   );
 }
 
-function StatusBar({
-  activeConnection,
-  statusText,
-  queryState,
-  toast,
-}: {
-  activeConnection: ConnectionProfile | null;
-  statusText: string;
-  queryState: QueryState;
-  toast: Toast;
-}) {
+function StatusBar({ activeConnection }: { activeConnection: ConnectionProfile | null }) {
   return (
-    <footer className="chrome-panel flex h-7 shrink-0 items-center justify-between border-t border-border px-3 text-[12px] text-muted-foreground">
+    <footer className="chrome-panel flex h-7 shrink-0 items-center border-t border-border px-3 text-[12px] text-muted-foreground">
       <div className="flex items-center gap-3">
         <span className="flex items-center gap-1.5">
           <Circle size={7} className="fill-emerald-400 text-emerald-400" />
@@ -1619,23 +1683,6 @@ function StatusBar({
         <span>{activeConnection?.database ?? "No database connected"}</span>
         <span>{activeConnection?.defaultSchema ?? "--"}</span>
       </div>
-      {statusText ? (
-        <div
-          className={cn(
-            "flex items-center gap-1.5",
-            queryState === "success" && "text-emerald-300",
-            queryState === "error" && "text-destructive",
-            toast.tone === "warning" && "text-amber-300",
-          )}
-        >
-          {queryState === "running" ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <Activity size={13} />
-          )}
-          {statusText}
-        </div>
-      ) : null}
     </footer>
   );
 }
@@ -1671,15 +1718,19 @@ function SectionTitle({ children, className }: { children: React.ReactNode; clas
 }
 
 function Field({
+  autoFocus,
   className,
   label,
   onChange,
+  placeholder,
   type = "text",
   value,
 }: {
+  autoFocus?: boolean;
   className?: string;
   label: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   type?: string;
   value: string;
 }) {
@@ -1687,9 +1738,11 @@ function Field({
     <label className={cn("grid gap-1.5 text-[12px] text-muted-foreground", className)}>
       {label}
       <input
+        autoFocus={autoFocus}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
         className="h-8 rounded border border-border bg-[hsl(var(--panel-soft))] px-2 text-foreground outline-none focus:border-primary"
       />
     </label>
