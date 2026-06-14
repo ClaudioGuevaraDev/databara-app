@@ -6,7 +6,7 @@ use std::{
 
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Manager, State};
 use thiserror::Error;
 use tokio::time::timeout;
 use tokio_postgres::{config::SslMode, Client, Config, NoTls};
@@ -14,6 +14,8 @@ use tokio_postgres::{config::SslMode, Client, Config, NoTls};
 #[derive(Default)]
 struct AppState {
     sessions: HashMap<String, PostgresSession>,
+    has_unsaved_sql_tabs: bool,
+    allow_next_close: bool,
 }
 
 struct PostgresSession {
@@ -37,6 +39,8 @@ enum AppError {
     Timeout,
     #[error("Internal state lock failed")]
     StateLock,
+    #[error("Main window not found")]
+    MainWindowNotFound,
 }
 
 impl Serialize for AppError {
@@ -183,11 +187,6 @@ async fn connect_postgres(
     let started = Instant::now();
     let (client, version) = open_postgres_connection(&draft).await?;
     let tree = list_tree_for_client(&client, &draft.host, draft.port, &draft.database).await?;
-    let selected_object_id = first_selectable_object(&tree);
-    let selected_object = match &selected_object_id {
-        Some(object_id) => Some(load_object_details(&client, object_id).await?),
-        None => None,
-    };
     let connection_id = connection_id(&draft);
     let profile = ConnectionProfile {
         id: connection_id.clone(),
@@ -216,8 +215,8 @@ async fn connect_postgres(
     Ok(ConnectResult {
         connection: profile,
         tree,
-        selected_object_id,
-        selected_object,
+        selected_object_id: None,
+        selected_object: None,
     })
 }
 
@@ -238,6 +237,35 @@ async fn get_postgres_object_details(
 ) -> Result<DatabaseObjectDetails, AppError> {
     let (client, _) = session(&state, &connection_id)?;
     load_object_details(&client, &object_id).await
+}
+
+#[tauri::command]
+fn set_unsaved_sql_tabs(
+    state: State<'_, Mutex<AppState>>,
+    has_unsaved: bool,
+) -> Result<(), AppError> {
+    let mut guard = state.lock().map_err(|_| AppError::StateLock)?;
+    guard.has_unsaved_sql_tabs = has_unsaved;
+    Ok(())
+}
+
+#[tauri::command]
+fn close_main_window_after_unsaved_resolution(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), AppError> {
+    {
+        let mut guard = state.lock().map_err(|_| AppError::StateLock)?;
+        guard.has_unsaved_sql_tabs = false;
+        guard.allow_next_close = true;
+    }
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or(AppError::MainWindowNotFound)?;
+    window
+        .close()
+        .map_err(|error| AppError::Connection(error.to_string()))
 }
 
 fn session(
@@ -540,24 +568,6 @@ fn parse_object_id(object_id: &str) -> Result<CatalogObject, AppError> {
     })
 }
 
-fn first_selectable_object(nodes: &[DatabaseTreeNode]) -> Option<String> {
-    for node in nodes {
-        if matches!(
-            node.kind,
-            DatabaseObjectKind::Table | DatabaseObjectKind::View
-        ) {
-            return Some(node.id.clone());
-        }
-        if let Some(children) = &node.children {
-            if let Some(id) = first_selectable_object(children) {
-                return Some(id);
-            }
-        }
-    }
-
-    None
-}
-
 fn connection_id(draft: &ConnectionDraft) -> String {
     format!(
         "{}-{}-{}-{}",
@@ -586,11 +596,38 @@ fn sanitize_id(value: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(AppState::default()))
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let should_prompt = window
+                    .state::<Mutex<AppState>>()
+                    .lock()
+                    .map(|mut guard| {
+                        if guard.allow_next_close {
+                            guard.allow_next_close = false;
+                            false
+                        } else {
+                            guard.has_unsaved_sql_tabs
+                        }
+                    })
+                    .unwrap_or(false);
+
+                if should_prompt {
+                    api.prevent_close();
+                    if let Some(webview_window) = window.get_webview_window(window.label()) {
+                        let _ = webview_window.eval(
+                            "window.dispatchEvent(new CustomEvent('databara-unsaved-tabs-close-requested'));",
+                        );
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             test_postgres_connection,
             connect_postgres,
             list_postgres_tree,
-            get_postgres_object_details
+            get_postgres_object_details,
+            set_unsaved_sql_tabs,
+            close_main_window_after_unsaved_resolution
         ])
         .run(tauri::generate_context!())
         .expect("error while running Databara");

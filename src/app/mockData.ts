@@ -56,7 +56,11 @@ export type SqlTab = {
   id: string;
   label: string;
   sql: string;
+  savedSql?: string;
   dirty: boolean;
+  state: "temporary" | "official";
+  objectId?: string;
+  connectionKey?: string;
 };
 
 export type QueryHistoryItem = {
@@ -292,12 +296,21 @@ order by last_order_at desc
 limit 100;`;
 
 export const mockSqlTabs: SqlTab[] = [
-  { id: "tab:customer-activity", label: "customer_activity.sql", sql: mockSampleSql, dirty: true },
+  {
+    id: "tab:customer-activity",
+    label: "customer_activity.sql",
+    sql: mockSampleSql,
+    savedSql: mockSampleSql,
+    dirty: true,
+    state: "official",
+  },
   {
     id: "tab:invoice-aging",
     label: "invoice aging",
     sql: "select status, count(*) as invoices from public.invoices group by status;",
+    savedSql: "select status, count(*) as invoices from public.invoices group by status;",
     dirty: false,
+    state: "official",
   },
 ];
 

@@ -40,6 +40,14 @@ export async function getPostgresObjectDetails(
   return invoke<DatabaseObjectDetails>("get_postgres_object_details", { connectionId, objectId });
 }
 
+export async function setUnsavedSqlTabs(hasUnsaved: boolean): Promise<void> {
+  return invoke<void>("set_unsaved_sql_tabs", { hasUnsaved });
+}
+
+export async function closeMainWindowAfterUnsavedResolution(): Promise<void> {
+  return invoke<void>("close_main_window_after_unsaved_resolution");
+}
+
 export function loadStoredConnections(): StoredConnectionDraft[] {
   const rawConnections = window.localStorage.getItem(storedConnectionsKey);
 
