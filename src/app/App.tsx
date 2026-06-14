@@ -979,6 +979,8 @@ export function App() {
           {requiresConnection ? (
             <EmptyWorkspace
               hasStoredConnections={hasStoredConnections}
+              storedConnections={storedConnections}
+              onConnectSaved={openSavedConnection}
               onNewConnection={openNewConnectionDialog}
             />
           ) : (
@@ -1465,33 +1467,99 @@ function EmptyEditor() {
 
 function EmptyWorkspace({
   hasStoredConnections,
+  storedConnections,
+  onConnectSaved,
   onNewConnection,
 }: {
   hasStoredConnections: boolean;
+  storedConnections: StoredConnectionDraft[];
+  onConnectSaved: (nodeId: string) => void;
   onNewConnection: () => void;
 }) {
   return (
     <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[hsl(220_13%_8%)] px-8">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.28)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.22)_1px,transparent_1px)] bg-[size:44px_44px] opacity-30" />
-      <div className="relative grid max-w-[520px] justify-items-center gap-5 text-center">
+      <div className="relative grid w-full max-w-[520px] justify-items-center gap-5 text-center">
         {hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
         <div className="grid gap-2">
           <h2 className="text-[18px] font-semibold text-foreground">
             {hasStoredConnections ? "No active database connection" : "No connections yet"}
           </h2>
-          <p className="max-w-[460px] text-[13px] leading-6 text-muted-foreground">
-            {hasStoredConnections
-              ? "Select a saved database from the explorer and enter its password to unlock the workspace."
-              : "Add a PostgreSQL connection to inspect schemas, tables, views, columns, and indexes."}
-          </p>
+          {hasStoredConnections ? null : (
+            <p className="max-w-[460px] text-[13px] leading-6 text-muted-foreground">
+              Add a PostgreSQL connection to inspect schemas, tables, views, columns, and indexes.
+            </p>
+          )}
         </div>
-        <button
-          onClick={onNewConnection}
-          className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
-        >
-          <Plus size={15} />
-          Connection
-        </button>
+        {hasStoredConnections ? (
+          <div className="chrome-panel hairline w-full max-w-[520px] overflow-hidden rounded-lg border border-border text-left shadow-[0_18px_54px_hsl(220_30%_3%/0.34)]">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 border-b border-border px-4 py-3">
+              <div className="max-w-[280px]">
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Saved connections
+                  </div>
+                  <div className="rounded-full border border-primary/20 bg-[hsl(var(--primary)/0.1)] px-2.5 py-1 text-[11px] font-semibold text-primary">
+                    {storedConnections.length}
+                  </div>
+                </div>
+                <div className="mt-1 text-[12px] text-muted-foreground">
+                  Choose a session to unlock the workspace.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onNewConnection}
+                className="flex h-8 items-center gap-1.5 self-start rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
+              >
+                <Plus size={13} />
+                New
+              </button>
+            </div>
+            <div className="max-h-[360px] overflow-y-auto p-2">
+              <div className="grid gap-2">
+                {storedConnections.map((connection) => {
+                  const nodeId = savedConnectionNodeId(connection);
+
+                  return (
+                    <div
+                      key={nodeId}
+                      className="group flex items-center gap-3 rounded-md border border-border bg-[linear-gradient(180deg,hsl(var(--panel-soft)/0.86),hsl(var(--panel)/0.92))] px-3 py-3 transition-colors hover:border-primary/35"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[linear-gradient(180deg,hsl(var(--primary)/0.16),hsl(var(--primary)/0.08))] text-primary shadow-[inset_0_1px_0_hsl(0_0%_100%/0.04)]">
+                        <KeyRound size={15} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-semibold text-foreground">
+                          {connection.database}
+                        </div>
+                        <div className="truncate text-[12px] text-muted-foreground">
+                          {connection.user}@{connection.host}:{connection.port}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onConnectSaved(nodeId)}
+                        className="flex h-8 shrink-0 items-center gap-1.5 rounded border border-primary/25 bg-[hsl(var(--primary)/0.12)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.18)]"
+                      >
+                        <Database size={13} />
+                        Connect
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onNewConnection}
+            className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
+          >
+            <Plus size={15} />
+            Connection
+          </button>
+        )}
       </div>
     </section>
   );
