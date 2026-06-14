@@ -5,7 +5,7 @@ import type {
   ConnectionTestResult,
   DatabaseObjectDetails,
   DatabaseTreeNode,
-} from "./mockData";
+} from "./types";
 
 export type StoredConnectionDraft = Omit<ConnectionDraft, "password">;
 

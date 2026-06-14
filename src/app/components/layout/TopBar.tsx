@@ -1,0 +1,27 @@
+import { Database, Plus } from "lucide-react";
+
+export function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
+  return (
+    <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/15 text-primary">
+          <Database size={16} />
+        </div>
+        <div>
+          <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Databara
+          </div>
+          <div className="text-[13px] text-foreground">PostgreSQL workspace</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onNewConnection}
+        className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
+      >
+        <Plus size={14} />
+        Connection
+      </button>
+    </header>
+  );
+}

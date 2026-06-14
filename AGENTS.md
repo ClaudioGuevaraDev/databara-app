@@ -16,6 +16,9 @@ Keep UI, domain logic, and data access separated. Frontend components should not
 
 Use pnpm only.
 
+Dependency versions in `package.json` must be exact. Do not use semver range
+prefixes such as `^` or `~` when adding or updating frontend dependencies.
+
 ```bash
 pnpm install
 pnpm run dev
