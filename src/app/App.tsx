@@ -19,7 +19,6 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Square,
   Table2,
   Trash2,
   X,
@@ -59,8 +58,7 @@ type PersistedSqlTabs = {
   tabs: SqlTab[];
 };
 
-const rowLimits = [25, 50, 100, 500];
-const schemas = ["public", "analytics"];
+const defaultRowLimit = 100;
 const sqlTabsStoragePrefix = "databara.sqlTabs.v1";
 
 function serverNodeId(host: string, port: number) {
@@ -417,18 +415,14 @@ export function App() {
   const [sqlTabs, setSqlTabs] = useState<SqlTab[]>([]);
   const [activeTabId, setActiveTabId] = useState("");
   const [loadedSqlTabsKey, setLoadedSqlTabsKey] = useState("");
-  const [queryState, setQueryState] = useState<QueryState>("idle");
+  const [queryState] = useState<QueryState>("idle");
   const [queryResult] = useState<QueryResult | null>(null);
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
   const [resultsOpen, setResultsOpen] = useState(true);
-  const [rowLimit, setRowLimit] = useState(100);
-  const [schema, setSchema] = useState("public");
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [, setToast] = useState<Toast>(() => ({
     text: "Ready",
   }));
-  const [refreshing, setRefreshing] = useState(false);
-  const runTokenRef = useRef(0);
   const allowWindowCloseRef = useRef(false);
   const hasUnsavedTabsRef = useRef(false);
 
@@ -559,30 +553,14 @@ export function App() {
     );
   }
 
-  function createSqlTab(sql = "select now();") {
-    const tab: SqlTab = {
-      id: `tab:scratch-${Date.now()}`,
-      label: `scratch ${sqlTabs.length + 1}`,
-      sql,
-      savedSql: sql,
-      dirty: false,
-      state: "official",
-      connectionKey: activeConnectionKey,
-    };
-    setSqlTabs((tabs) => [...tabs, tab]);
-    setActiveTabId(tab.id);
-    syncExplorerSelectionWithTab(tab);
-    notify("New SQL tab created");
-  }
-
   function openTemporaryObjectTab(objectId: string) {
     if (!activeConnection) return;
 
     const tab: SqlTab = {
       id: `tab:preview:${activeConnectionKey}`,
       label: buildObjectTabLabel(objectId),
-      sql: buildDefaultObjectSql(objectId, rowLimit),
-      savedSql: buildDefaultObjectSql(objectId, rowLimit),
+      sql: buildDefaultObjectSql(objectId, defaultRowLimit),
+      savedSql: buildDefaultObjectSql(objectId, defaultRowLimit),
       dirty: false,
       state: "temporary",
       objectId,
@@ -602,7 +580,7 @@ export function App() {
     if (!activeConnection) return;
 
     const label = buildObjectTabLabel(objectId);
-    const sql = buildDefaultObjectSql(objectId, rowLimit);
+    const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
     const officialTabId = `tab:object:${activeConnectionKey}:${objectId}`;
     const existingOfficialTab = sqlTabs.find(
       (tab) => tab.state === "official" && tab.objectId === objectId,
@@ -651,17 +629,6 @@ export function App() {
     makeObjectTabOfficial(objectId);
   }
 
-  function stopQuery() {
-    if (queryState !== "running") {
-      notify("No running query to stop");
-      return;
-    }
-
-    runTokenRef.current += 1;
-    setQueryState("cancelled");
-    notify("Query cancelled", "warning");
-  }
-
   function runQuery() {
     if (requiresConnection) {
       openNewConnectionDialog();
@@ -678,14 +645,11 @@ export function App() {
       return;
     }
 
-    setRefreshing(true);
     try {
       const tree = await listPostgresTree(activeConnection!.id);
       setActiveExplorerTree((current) => mergeExplorerTree(current, tree));
-      setRefreshing(false);
       notify("Workspace refreshed", "success");
     } catch (error) {
-      setRefreshing(false);
       notify(readErrorMessage(error), "warning");
     }
   }
@@ -707,18 +671,6 @@ export function App() {
     }
 
     notify("DDL generation is not enabled yet", "warning");
-  }
-
-  function cycleLimit() {
-    const nextLimit = rowLimits[(rowLimits.indexOf(rowLimit) + 1) % rowLimits.length];
-    setRowLimit(nextLimit);
-    notify(`Row limit set to ${nextLimit}`);
-  }
-
-  function cycleSchema() {
-    const nextSchema = schemas[(schemas.indexOf(schema) + 1) % schemas.length];
-    setSchema(nextSchema);
-    notify(`Schema set to ${nextSchema}`);
   }
 
   async function copyResult() {
@@ -958,7 +910,6 @@ export function App() {
           nodes={explorerTree}
           storedConnections={storedConnections}
           collapsedNodes={collapsedNodes}
-          refreshing={refreshing}
           selectedObjectId={selectedObjectId}
           onToggleNode={(nodeId) =>
             setCollapsedNodes((current) => {
@@ -973,7 +924,6 @@ export function App() {
           onConnectSaved={openSavedConnection}
           onDeleteSaved={deleteConnection}
           onNewConnection={openNewConnectionDialog}
-          onRefresh={refreshAll}
         />
         <main className="flex min-w-0 flex-col">
           {requiresConnection ? (
@@ -990,18 +940,11 @@ export function App() {
                 activeTabId={activeTabId}
                 onClose={closeSqlTab}
                 onSelect={selectSqlTab}
-                onNewTab={() => createSqlTab()}
               />
               <QueryToolbar
                 canSave={Boolean(activeTab?.state === "official" && activeTab.dirty)}
-                queryState={queryState}
-                rowLimit={rowLimit}
-                schema={schema}
                 onRun={() => runQuery()}
                 onSave={() => void saveActiveSqlTab()}
-                onStop={stopQuery}
-                onCycleLimit={cycleLimit}
-                onCycleSchema={cycleSchema}
               />
               <section className="min-h-0 flex-1 bg-[hsl(220_13%_8%)]">
                 {activeTab ? (
@@ -1114,7 +1057,6 @@ function Explorer({
   nodes,
   storedConnections,
   collapsedNodes,
-  refreshing,
   selectedObjectId,
   onConnectSaved,
   onDeleteSaved,
@@ -1122,14 +1064,12 @@ function Explorer({
   onToggleNode,
   onSelectObject,
   onNewConnection,
-  onRefresh,
 }: {
   activeConnection: ConnectionProfile | null;
   connectedConnectionKeys: Set<string>;
   nodes: DatabaseTreeNode[];
   storedConnections: StoredConnectionDraft[];
   collapsedNodes: Set<string>;
-  refreshing: boolean;
   selectedObjectId: string;
   onConnectSaved: (nodeId: string) => void;
   onDeleteSaved: (nodeId: string) => void;
@@ -1137,7 +1077,6 @@ function Explorer({
   onToggleNode: (nodeId: string) => void;
   onSelectObject: (objectId: string) => void;
   onNewConnection: () => void;
-  onRefresh: () => void;
 }) {
   const stats = useMemo(() => getExplorerStats(nodes), [nodes]);
 
@@ -1147,14 +1086,9 @@ function Explorer({
         <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Explorer
         </div>
-        <div className="flex items-center gap-1">
-          <IconButton title="New connection" onClick={onNewConnection}>
-            <Plus size={14} />
-          </IconButton>
-          <IconButton title="Refresh" onClick={onRefresh}>
-            <RefreshCw size={14} className={cn(refreshing && "animate-spin text-primary")} />
-          </IconButton>
-        </div>
+        <IconButton title="New connection" onClick={onNewConnection}>
+          <Plus size={14} />
+        </IconButton>
       </div>
       <div className="grid grid-cols-3 gap-px border-b border-border bg-border text-center text-[11px]">
         <MetricMini value={String(stats.tables)} label="tables" />
@@ -1332,13 +1266,11 @@ function EditorTabs({
   activeTabId,
   onClose,
   onSelect,
-  onNewTab,
 }: {
   tabs: SqlTab[];
   activeTabId: string;
   onClose: (tabId: string) => void;
   onSelect: (tabId: string) => void;
-  onNewTab: () => void;
 }) {
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -1446,13 +1378,6 @@ function EditorTabs({
       >
         <ChevronRight size={15} />
       </IconButton>
-      <button
-        className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground"
-        title="New SQL tab"
-        onClick={onNewTab}
-      >
-        <Plus size={15} />
-      </button>
     </div>
   );
 }
@@ -1460,7 +1385,7 @@ function EditorTabs({
 function EmptyEditor() {
   return (
     <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground">
-      Select a table or create a SQL tab.
+      Select a table to open SQL.
     </div>
   );
 }
@@ -1513,7 +1438,7 @@ function EmptyWorkspace({
                 className="flex h-8 items-center gap-1.5 self-start rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
               >
                 <Plus size={13} />
-                New
+                New Connection
               </button>
             </div>
             <div className="max-h-[360px] overflow-y-auto p-2">
@@ -1678,43 +1603,23 @@ function SavedConnectionEmptySvg() {
 
 function QueryToolbar({
   canSave,
-  onCycleLimit,
-  onCycleSchema,
   onRun,
   onSave,
-  onStop,
-  queryState,
-  rowLimit,
-  schema,
 }: {
   canSave: boolean;
-  onCycleLimit: () => void;
-  onCycleSchema: () => void;
   onRun: () => void;
   onSave: () => void;
-  onStop: () => void;
-  queryState: QueryState;
-  rowLimit: number;
-  schema: string;
 }) {
   return (
-    <div className="chrome-panel flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
+    <div className="chrome-panel flex h-10 shrink-0 items-center border-b border-border px-2">
       <div className="flex items-center gap-1">
         <button
           onClick={onRun}
-          disabled={queryState === "running"}
           className="flex h-7 items-center gap-1.5 rounded bg-primary px-2.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.14)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {queryState === "running" ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Play size={14} />
-          )}
+          <Play size={14} />
           Run
         </button>
-        <IconButton title="Stop query" onClick={onStop} disabled={queryState !== "running"}>
-          <Square size={13} />
-        </IconButton>
         <button
           onClick={onSave}
           disabled={!canSave}
@@ -1729,23 +1634,7 @@ function QueryToolbar({
           <Save size={14} />
           Save
         </button>
-        <div className="mx-1 h-5 w-px bg-border" />
-        <button
-          onClick={onCycleLimit}
-          className="control flex h-7 items-center gap-1.5 rounded px-2 text-[12px]"
-        >
-          Limit {rowLimit}
-          <ChevronDown size={13} />
-        </button>
-        <button
-          onClick={onCycleSchema}
-          className="control flex h-7 items-center gap-1.5 rounded px-2 text-[12px]"
-        >
-          {schema}
-          <ChevronDown size={13} />
-        </button>
       </div>
-      <div className="pr-2 text-[12px] text-muted-foreground">PostgreSQL metadata</div>
     </div>
   );
 }
