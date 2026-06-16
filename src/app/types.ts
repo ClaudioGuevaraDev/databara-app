@@ -1,6 +1,6 @@
 export type ConnectionStatus = "connected" | "disconnected";
 export type DatabaseObjectKind = "database" | "schema" | "table" | "view";
-export type ResultPanelTab = "results" | "columns";
+export type ResultPanelTab = "results" | "columns" | "schema";
 export type QueryState = "idle" | "running" | "success" | "error" | "cancelled";
 
 export type ConnectionProfile = {

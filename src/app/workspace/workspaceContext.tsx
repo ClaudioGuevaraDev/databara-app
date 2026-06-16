@@ -12,6 +12,7 @@ import {
   type StoredConnectionDraft,
 } from "../databaraService";
 import { exportQueryResultCsv } from "../query/exportCsv";
+import { buildObjectSchema } from "../components/results/objectSchema";
 import {
   type ConnectionDraft,
   type ConnectionProfile,
@@ -473,13 +474,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [notify, requiresConnection, selectedObjectId],
   );
 
-  const loadDdl = useCallback(async () => {
+  const openSchemaTab = useCallback(async () => {
     if (requiresConnection) {
-      notify("Create a connection before loading DDL", "warning");
+      notify("Create a connection before opening the schema", "warning");
       return;
     }
 
-    notify("DDL generation is not enabled yet", "warning");
+    setResultsOpen(true);
+    setResultTab("schema");
   }, [notify, requiresConnection]);
 
   const copyResult = useCallback(async () => {
@@ -493,6 +495,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     );
     notify("Results copied to clipboard", "success");
   }, [notify, queryResult]);
+
+  const copySchema = useCallback(async () => {
+    if (!selectedObject) {
+      notify("Select an object before copying its schema", "warning");
+      return;
+    }
+
+    await copyText(buildObjectSchema(selectedObject));
+    notify("Schema copied to clipboard", "success");
+  }, [notify, selectedObject]);
 
   const exportCsv = useCallback(() => {
     if (!queryResult) {
@@ -684,11 +696,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       confirmDeleteConnection,
       confirmObjectTab,
       connectStoredConnection,
+      copySchema,
       copyObjectName,
       copyResult,
       deleteConnection,
       exportCsv,
-      loadDdl,
+      openSchemaTab,
       openNewConnectionDialog,
       openSavedConnection,
       previewObject,

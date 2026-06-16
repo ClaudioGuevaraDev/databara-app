@@ -46,10 +46,11 @@ export type WorkspaceActions = {
   confirmObjectTab: (objectId: string) => void;
   connectStoredConnection: (connection: StoredConnectionDraft, password: string) => Promise<void>;
   copyObjectName: () => Promise<void>;
+  copySchema: () => Promise<void>;
   copyResult: () => Promise<void>;
   deleteConnection: (nodeId: string) => void;
   exportCsv: () => void;
-  loadDdl: () => Promise<void>;
+  openSchemaTab: () => Promise<void>;
   openNewConnectionDialog: () => void;
   openSavedConnection: (nodeId: string) => void;
   previewObject: (objectId?: string) => Promise<void>;
@@ -140,6 +141,7 @@ export function useResults() {
     resultTab: state.resultTab,
     resultsOpen: state.resultsOpen,
     closeResults: actions.closeResults,
+    copySchema: actions.copySchema,
     copyResult: actions.copyResult,
     exportCsv: actions.exportCsv,
     selectResultTab: actions.selectResultTab,
@@ -151,7 +153,7 @@ export function useObjectDetailsPanel() {
   return {
     details: state.selectedObject,
     copyObjectName: actions.copyObjectName,
-    loadDdl: actions.loadDdl,
+    openSchemaTab: actions.openSchemaTab,
     previewObject: actions.previewObject,
     refreshAll: actions.refreshAll,
   };

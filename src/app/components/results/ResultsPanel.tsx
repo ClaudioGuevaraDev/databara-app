@@ -1,9 +1,10 @@
-import { Columns3, Copy, Download, Loader2, Table2, X } from "lucide-react";
+import { Braces, Columns3, Copy, Download, Loader2, Table2, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseObjectDetails, QueryResult, QueryState, ResultPanelTab } from "../../types";
 import { IconButton } from "../ui";
 import { ColumnsView } from "./ColumnsView";
 import { DataGrid } from "./DataGrid";
+import { SchemaView } from "./SchemaView";
 
 export function ResultsPanel({
   activeTab,
@@ -27,7 +28,10 @@ export function ResultsPanel({
   const tabs = [
     { id: "results" as const, icon: Table2, label: "Results" },
     { id: "columns" as const, icon: Columns3, label: "Columns" },
+    { id: "schema" as const, icon: Braces, label: "Schema" },
   ];
+  const canCopy = activeTab === "schema" ? Boolean(details) : Boolean(queryResult);
+  const canExport = activeTab === "results" && Boolean(queryResult);
 
   return (
     <section className="chrome-panel flex h-[280px] shrink-0 flex-col border-t border-border">
@@ -53,10 +57,14 @@ export function ResultsPanel({
           })}
         </div>
         <div className="flex items-center gap-1 pr-2">
-          <IconButton title="Copy" onClick={onCopy}>
+          <IconButton
+            title={activeTab === "schema" ? "Copy schema" : "Copy"}
+            disabled={!canCopy}
+            onClick={onCopy}
+          >
             <Copy size={14} />
           </IconButton>
-          <IconButton title="Export CSV" onClick={onExport}>
+          <IconButton title="Export CSV" disabled={!canExport} onClick={onExport}>
             <Download size={14} />
           </IconButton>
           <IconButton title="Close results" onClick={onClose}>
@@ -72,6 +80,8 @@ export function ResultsPanel({
           </div>
         ) : activeTab === "columns" ? (
           <ColumnsView details={details} />
+        ) : activeTab === "schema" ? (
+          <SchemaView details={details} />
         ) : (
           <DataGrid queryResult={queryResult} />
         )}

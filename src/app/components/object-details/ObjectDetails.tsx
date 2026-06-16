@@ -6,13 +6,13 @@ import { DetailRow, EmptyPanel, MetricMini, SectionTitle, SmallAction } from "..
 export function ObjectDetails({
   details,
   onCopyName,
-  onLoadDdl,
+  onOpenSchema,
   onPreview,
   onRefresh,
 }: {
   details: DatabaseObjectDetails | null;
   onCopyName: () => void;
-  onLoadDdl: () => void;
+  onOpenSchema: () => void;
   onPreview: () => void;
   onRefresh: () => void;
 }) {
@@ -69,7 +69,7 @@ export function ObjectDetails({
         <SectionTitle className="mt-5">Actions</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           <SmallAction icon={Table2} label="Preview" onClick={onPreview} />
-          <SmallAction icon={FileCode2} label="DDL" onClick={onLoadDdl} />
+          <SmallAction icon={FileCode2} label="Schema" onClick={onOpenSchema} />
           <SmallAction icon={RefreshCw} label="Refresh" onClick={onRefresh} />
           <SmallAction icon={Copy} label="Copy name" onClick={onCopyName} />
         </div>

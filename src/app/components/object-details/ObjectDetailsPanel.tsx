@@ -8,7 +8,7 @@ export function ObjectDetailsPanel() {
     <ObjectDetails
       details={objectDetails.details}
       onCopyName={() => void objectDetails.copyObjectName()}
-      onLoadDdl={() => void objectDetails.loadDdl()}
+      onOpenSchema={() => void objectDetails.openSchemaTab()}
       onPreview={() => void objectDetails.previewObject()}
       onRefresh={() => void objectDetails.refreshAll()}
     />
