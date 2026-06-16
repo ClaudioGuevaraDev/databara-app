@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDialogs } from "../../workspace/workspaceCore";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
@@ -6,35 +7,100 @@ import { UnsavedTabsDialog } from "./UnsavedTabsDialog";
 
 export function DialogsHost() {
   const dialogs = useDialogs();
+  const {
+    closeDeleteConnectionDialog,
+    closePasswordDialog,
+    closeUnsavedTabsDialog,
+    connectionDialogOpen,
+    deleteConnectionRequest,
+    dialogInitialDraft,
+    passwordConnection,
+    saveConnection,
+    setConnectionDialogOpen,
+    unsavedTabsDialogOpen,
+    closeWindowAfterResolution,
+    confirmDeleteConnection,
+    connectStoredConnection,
+  } = dialogs;
+
+  useEffect(() => {
+    function closeTopmostDialog() {
+      if (unsavedTabsDialogOpen) {
+        closeUnsavedTabsDialog();
+        return;
+      }
+
+      if (deleteConnectionRequest) {
+        closeDeleteConnectionDialog();
+        return;
+      }
+
+      if (passwordConnection) {
+        closePasswordDialog();
+        return;
+      }
+
+      if (connectionDialogOpen) {
+        setConnectionDialogOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (
+        !unsavedTabsDialogOpen &&
+        !deleteConnectionRequest &&
+        !passwordConnection &&
+        !connectionDialogOpen
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      closeTopmostDialog();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    closeDeleteConnectionDialog,
+    closePasswordDialog,
+    closeUnsavedTabsDialog,
+    connectionDialogOpen,
+    deleteConnectionRequest,
+    passwordConnection,
+    setConnectionDialogOpen,
+    unsavedTabsDialogOpen,
+  ]);
 
   return (
     <>
-      {dialogs.connectionDialogOpen ? (
+      {connectionDialogOpen ? (
         <ConnectionDialog
-          initialDraft={dialogs.dialogInitialDraft}
-          onClose={() => dialogs.setConnectionDialogOpen(false)}
-          onSave={dialogs.saveConnection}
+          initialDraft={dialogInitialDraft}
+          onClose={() => setConnectionDialogOpen(false)}
+          onSave={saveConnection}
         />
       ) : null}
-      {dialogs.passwordConnection ? (
+      {passwordConnection ? (
         <PasswordConnectionDialog
-          connection={dialogs.passwordConnection}
-          onClose={dialogs.closePasswordDialog}
-          onConnect={dialogs.connectStoredConnection}
+          connection={passwordConnection}
+          onClose={closePasswordDialog}
+          onConnect={connectStoredConnection}
         />
       ) : null}
-      {dialogs.deleteConnectionRequest ? (
+      {deleteConnectionRequest ? (
         <DeleteConnectionDialog
-          connection={dialogs.deleteConnectionRequest}
-          onCancel={dialogs.closeDeleteConnectionDialog}
-          onConfirm={dialogs.confirmDeleteConnection}
+          connection={deleteConnectionRequest}
+          onCancel={closeDeleteConnectionDialog}
+          onConfirm={confirmDeleteConnection}
         />
       ) : null}
-      {dialogs.unsavedTabsDialogOpen ? (
+      {unsavedTabsDialogOpen ? (
         <UnsavedTabsDialog
-          onCancel={dialogs.closeUnsavedTabsDialog}
-          onDiscard={() => void dialogs.closeWindowAfterResolution("discard")}
-          onSave={() => void dialogs.closeWindowAfterResolution("save")}
+          onCancel={closeUnsavedTabsDialog}
+          onDiscard={() => void closeWindowAfterResolution("discard")}
+          onSave={() => void closeWindowAfterResolution("save")}
         />
       ) : null}
     </>
