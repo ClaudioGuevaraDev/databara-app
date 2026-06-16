@@ -1,5 +1,5 @@
 import { createContext, use } from "react";
-import type { StoredConnectionDraft } from "./databaraService";
+import type { StoredConnectionDraft } from "../databaraService";
 import type {
   ColumnDefinition,
   ConnectionDraft,
@@ -10,7 +10,7 @@ import type {
   QueryResult,
   ResultPanelTab,
   SqlTab,
-} from "./types";
+} from "../types";
 
 export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;

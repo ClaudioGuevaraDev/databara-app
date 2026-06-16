@@ -1,23 +1,9 @@
 import { Braces, Copy, FileCode2, RefreshCw, Table2 } from "lucide-react";
 import type { DatabaseObjectDetails } from "../../types";
-import { formatColumn, formatIndex, useObjectDetailsPanel } from "../../workspaceCore";
+import { formatColumn, formatIndex } from "../../workspace/workspaceCore";
 import { DetailRow, EmptyPanel, MetricMini, SectionTitle, SmallAction } from "../ui";
 
-export function ObjectDetailsPanel() {
-  const objectDetails = useObjectDetailsPanel();
-
-  return (
-    <ObjectDetails
-      details={objectDetails.details}
-      onCopyName={() => void objectDetails.copyObjectName()}
-      onLoadDdl={() => void objectDetails.loadDdl()}
-      onPreview={() => void objectDetails.previewObject()}
-      onRefresh={() => void objectDetails.refreshAll()}
-    />
-  );
-}
-
-function ObjectDetails({
+export function ObjectDetails({
   details,
   onCopyName,
   onLoadDdl,

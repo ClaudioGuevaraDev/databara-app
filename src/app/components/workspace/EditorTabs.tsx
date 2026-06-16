@@ -1,0 +1,126 @@
+import { ChevronLeft, ChevronRight, FileCode2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "../../../lib/utils";
+import type { SqlTab } from "../../types";
+import { IconButton } from "../ui";
+
+export function EditorTabs({
+  activeTabId,
+  onClose,
+  onSelect,
+  tabs,
+}: {
+  activeTabId: string;
+  onClose: (tabId: string) => void;
+  onSelect: (tabId: string) => void;
+  tabs: SqlTab[];
+}) {
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  function updateScrollButtons() {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+
+    setCanScrollLeft(viewport.scrollLeft > 0);
+    setCanScrollRight(viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1);
+  }
+
+  function scrollTabs(direction: "left" | "right") {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    viewport.scrollBy({
+      behavior: "smooth",
+      left: direction === "left" ? -240 : 240,
+    });
+  }
+
+  useEffect(() => {
+    updateScrollButtons();
+
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const activeTabElement = viewport.querySelector<HTMLElement>(`[data-tab-id="${activeTabId}"]`);
+    activeTabElement?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeTabId, tabs]);
+
+  return (
+    <div className="chrome-panel flex h-9 min-w-0 shrink-0 items-stretch gap-1 border-b border-border px-1">
+      <IconButton
+        title="Scroll tabs left"
+        onClick={() => scrollTabs("left")}
+        disabled={!canScrollLeft}
+      >
+        <ChevronLeft size={15} />
+      </IconButton>
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div
+          ref={scrollViewportRef}
+          onScroll={updateScrollButtons}
+          className="flex h-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              data-tab-id={tab.id}
+              className={cn(
+                "group flex h-9 max-w-56 shrink-0 items-stretch border-r border-border text-[12.5px] transition-transform",
+                activeTabId === tab.id
+                  ? "bg-background shadow-[inset_0_2px_0_hsl(var(--primary))]"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                tab.state === "temporary" && "-skew-x-6 border-r-primary/20 bg-muted/30",
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(tab.id)}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-2 px-3 text-left",
+                  tab.state === "temporary" && "skew-x-6",
+                )}
+              >
+                <FileCode2
+                  size={14}
+                  className={cn(
+                    activeTabId === tab.id && "text-primary",
+                    tab.state === "temporary" && "opacity-75",
+                  )}
+                />
+                <span className={cn("truncate", tab.state === "temporary" && "italic")}>
+                  {tab.label}
+                </span>
+                {tab.dirty ? <span className="h-1.5 w-1.5 rounded-full bg-primary" /> : null}
+              </button>
+              <button
+                type="button"
+                title={`Close ${tab.label}`}
+                onClick={() => onClose(tab.id)}
+                className={cn(
+                  "flex w-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
+                  activeTabId === tab.id ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                  tab.state === "temporary" && "skew-x-6",
+                )}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <IconButton
+        title="Scroll tabs right"
+        onClick={() => scrollTabs("right")}
+        disabled={!canScrollRight}
+      >
+        <ChevronRight size={15} />
+      </IconButton>
+    </div>
+  );
+}

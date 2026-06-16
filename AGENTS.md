@@ -45,6 +45,7 @@ Prettier controls formatting: 2 spaces, semicolons, double quotes, 100-character
 Naming patterns:
 
 - React components: `PascalCase`
+- one React component per `.tsx` file; if a file needs multiple components, extract each one to its own file
 - hooks/utilities: `camelCase`
 - files containing components: `PascalCase.tsx` when split out
 - shared helpers: `camelCase.ts`

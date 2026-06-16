@@ -1,6 +1,6 @@
 import type { StoredConnectionDraft } from "../../databaraService";
 import type { DatabaseTreeNode } from "../../types";
-import { savedConnectionNodeId } from "../../workspaceCore";
+import { savedConnectionNodeId } from "../../workspace/workspaceCore";
 
 export function connectionKey(
   connection: Pick<StoredConnectionDraft, "host" | "port" | "database" | "user">,

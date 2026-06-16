@@ -10,8 +10,8 @@ import {
   saveStoredConnection,
   setUnsavedSqlTabs,
   type StoredConnectionDraft,
-} from "./databaraService";
-import { exportQueryResultCsv } from "./query/exportCsv";
+} from "../databaraService";
+import { exportQueryResultCsv } from "../query/exportCsv";
 import {
   type ConnectionDraft,
   type ConnectionProfile,
@@ -21,336 +21,42 @@ import {
   type QueryResult,
   type ResultPanelTab,
   type SqlTab,
-} from "./types";
+} from "../types";
 import {
   savedConnectionNodeId,
   WorkspaceContext,
   type WorkspaceContextValue,
 } from "./workspaceCore";
+import {
+  buildDefaultObjectSql,
+  buildObjectTabLabel,
+  buildStoredConnectionTree,
+  connectionDisplayName,
+  connectionKey,
+  copyText,
+  mergeExplorerTree,
+  readErrorMessage,
+  removeConnectionFromTree,
+} from "./workspaceContext.utils";
+import {
+  buildOfficialObjectTabId,
+  buildTemporaryObjectTabId,
+  createOfficialSqlTab,
+  loadSqlTabsForConnection,
+  officializeSqlTab,
+  saveSqlTabsForConnection,
+  sqlTabsStorageKey,
+} from "./workspaceSqlTabs";
 
 type Toast = { text: string; tone?: "default" | "success" | "warning" };
-type PersistedSqlTabs = {
-  activeTabId: string;
-  tabs: SqlTab[];
-};
 
 const defaultRowLimit = 100;
-const sqlTabsStoragePrefix = "databara.sqlTabs.v1";
-
-function serverNodeId(host: string, port: number) {
-  return `server:${host}:${port}`;
-}
-
-function activeDatabaseNodeId(connection: StoredConnectionDraft) {
-  return `database:${connection.database}`;
-}
-
-function connectionKey(connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">) {
-  return `${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
-}
-
-function sqlTabsStorageKey(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
-) {
-  return `${sqlTabsStoragePrefix}:${connectionKey(connection)}`;
-}
-
-function buildStoredConnectionTree(
-  storedConnections: StoredConnectionDraft[],
-  activeTree: DatabaseTreeNode[],
-) {
-  const serverNodes = new Map<string, DatabaseTreeNode>();
-
-  for (const node of activeTree) {
-    serverNodes.set(node.id, node);
-  }
-
-  for (const connection of storedConnections) {
-    const serverId = serverNodeId(connection.host, connection.port);
-    const serverNode = serverNodes.get(serverId) ?? {
-      children: [],
-      id: serverId,
-      kind: "database" as const,
-      label: `${connection.host}:${connection.port}`,
-      open: true,
-    };
-    const children = serverNode.children ?? [];
-    const hasDatabase = children.some((node) => node.label === connection.database);
-
-    if (!hasDatabase) {
-      children.push({
-        id: savedConnectionNodeId(connection),
-        label: connection.database,
-        kind: "database",
-      });
-    }
-
-    serverNodes.set(serverId, { ...serverNode, children });
-  }
-
-  return [...serverNodes.values()].sort((first, second) => first.label.localeCompare(second.label));
-}
-
-function mergeExplorerTree(currentTree: DatabaseTreeNode[], incomingTree: DatabaseTreeNode[]) {
-  const nextServers = new Map(currentTree.map((node) => [node.id, node]));
-
-  for (const incomingServer of incomingTree) {
-    const currentServer = nextServers.get(incomingServer.id);
-    if (!currentServer) {
-      nextServers.set(incomingServer.id, incomingServer);
-      continue;
-    }
-
-    const databaseNodes = new Map((currentServer.children ?? []).map((node) => [node.label, node]));
-
-    for (const incomingDatabase of incomingServer.children ?? []) {
-      databaseNodes.set(incomingDatabase.label, incomingDatabase);
-    }
-
-    nextServers.set(incomingServer.id, {
-      ...incomingServer,
-      children: [...databaseNodes.values()].sort((first, second) =>
-        first.label.localeCompare(second.label),
-      ),
-    });
-  }
-
-  return [...nextServers.values()].sort((first, second) => first.label.localeCompare(second.label));
-}
-
-function removeConnectionFromTree(
-  tree: DatabaseTreeNode[],
-  connectionToDelete: StoredConnectionDraft,
-) {
-  const serverId = serverNodeId(connectionToDelete.host, connectionToDelete.port);
-  const databaseIds = new Set([
-    savedConnectionNodeId(connectionToDelete),
-    activeDatabaseNodeId(connectionToDelete),
-  ]);
-
-  return tree
-    .map((serverNode) => {
-      if (serverNode.id !== serverId) return serverNode;
-
-      const children = (serverNode.children ?? []).filter((child) => !databaseIds.has(child.id));
-      return { ...serverNode, children };
-    })
-    .filter((serverNode) => (serverNode.children?.length ?? 0) > 0);
-}
-
-function readErrorMessage(error: unknown) {
-  if (typeof error === "string") return error;
-  if (error instanceof Error) return error.message;
-  return "Unexpected error";
-}
-
-function connectionDisplayName(draft: Pick<ConnectionDraft, "database" | "host" | "port">) {
-  return `${draft.database} (${draft.host}:${draft.port})`;
-}
-
-function parseDatabaseObjectId(objectId: string) {
-  const [, qualifiedName] = objectId.split(":");
-  const [schemaName, objectName] = qualifiedName?.split(".") ?? [];
-
-  if (!schemaName || !objectName) return null;
-
-  return {
-    qualifiedName: `${schemaName}.${objectName}`,
-  };
-}
-
-function buildDefaultObjectSql(objectId: string, limit: number) {
-  const object = parseDatabaseObjectId(objectId);
-  return object
-    ? `select * from ${object.qualifiedName} limit ${limit};`
-    : `select * limit ${limit};`;
-}
-
-function buildObjectTabLabel(objectId: string) {
-  return parseDatabaseObjectId(objectId)?.qualifiedName ?? objectId;
-}
-
-function buildTemporaryObjectTabId(connectionKeyValue: string, objectId: string) {
-  return `tab:preview:${connectionKeyValue}:${objectId}:${Date.now()}`;
-}
-
-function buildOfficialObjectTabId(connectionKeyValue: string, objectId: string) {
-  return `tab:object:${connectionKeyValue}:${objectId}`;
-}
-
-function createOfficialSqlTab({
-  connectionKey,
-  dirty,
-  label,
-  objectId,
-  savedSql,
-  sql,
-}: {
-  connectionKey: string;
-  dirty: boolean;
-  label: string;
-  objectId?: string;
-  savedSql?: string;
-  sql: string;
-}): SqlTab {
-  return {
-    connectionKey,
-    dirty,
-    id: objectId ? buildOfficialObjectTabId(connectionKey, objectId) : `tab:sql:${connectionKey}`,
-    label,
-    objectId,
-    savedSql,
-    sql,
-    state: "official",
-  };
-}
-
-function officializeSqlTab(
-  tabs: SqlTab[],
-  tabId: string,
-  fallbackConnectionKey: string,
-): { activeTabId: string; tabs: SqlTab[] } {
-  const targetTab = tabs.find((tab) => tab.id === tabId);
-  if (!targetTab) {
-    return { activeTabId: tabId, tabs };
-  }
-
-  if (targetTab.state === "official") {
-    return { activeTabId: targetTab.id, tabs };
-  }
-
-  const nextConnectionKey = targetTab.connectionKey ?? fallbackConnectionKey;
-  const officialTabId = targetTab.objectId
-    ? buildOfficialObjectTabId(nextConnectionKey, targetTab.objectId)
-    : targetTab.id;
-  const existingOfficialTab = tabs.find(
-    (tab) => tab.id !== targetTab.id && tab.state === "official" && tab.id === officialTabId,
-  );
-
-  if (existingOfficialTab) {
-    const mergedOfficialTab: SqlTab = {
-      ...existingOfficialTab,
-      connectionKey: nextConnectionKey,
-      label: targetTab.label,
-      objectId: targetTab.objectId,
-      sql: targetTab.sql,
-      dirty: targetTab.sql !== (existingOfficialTab.savedSql ?? targetTab.savedSql ?? targetTab.sql),
-    };
-
-    return {
-      activeTabId: mergedOfficialTab.id,
-      tabs: tabs
-        .filter((tab) => tab.id !== targetTab.id)
-        .map((tab) => (tab.id === existingOfficialTab.id ? mergedOfficialTab : tab)),
-    };
-  }
-
-  const officialTab: SqlTab = {
-    ...targetTab,
-    connectionKey: nextConnectionKey,
-    id: officialTabId,
-    state: "official",
-  };
-
-  return {
-    activeTabId: officialTab.id,
-    tabs: tabs.map((tab) => (tab.id === targetTab.id ? officialTab : tab)),
-  };
-}
-
-function normalizePersistedSqlTab(tab: unknown, fallbackConnectionKey: string): SqlTab | null {
-  if (!tab || typeof tab !== "object") return null;
-
-  const candidate = tab as Partial<SqlTab>;
-  if (
-    typeof candidate.id !== "string" ||
-    typeof candidate.label !== "string" ||
-    typeof candidate.sql !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    connectionKey:
-      typeof candidate.connectionKey === "string" ? candidate.connectionKey : fallbackConnectionKey,
-    dirty: false,
-    id: candidate.id,
-    label: candidate.label,
-    objectId: typeof candidate.objectId === "string" ? candidate.objectId : undefined,
-    savedSql: candidate.sql,
-    sql: candidate.sql,
-    state: "official",
-  };
-}
-
-function loadSqlTabsForConnection(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
-): PersistedSqlTabs {
-  const storageKey = sqlTabsStorageKey(connection);
-  const rawTabs = window.localStorage.getItem(storageKey);
-  if (!rawTabs) return { tabs: [], activeTabId: "" };
-
-  try {
-    const parsed = JSON.parse(rawTabs) as Partial<PersistedSqlTabs>;
-    const fallbackConnectionKey = connectionKey(connection);
-    const tabs = Array.isArray(parsed.tabs)
-      ? parsed.tabs.flatMap((tab) => {
-          const normalized = normalizePersistedSqlTab(tab, fallbackConnectionKey);
-          return normalized ? [normalized] : [];
-        })
-      : [];
-    const activeTabId =
-      typeof parsed.activeTabId === "string" && tabs.some((tab) => tab.id === parsed.activeTabId)
-        ? parsed.activeTabId
-        : (tabs[0]?.id ?? "");
-
-    return { tabs, activeTabId };
-  } catch {
-    window.localStorage.removeItem(storageKey);
-    return { tabs: [], activeTabId: "" };
-  }
-}
-
-function saveSqlTabsForConnection(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
-  tabs: SqlTab[],
-  activeTabId: string,
-) {
-  const officialTabs = tabs
-    .filter((tab) => tab.state === "official")
-    .map((tab) => ({
-      ...tab,
-      dirty: false,
-      savedSql: undefined,
-      sql: tab.savedSql ?? tab.sql,
-    }));
-  const persistedTabs: PersistedSqlTabs = {
-    activeTabId: officialTabs.some((tab) => tab.id === activeTabId) ? activeTabId : "",
-    tabs: officialTabs,
-  };
-
-  window.localStorage.setItem(sqlTabsStorageKey(connection), JSON.stringify(persistedTabs));
-}
 
 function getTabSelectionState(tab: SqlTab | null) {
   return {
     clearObjectDetails: !tab?.objectId,
     selectedObjectId: tab?.objectId ?? "",
   };
-}
-
-async function copyText(text: string) {
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  document.body.append(textArea);
-  textArea.select();
-  document.execCommand("copy");
-  textArea.remove();
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
@@ -526,8 +232,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const nextTabs = officialized.tabs.map((tab) =>
         tab.id === nextActiveTabId ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
       );
-      const committedTab =
-        nextTabs.find((tab) => tab.id === nextActiveTabId) ?? currentTab;
+      const committedTab = nextTabs.find((tab) => tab.id === nextActiveTabId) ?? currentTab;
 
       sqlTabsRef.current = nextTabs;
       activeTabIdRef.current = nextActiveTabId;
@@ -648,7 +353,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             sql,
           };
           setActiveTabId(nextTab.id);
-          return tabs.map((currentTab) => (currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab));
+          return tabs.map((currentTab) =>
+            currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab,
+          );
         }
 
         const nextTab: SqlTab = {
@@ -685,7 +392,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       setSqlTabs((tabs) => {
-        const temporaryTab = tabs.find((tab) => tab.state === "temporary" && tab.objectId === objectId);
+        const temporaryTab = tabs.find(
+          (tab) => tab.state === "temporary" && tab.objectId === objectId,
+        );
         if (temporaryTab) {
           return officializeSqlTab(tabs, temporaryTab.id, activeConnectionKey).tabs;
         }

@@ -1,4 +1,8 @@
-export { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "./Dialog";
+export { DialogActions } from "./DialogActions";
+export { DialogBody } from "./DialogBody";
+export { DialogCloseButton } from "./DialogCloseButton";
+export { DialogFrame } from "./DialogFrame";
+export { DialogHeader } from "./DialogHeader";
 export { EmptyPanel } from "./EmptyPanel";
 export { Field } from "./Field";
 export { IconButton } from "./IconButton";

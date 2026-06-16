@@ -1,28 +1,9 @@
 import { Columns3, Copy, Download, Loader2, Table2, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseObjectDetails, QueryResult, QueryState, ResultPanelTab } from "../../types";
-import { formatColumn, useResults } from "../../workspaceCore";
-import { EmptyPanel, IconButton } from "../ui";
-import { DetailRow } from "../ui/DetailRow";
-
-export function ResultsDock() {
-  const results = useResults();
-
-  if (!results.resultsOpen) return null;
-
-  return (
-    <ResultsPanel
-      activeTab={results.resultTab}
-      details={results.details}
-      queryResult={results.queryResult}
-      queryState={results.queryState}
-      onClose={results.closeResults}
-      onCopy={() => void results.copyResult()}
-      onExport={results.exportCsv}
-      onTabChange={results.selectResultTab}
-    />
-  );
-}
+import { IconButton } from "../ui";
+import { ColumnsView } from "./ColumnsView";
+import { DataGrid } from "./DataGrid";
 
 export function ResultsPanel({
   activeTab,
@@ -96,54 +77,5 @@ export function ResultsPanel({
         )}
       </div>
     </section>
-  );
-}
-
-function DataGrid({ queryResult }: { queryResult: QueryResult | null }) {
-  if (!queryResult) return <EmptyPanel text="Run a query to inspect result rows." />;
-
-  return (
-    <table className="min-w-full border-separate border-spacing-0 text-[12px]">
-      <thead className="sticky top-0 bg-[hsl(var(--panel))]">
-        <tr>
-          {queryResult.columns.map((column) => (
-            <th
-              key={column}
-              className="border-b border-r border-border px-2 py-1.5 text-left font-semibold text-foreground"
-            >
-              {column}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {queryResult.rows.map((row, rowIndex) => (
-          <tr
-            key={`${queryResult.id}-${rowIndex}`}
-            className="odd:bg-[hsl(var(--panel-soft)/0.28)]"
-          >
-            {row.map((cell, cellIndex) => (
-              <td
-                key={`${cell}-${cellIndex}`}
-                className="max-w-64 truncate border-b border-r border-border px-2 py-1.5 text-[hsl(210_20%_88%)]"
-              >
-                {cell}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function ColumnsView({ details }: { details: DatabaseObjectDetails | null }) {
-  if (!details) return <EmptyPanel text="Select an object to inspect columns." />;
-  return (
-    <div className="p-3">
-      {details.columns.map((column) => (
-        <DetailRow key={column.name} name={column.name} value={formatColumn(column)} />
-      ))}
-    </div>
   );
 }
