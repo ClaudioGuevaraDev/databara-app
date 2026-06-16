@@ -44,7 +44,9 @@ function TabsEditor() {
         onSelect={editor.selectSqlTab}
       />
       <QueryToolbar
-        canSave={Boolean(editor.activeTab?.state === "official" && editor.activeTab.dirty)}
+        canSave={Boolean(
+          editor.activeTab && (editor.activeTab.state === "temporary" || editor.activeTab.dirty),
+        )}
         onRun={editor.runQuery}
         onSave={() => void editor.saveActiveSqlTab()}
       />
@@ -53,6 +55,7 @@ function TabsEditor() {
           <Editor
             key={editor.activeTab.id}
             defaultLanguage="sql"
+            loading={<div className="h-full w-full bg-[hsl(220_13%_8%)]" />}
             value={editor.activeTab.sql}
             theme="vs-dark"
             onChange={(value) => editor.updateActiveSql(value ?? "")}

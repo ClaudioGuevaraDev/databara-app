@@ -170,6 +170,94 @@ function buildObjectTabLabel(objectId: string) {
   return parseDatabaseObjectId(objectId)?.qualifiedName ?? objectId;
 }
 
+function buildTemporaryObjectTabId(connectionKeyValue: string, objectId: string) {
+  return `tab:preview:${connectionKeyValue}:${objectId}:${Date.now()}`;
+}
+
+function buildOfficialObjectTabId(connectionKeyValue: string, objectId: string) {
+  return `tab:object:${connectionKeyValue}:${objectId}`;
+}
+
+function createOfficialSqlTab({
+  connectionKey,
+  dirty,
+  label,
+  objectId,
+  savedSql,
+  sql,
+}: {
+  connectionKey: string;
+  dirty: boolean;
+  label: string;
+  objectId?: string;
+  savedSql?: string;
+  sql: string;
+}): SqlTab {
+  return {
+    connectionKey,
+    dirty,
+    id: objectId ? buildOfficialObjectTabId(connectionKey, objectId) : `tab:sql:${connectionKey}`,
+    label,
+    objectId,
+    savedSql,
+    sql,
+    state: "official",
+  };
+}
+
+function officializeSqlTab(
+  tabs: SqlTab[],
+  tabId: string,
+  fallbackConnectionKey: string,
+): { activeTabId: string; tabs: SqlTab[] } {
+  const targetTab = tabs.find((tab) => tab.id === tabId);
+  if (!targetTab) {
+    return { activeTabId: tabId, tabs };
+  }
+
+  if (targetTab.state === "official") {
+    return { activeTabId: targetTab.id, tabs };
+  }
+
+  const nextConnectionKey = targetTab.connectionKey ?? fallbackConnectionKey;
+  const officialTabId = targetTab.objectId
+    ? buildOfficialObjectTabId(nextConnectionKey, targetTab.objectId)
+    : targetTab.id;
+  const existingOfficialTab = tabs.find(
+    (tab) => tab.id !== targetTab.id && tab.state === "official" && tab.id === officialTabId,
+  );
+
+  if (existingOfficialTab) {
+    const mergedOfficialTab: SqlTab = {
+      ...existingOfficialTab,
+      connectionKey: nextConnectionKey,
+      label: targetTab.label,
+      objectId: targetTab.objectId,
+      sql: targetTab.sql,
+      dirty: targetTab.sql !== (existingOfficialTab.savedSql ?? targetTab.savedSql ?? targetTab.sql),
+    };
+
+    return {
+      activeTabId: mergedOfficialTab.id,
+      tabs: tabs
+        .filter((tab) => tab.id !== targetTab.id)
+        .map((tab) => (tab.id === existingOfficialTab.id ? mergedOfficialTab : tab)),
+    };
+  }
+
+  const officialTab: SqlTab = {
+    ...targetTab,
+    connectionKey: nextConnectionKey,
+    id: officialTabId,
+    state: "official",
+  };
+
+  return {
+    activeTabId: officialTab.id,
+    tabs: tabs.map((tab) => (tab.id === targetTab.id ? officialTab : tab)),
+  };
+}
+
 function normalizePersistedSqlTab(tab: unknown, fallbackConnectionKey: string): SqlTab | null {
   if (!tab || typeof tab !== "object") return null;
 
@@ -294,11 +382,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }));
   const allowWindowCloseRef = useRef(false);
   const hasUnsavedTabsRef = useRef(false);
+  const sqlTabsRef = useRef<SqlTab[]>([]);
+  const activeTabIdRef = useRef("");
 
   const activeConnection = connections[0] ?? null;
   const requiresConnection = connections.length === 0;
   const activeTab = sqlTabs.find((tab) => tab.id === activeTabId) ?? null;
-  const hasUnsavedTabs = sqlTabs.some((tab) => tab.state === "official" && tab.dirty);
+  const hasUnsavedTabs = sqlTabs.some((tab) => tab.dirty);
   const activeConnectionSqlTabsKey = activeConnection ? sqlTabsStorageKey(activeConnection) : "";
   const activeConnectionKey = activeConnection ? connectionKey(activeConnection) : "";
   const hasStoredConnections = storedConnections.length > 0;
@@ -362,6 +452,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [hasUnsavedTabs, notify]);
 
   useEffect(() => {
+    sqlTabsRef.current = sqlTabs;
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId, sqlTabs]);
+
+  useEffect(() => {
     if (!activeConnection || loadedSqlTabsKey !== activeConnectionSqlTabsKey) return;
     saveSqlTabsForConnection(activeConnection, sqlTabs, activeTabId);
   }, [activeConnection, activeConnectionSqlTabsKey, activeTabId, loadedSqlTabsKey, sqlTabs]);
@@ -420,33 +515,59 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [activeConnection],
   );
 
+  const commitSqlTab = useCallback(
+    (tabId: string) => {
+      const currentTabs = sqlTabsRef.current;
+      const currentTab = currentTabs.find((tab) => tab.id === tabId);
+      if (!currentTab) return null;
+
+      const officialized = officializeSqlTab(currentTabs, currentTab.id, activeConnectionKey);
+      const nextActiveTabId = officialized.activeTabId;
+      const nextTabs = officialized.tabs.map((tab) =>
+        tab.id === nextActiveTabId ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
+      );
+      const committedTab =
+        nextTabs.find((tab) => tab.id === nextActiveTabId) ?? currentTab;
+
+      sqlTabsRef.current = nextTabs;
+      activeTabIdRef.current = nextActiveTabId;
+      setSqlTabs(nextTabs);
+      setActiveTabId(nextActiveTabId);
+      persistTabs(nextTabs, nextActiveTabId);
+
+      return committedTab;
+    },
+    [activeConnectionKey, persistTabs],
+  );
+
   const saveActiveSqlTab = useCallback(async () => {
-    if (!activeTab) return;
-
-    if (activeTab.state !== "official") {
-      notify("Officialize the tab before saving", "warning");
-      return;
-    }
-
-    const nextTabs = sqlTabs.map((tab) =>
-      tab.id === activeTab.id ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
-    );
-    setSqlTabs(nextTabs);
-    persistTabs(nextTabs, activeTabId);
-    notify(`${activeTab.label} saved`, "success");
-  }, [activeTab, activeTabId, notify, persistTabs, sqlTabs]);
+    const currentTabId = activeTabIdRef.current;
+    if (!currentTabId) return;
+    const committedTab = commitSqlTab(currentTabId);
+    if (!committedTab) return;
+    notify(`${committedTab.label} saved`, "success");
+  }, [commitSqlTab, notify]);
 
   const saveDirtySqlTabs = useCallback(async () => {
-    const dirtyTabs = sqlTabs.filter((tab) => tab.state === "official" && tab.dirty);
+    const dirtyTabs = sqlTabsRef.current.filter((tab) => tab.dirty);
     if (dirtyTabs.length === 0) return;
 
-    const nextTabs = sqlTabs.map((tab) =>
-      tab.state === "official" && tab.dirty ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
-    );
-    setSqlTabs(nextTabs);
-    persistTabs(nextTabs, activeTabId);
+    let lastCommittedTabId = activeTabIdRef.current;
+
+    for (const dirtyTab of dirtyTabs) {
+      const committedTab = commitSqlTab(dirtyTab.id);
+      if (committedTab) {
+        lastCommittedTabId = committedTab.id;
+      }
+    }
+
+    if (lastCommittedTabId) {
+      activeTabIdRef.current = lastCommittedTabId;
+      setActiveTabId(lastCommittedTabId);
+    }
+
     notify(`${dirtyTabs.length} tab${dirtyTabs.length === 1 ? "" : "s"} saved`, "success");
-  }, [activeTabId, notify, persistTabs, sqlTabs]);
+  }, [commitSqlTab, notify]);
 
   const loadConnectionSqlTabs = useCallback(
     (connection: ConnectionProfile) => {
@@ -488,8 +609,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (sql: string) => {
       if (!activeTabId) return;
 
-      setSqlTabs((tabs) =>
-        tabs.map((tab) =>
+      setSqlTabs((tabs) => {
+        return tabs.map((tab) =>
           tab.id === activeTabId
             ? {
                 ...tab,
@@ -497,8 +618,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 sql,
               }
             : tab,
-        ),
-      );
+        );
+      });
     },
     [activeTabId],
   );
@@ -508,24 +629,41 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!activeConnection) return;
 
       const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-      const tab: SqlTab = {
-        connectionKey: activeConnectionKey,
-        dirty: false,
-        id: `tab:preview:${activeConnectionKey}`,
-        label: buildObjectTabLabel(objectId),
-        objectId,
-        savedSql: sql,
-        sql,
-        state: "temporary",
-      };
+      const label = buildObjectTabLabel(objectId);
 
       setSqlTabs((tabs) => {
-        const temporaryTabIndex = tabs.findIndex((currentTab) => currentTab.state === "temporary");
-        if (temporaryTabIndex === -1) return [...tabs, tab];
+        const reusableTemporaryTab = tabs.find(
+          (currentTab) =>
+            currentTab.state === "temporary" &&
+            !currentTab.dirty &&
+            currentTab.connectionKey === activeConnectionKey,
+        );
 
-        return tabs.map((currentTab, index) => (index === temporaryTabIndex ? tab : currentTab));
+        if (reusableTemporaryTab) {
+          const nextTab: SqlTab = {
+            ...reusableTemporaryTab,
+            label,
+            objectId,
+            savedSql: sql,
+            sql,
+          };
+          setActiveTabId(nextTab.id);
+          return tabs.map((currentTab) => (currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab));
+        }
+
+        const nextTab: SqlTab = {
+          connectionKey: activeConnectionKey,
+          dirty: false,
+          id: buildTemporaryObjectTabId(activeConnectionKey, objectId),
+          label,
+          objectId,
+          savedSql: sql,
+          sql,
+          state: "temporary",
+        };
+        setActiveTabId(nextTab.id);
+        return [...tabs, nextTab];
       });
-      setActiveTabId(tab.id);
     },
     [activeConnection, activeConnectionKey],
   );
@@ -536,7 +674,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       const label = buildObjectTabLabel(objectId);
       const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-      const officialTabId = `tab:object:${activeConnectionKey}:${objectId}`;
+      const officialTabId = buildOfficialObjectTabId(activeConnectionKey, objectId);
       const existingOfficialTab = sqlTabs.find(
         (tab) => tab.state === "official" && tab.objectId === objectId,
       );
@@ -547,28 +685,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       setSqlTabs((tabs) => {
-        const temporaryTab = tabs.find(
-          (tab) => tab.state === "temporary" && tab.objectId === objectId,
-        );
+        const temporaryTab = tabs.find((tab) => tab.state === "temporary" && tab.objectId === objectId);
         if (temporaryTab) {
-          const officialTab = {
-            ...temporaryTab,
-            id: officialTabId,
-            state: "official" as const,
-          };
-          return tabs.map((tab) => (tab.id === temporaryTab.id ? officialTab : tab));
+          return officializeSqlTab(tabs, temporaryTab.id, activeConnectionKey).tabs;
         }
 
-        const officialTab: SqlTab = {
+        const officialTab = createOfficialSqlTab({
           connectionKey: activeConnectionKey,
           dirty: false,
-          id: officialTabId,
           label,
           objectId,
           savedSql: sql,
           sql,
-          state: "official",
-        };
+        });
         return [...tabs, officialTab];
       });
       setActiveTabId(officialTabId);
@@ -600,8 +729,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (activeTabId) {
+      commitSqlTab(activeTabId);
+    }
+
     notify("SQL execution is not enabled yet", "warning");
-  }, [notify, requiresConnection]);
+  }, [activeTabId, commitSqlTab, notify, requiresConnection]);
 
   const refreshAll = useCallback(async () => {
     if (!activeConnection) {
