@@ -130,10 +130,13 @@ export function SchemaView({ details }: { details: DatabaseObjectDetails | null 
   if (!details) return <EmptyPanel text="Select an object to inspect its schema." />;
 
   const schemaSql = buildObjectSchema(details);
+  const badgeSurfaceClass = "bg-[hsl(var(--panel-soft)/0.74)]";
 
   return (
     <div className="h-full overflow-auto bg-[hsl(var(--panel-soft)/0.2)] p-3">
-      <div className="min-h-full rounded-md border border-[hsl(218_20%_20%/0.6)] bg-[hsl(222_22%_12%)] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(220_35%_6%/0.18)]">
+      <div
+        className={`min-h-full rounded-md border border-border/70 ${badgeSurfaceClass} shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(220_35%_6%/0.18)]`}
+      >
         <pre className="min-h-full overflow-auto p-3 font-mono text-[12px] leading-6">
           <code>{renderSql(schemaSql)}</code>
         </pre>
