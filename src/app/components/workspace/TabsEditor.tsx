@@ -1,5 +1,6 @@
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
 import { useCallback, useEffect, useRef } from "react";
+import { DATABARA_EDITOR_THEME, defineDatabaraTheme } from "../../editor/databaraTheme";
 import { registerSqlCompletionProvider } from "../../editor/sqlCompletion";
 import type { DatabaseObjectDetails } from "../../types";
 import { useSqlEditor } from "../../workspace/workspaceCore";
@@ -60,25 +61,43 @@ export function TabsEditor() {
         onRun={editor.runQuery}
         onSave={() => void editor.saveActiveSqlTab()}
       />
-      <section className="min-h-0 flex-1 bg-[hsl(220_13%_8%)]">
+      <section className="min-h-0 flex-1 bg-background">
         {editor.activeTab ? (
           <Editor
             key={editor.activeTab.id}
             defaultLanguage="sql"
-            loading={<div className="h-full w-full bg-[hsl(220_13%_8%)]" />}
+            loading={<div className="h-full w-full bg-background" />}
             value={editor.activeTab.sql}
-            theme="vs-dark"
+            theme={DATABARA_EDITOR_THEME}
+            beforeMount={defineDatabaraTheme}
             onChange={(value) => editor.updateActiveSql(value ?? "")}
             onMount={handleEditorMount}
             options={{
               automaticLayout: true,
+              bracketPairColorization: { enabled: true },
               contextmenu: false,
+              cursorBlinking: "smooth",
+              cursorSmoothCaretAnimation: "on",
               fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
+              fontLigatures: true,
               fontSize: 13,
+              glyphMargin: false,
+              guides: { bracketPairs: "active", indentation: true },
               lineHeight: 21,
+              lineNumbersMinChars: 3,
               minimap: { enabled: false },
-              padding: { bottom: 16, top: 16 },
+              overviewRulerBorder: false,
+              overviewRulerLanes: 0,
+              padding: { bottom: 18, top: 18 },
+              renderLineHighlight: "all",
+              roundedSelection: true,
               scrollBeyondLastLine: false,
+              scrollbar: {
+                horizontalScrollbarSize: 14,
+                useShadows: false,
+                verticalScrollbarSize: 14,
+              },
+              smoothScrolling: true,
               wordWrap: "on",
             }}
           />

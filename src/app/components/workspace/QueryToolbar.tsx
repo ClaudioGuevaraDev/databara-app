@@ -11,7 +11,7 @@ export function QueryToolbar({
   onSave: () => void;
 }) {
   return (
-    <div className="chrome-panel flex h-10 shrink-0 items-center border-b border-border px-2">
+    <div className="chrome-panel hairline flex h-10 shrink-0 items-center border-b border-border px-2">
       <div className="flex items-center gap-1">
         <button
           onClick={onRun}

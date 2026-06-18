@@ -52,7 +52,7 @@ export function EditorTabs({
   }, [activeTabId, tabs]);
 
   return (
-    <div className="chrome-panel flex h-9 min-w-0 shrink-0 items-stretch gap-1 border-b border-border px-1">
+    <div className="chrome-panel hairline flex h-9 min-w-0 shrink-0 items-stretch gap-1 border-b border-border px-1">
       <IconButton
         title="Scroll tabs left"
         onClick={() => scrollTabs("left")}
@@ -73,7 +73,7 @@ export function EditorTabs({
               className={cn(
                 "group flex h-9 max-w-56 shrink-0 items-stretch border-r border-border text-[12.5px] transition-transform",
                 activeTabId === tab.id
-                  ? "bg-background shadow-[inset_0_2px_0_hsl(var(--primary))]"
+                  ? "bg-background shadow-[inset_0_2px_0_hsl(var(--primary)),0_-1px_12px_-6px_hsl(var(--primary)/0.5)]"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 tab.state === "temporary" && "-skew-x-6 border-r-primary/20 bg-muted/30",
               )}
