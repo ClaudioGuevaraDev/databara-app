@@ -38,6 +38,7 @@ export function TabsEditor() {
             }}
             options={{
               automaticLayout: true,
+              contextmenu: false,
               fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
               fontSize: 13,
               lineHeight: 21,
