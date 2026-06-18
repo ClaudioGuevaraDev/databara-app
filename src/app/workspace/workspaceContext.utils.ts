@@ -129,8 +129,8 @@ function parseDatabaseObjectId(objectId: string) {
 export function buildDefaultObjectSql(objectId: string, limit: number) {
   const object = parseDatabaseObjectId(objectId);
   return object
-    ? `select * from ${object.qualifiedName} limit ${limit};`
-    : `select * limit ${limit};`;
+    ? `SELECT * FROM ${object.qualifiedName} LIMIT ${limit};`
+    : `SELECT * LIMIT ${limit};`;
 }
 
 export function buildObjectTabLabel(objectId: string) {

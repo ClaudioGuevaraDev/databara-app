@@ -123,6 +123,7 @@ export function useSqlEditor() {
   return {
     activeTab: state.activeTab,
     activeTabId: state.activeTabId,
+    selectedObject: state.selectedObject,
     sqlTabs: state.sqlTabs,
     closeSqlTab: actions.closeSqlTab,
     runQuery: actions.runQuery,
