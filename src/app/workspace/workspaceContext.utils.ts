@@ -1,9 +1,10 @@
+import { connectionEngineLabel } from "../connectionEngines";
 import type { StoredConnectionDraft } from "../databaraService";
 import type { ConnectionDraft, DatabaseTreeNode } from "../types";
 import { savedConnectionNodeId } from "./workspaceCore";
 
-export function serverNodeId(host: string, port: number) {
-  return `server:${host}:${port}`;
+export function serverNodeId(connection: Pick<ConnectionDraft, "engine" | "host" | "port">) {
+  return `server:${connection.engine}:${connection.host}:${connection.port}`;
 }
 
 function activeDatabaseNodeId(connection: StoredConnectionDraft) {
@@ -11,9 +12,9 @@ function activeDatabaseNodeId(connection: StoredConnectionDraft) {
 }
 
 export function connectionKey(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
+  connection: Pick<ConnectionDraft, "database" | "engine" | "host" | "port" | "user">,
 ) {
-  return `${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
+  return `${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
 export function buildStoredConnectionTree(
@@ -27,12 +28,12 @@ export function buildStoredConnectionTree(
   }
 
   for (const connection of storedConnections) {
-    const serverId = serverNodeId(connection.host, connection.port);
+    const serverId = serverNodeId(connection);
     const serverNode = serverNodes.get(serverId) ?? {
       children: [],
       id: serverId,
       kind: "database" as const,
-      label: `${connection.host}:${connection.port}`,
+      label: `${connectionEngineLabel(connection.engine)} ${connection.host}:${connection.port}`,
       open: true,
     };
     const children = serverNode.children ?? [];
@@ -86,7 +87,7 @@ export function removeConnectionFromTree(
   tree: DatabaseTreeNode[],
   connectionToDelete: StoredConnectionDraft,
 ) {
-  const serverId = serverNodeId(connectionToDelete.host, connectionToDelete.port);
+  const serverId = serverNodeId(connectionToDelete);
   const databaseIds = new Set([
     savedConnectionNodeId(connectionToDelete),
     activeDatabaseNodeId(connectionToDelete),
@@ -108,8 +109,10 @@ export function readErrorMessage(error: unknown) {
   return "Unexpected error";
 }
 
-export function connectionDisplayName(draft: Pick<ConnectionDraft, "database" | "host" | "port">) {
-  return `${draft.database} (${draft.host}:${draft.port})`;
+export function connectionDisplayName(
+  draft: Pick<ConnectionDraft, "database" | "engine" | "host" | "port">,
+) {
+  return `${draft.database} (${connectionEngineLabel(draft.engine)} ${draft.host}:${draft.port})`;
 }
 
 function parseDatabaseObjectId(objectId: string) {

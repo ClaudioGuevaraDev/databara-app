@@ -636,6 +636,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const nextConnections = connections.filter(
         (item) =>
           !(
+            item.engine === connection.engine &&
             item.host === connection.host &&
             item.port === connection.port &&
             item.database === connection.database &&
@@ -647,7 +648,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setActiveExplorerTree((current) => removeConnectionFromTree(current, connection));
       setConnections(nextConnections);
 
-      if (selectedObjectId && activeConnection?.database === connection.database) {
+      if (
+        selectedObjectId &&
+        activeConnection &&
+        connectionKey(activeConnection) === connectionKey(connection)
+      ) {
         setSelectedObjectId("");
         setSelectedObject(null);
       }

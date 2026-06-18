@@ -1,5 +1,6 @@
 import { KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { connectionEngineLabel } from "../../connectionEngines";
 import type { StoredConnectionDraft } from "../../databaraService";
 import { readErrorMessage } from "./connectionForm";
 import {
@@ -57,7 +58,8 @@ export function PasswordConnectionDialog({
         <DialogBody className="grid gap-3">
           <div className="grid gap-1 text-[12px] text-muted-foreground">
             <div className="truncate font-mono text-foreground">
-              {connection.user}@{connection.host}:{connection.port}
+              {connectionEngineLabel(connection.engine)} · {connection.user}@{connection.host}:
+              {connection.port}
             </div>
             <div>Enter the password for this session.</div>
           </div>

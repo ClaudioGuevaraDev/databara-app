@@ -1,4 +1,5 @@
 import { Database, KeyRound, Plus } from "lucide-react";
+import { connectionEngineLabel } from "../../connectionEngines";
 import { savedConnectionNodeId, useEmptyWorkspace } from "../../workspace/workspaceCore";
 import { NoConnectionEmptySvg } from "./NoConnectionEmptySvg";
 import { SavedConnectionEmptySvg } from "./SavedConnectionEmptySvg";
@@ -17,7 +18,7 @@ export function EmptyWorkspace() {
           </h2>
           {empty.hasStoredConnections ? null : (
             <p className="max-w-[460px] text-[13px] leading-6 text-muted-foreground">
-              Add a PostgreSQL connection to inspect schemas, tables, views, columns, and indexes.
+              Add a database connection to inspect schemas, tables, views, columns, and indexes.
             </p>
           )}
         </div>
@@ -64,7 +65,8 @@ export function EmptyWorkspace() {
                           {connection.database}
                         </div>
                         <div className="truncate text-[12px] text-muted-foreground">
-                          {connection.user}@{connection.host}:{connection.port}
+                          {connectionEngineLabel(connection.engine)} · {connection.user}@
+                          {connection.host}:{connection.port}
                         </div>
                       </div>
                       <button

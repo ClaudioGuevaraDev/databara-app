@@ -1,11 +1,12 @@
 import type { StoredConnectionDraft } from "../../databaraService";
 import type { DatabaseTreeNode } from "../../types";
 import { savedConnectionNodeId } from "../../workspace/workspaceCore";
+import { serverNodeId } from "../../workspace/workspaceContext.utils";
 
 export function connectionKey(
-  connection: Pick<StoredConnectionDraft, "host" | "port" | "database" | "user">,
+  connection: Pick<StoredConnectionDraft, "database" | "engine" | "host" | "port" | "user">,
 ) {
-  return `${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
+  return `${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
 export function findServerForNode(
@@ -43,8 +44,7 @@ export function findStoredConnectionForNode(
   return (
     storedConnections.find(
       (connection) =>
-        `server:${connection.host}:${connection.port}` === serverId &&
-        `database:${connection.database}` === node.id,
+        serverNodeId(connection) === serverId && `database:${connection.database}` === node.id,
     ) ?? null
   );
 }

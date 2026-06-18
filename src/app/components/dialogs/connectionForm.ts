@@ -1,3 +1,4 @@
+import { connectionEngineLabel, defaultDatabaseEngine } from "../../connectionEngines";
 import type { ConnectionDraft } from "../../types";
 
 export type ConnectionFormDraft = Omit<ConnectionDraft, "port"> & { port: string };
@@ -8,11 +9,14 @@ export function readErrorMessage(error: unknown) {
   return "Unexpected error";
 }
 
-export function connectionDisplayName(draft: Pick<ConnectionDraft, "database" | "host" | "port">) {
-  return `${draft.database} (${draft.host}:${draft.port})`;
+export function connectionDisplayName(
+  draft: Pick<ConnectionDraft, "database" | "engine" | "host" | "port">,
+) {
+  return `${draft.database} (${connectionEngineLabel(draft.engine)} ${draft.host}:${draft.port})`;
 }
 
 export function buildConnectionDraft(formDraft: ConnectionFormDraft): ConnectionDraft {
+  const engine = formDraft.engine ?? defaultDatabaseEngine;
   const host = formDraft.host.trim();
   const port = formDraft.port.trim();
   const database = formDraft.database.trim();
@@ -30,6 +34,7 @@ export function buildConnectionDraft(formDraft: ConnectionFormDraft): Connection
   return {
     ...formDraft,
     database,
+    engine,
     host,
     password: formDraft.password,
     port: parsedPort,

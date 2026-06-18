@@ -1,12 +1,14 @@
 export type ConnectionStatus = "connected" | "disconnected";
+export type DatabaseEngine = "postgresql";
 export type DatabaseObjectKind = "database" | "schema" | "table" | "view";
 export type ResultPanelTab = "results" | "columns" | "schema";
 export type QueryState = "idle" | "running" | "success" | "error" | "cancelled";
+export type SslMode = "Prefer" | "Require" | "Disable";
 
 export type ConnectionProfile = {
   id: string;
   name: string;
-  engine: "PostgreSQL";
+  engine: DatabaseEngine;
   engineVersion: string;
   host: string;
   port: number;
@@ -15,7 +17,7 @@ export type ConnectionProfile = {
   status: ConnectionStatus;
   latencyMs: number;
   defaultSchema: string;
-  sslMode: "Prefer" | "Require" | "Disable";
+  sslMode: SslMode;
 };
 
 export type DatabaseTreeNode = {
@@ -75,13 +77,14 @@ export type QueryResult = {
 };
 
 export type ConnectionDraft = {
+  engine: DatabaseEngine;
   name: string;
   host: string;
   port: number;
   database: string;
   user: string;
   password: string;
-  sslMode: "Prefer" | "Require" | "Disable";
+  sslMode: SslMode;
 };
 
 export type ConnectionTestResult = {

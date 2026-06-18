@@ -1,13 +1,35 @@
 import { invoke } from "@tauri-apps/api/core";
+import {
+  defaultDatabaseEngine,
+  ensureSupportedConnectionEngine,
+  normalizeDatabaseEngine,
+} from "./connectionEngines";
 import type {
   ConnectionDraft,
   ConnectionProfile,
   ConnectionTestResult,
+  DatabaseEngine,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  SslMode,
 } from "./types";
 
 export type StoredConnectionDraft = Omit<ConnectionDraft, "password">;
+
+type BackendConnectionDraft = Omit<ConnectionDraft, "engine">;
+
+type BackendConnectionProfile = Omit<ConnectionProfile, "engine"> & {
+  engine: DatabaseEngine | "PostgreSQL";
+};
+
+type BackendDatabaseObjectDetails = Omit<DatabaseObjectDetails, "engine"> & {
+  engine: DatabaseEngine | "PostgreSQL";
+};
+
+type BackendConnectResult = Omit<ConnectResult, "connection" | "tree"> & {
+  connection: BackendConnectionProfile;
+  tree: DatabaseTreeNode[];
+};
 
 export type ConnectResult = {
   connection: ConnectionProfile;
@@ -16,28 +38,51 @@ export type ConnectResult = {
   selectedObject: DatabaseObjectDetails | null;
 };
 
-const storedConnectionKey = "databara.postgres.connection";
-const storedConnectionsKey = "databara.postgres.connections";
+const legacyStoredConnectionKey = "databara.postgres.connection";
+const legacyStoredConnectionsKey = "databara.postgres.connections";
+const storedConnectionsKey = "databara.connections.v1";
 
 export async function testPostgresConnection(
   draft: ConnectionDraft,
 ): Promise<ConnectionTestResult> {
-  return invoke<ConnectionTestResult>("test_postgres_connection", { draft });
+  ensureSupportedConnectionEngine(draft);
+  return invoke<ConnectionTestResult>("test_postgres_connection", { draft: toBackendDraft(draft) });
 }
 
 export async function connectPostgres(draft: ConnectionDraft): Promise<ConnectResult> {
-  return invoke<ConnectResult>("connect_postgres", { draft });
+  ensureSupportedConnectionEngine(draft);
+  const result = await invoke<BackendConnectResult>("connect_postgres", {
+    draft: toBackendDraft(draft),
+  });
+  const engine = normalizeDatabaseEngine(result.connection.engine);
+
+  return {
+    ...result,
+    connection: {
+      ...result.connection,
+      engine,
+    },
+    tree: normalizeTreeForEngine(result.tree, engine),
+  };
 }
 
 export async function listPostgresTree(connectionId: string): Promise<DatabaseTreeNode[]> {
-  return invoke<DatabaseTreeNode[]>("list_postgres_tree", { connectionId });
+  const tree = await invoke<DatabaseTreeNode[]>("list_postgres_tree", { connectionId });
+  return normalizeTreeForEngine(tree, defaultDatabaseEngine);
 }
 
 export async function getPostgresObjectDetails(
   connectionId: string,
   objectId: string,
 ): Promise<DatabaseObjectDetails> {
-  return invoke<DatabaseObjectDetails>("get_postgres_object_details", { connectionId, objectId });
+  const details = await invoke<BackendDatabaseObjectDetails>("get_postgres_object_details", {
+    connectionId,
+    objectId,
+  });
+  return {
+    ...details,
+    engine: normalizeDatabaseEngine(details.engine),
+  };
 }
 
 export async function setUnsavedSqlTabs(hasUnsaved: boolean): Promise<void> {
@@ -53,29 +98,57 @@ export function loadStoredConnections(): StoredConnectionDraft[] {
 
   if (rawConnections) {
     try {
-      const connections = JSON.parse(rawConnections) as StoredConnectionDraft[];
-      return Array.isArray(connections) ? connections : [];
+      const connections = JSON.parse(rawConnections) as unknown[];
+      return Array.isArray(connections)
+        ? connections.flatMap((connection) => {
+            const normalized = normalizeStoredConnection(connection);
+            return normalized ? [normalized] : [];
+          })
+        : [];
     } catch {
       window.localStorage.removeItem(storedConnectionsKey);
     }
   }
 
-  const rawLegacyConnection = window.localStorage.getItem(storedConnectionKey);
+  const rawLegacyConnections = window.localStorage.getItem(legacyStoredConnectionsKey);
+  if (rawLegacyConnections) {
+    try {
+      const connections = JSON.parse(rawLegacyConnections) as unknown[];
+      const normalizedConnections = Array.isArray(connections)
+        ? connections.flatMap((connection) => {
+            const normalized = normalizeStoredConnection(connection);
+            return normalized ? [normalized] : [];
+          })
+        : [];
+      saveStoredConnections(normalizedConnections);
+      window.localStorage.removeItem(legacyStoredConnectionsKey);
+      return normalizedConnections;
+    } catch {
+      window.localStorage.removeItem(legacyStoredConnectionsKey);
+    }
+  }
+
+  const rawLegacyConnection = window.localStorage.getItem(legacyStoredConnectionKey);
   if (!rawLegacyConnection) return [];
 
   try {
-    const legacyConnection = JSON.parse(rawLegacyConnection) as StoredConnectionDraft;
+    const legacyConnection = normalizeStoredConnection(JSON.parse(rawLegacyConnection));
+    if (!legacyConnection) {
+      window.localStorage.removeItem(legacyStoredConnectionKey);
+      return [];
+    }
     saveStoredConnections([legacyConnection]);
-    window.localStorage.removeItem(storedConnectionKey);
+    window.localStorage.removeItem(legacyStoredConnectionKey);
     return [legacyConnection];
   } catch {
-    window.localStorage.removeItem(storedConnectionKey);
+    window.localStorage.removeItem(legacyStoredConnectionKey);
     return [];
   }
 }
 
 export function saveStoredConnection(draft: ConnectionDraft): StoredConnectionDraft[] {
   const storedDraft: StoredConnectionDraft = {
+    engine: draft.engine,
     name: draft.name,
     host: draft.host,
     port: draft.port,
@@ -90,6 +163,7 @@ export function saveStoredConnection(draft: ConnectionDraft): StoredConnectionDr
     ...savedConnections.filter(
       (connection) =>
         !(
+          connection.engine === storedDraft.engine &&
           connection.host === storedDraft.host &&
           connection.port === storedDraft.port &&
           connection.database === storedDraft.database &&
@@ -106,6 +180,7 @@ export function deleteStoredConnection(connectionToDelete: StoredConnectionDraft
   const nextConnections = loadStoredConnections().filter(
     (connection) =>
       !(
+        connection.engine === connectionToDelete.engine &&
         connection.host === connectionToDelete.host &&
         connection.port === connectionToDelete.port &&
         connection.database === connectionToDelete.database &&
@@ -119,4 +194,58 @@ export function deleteStoredConnection(connectionToDelete: StoredConnectionDraft
 
 function saveStoredConnections(connections: StoredConnectionDraft[]) {
   window.localStorage.setItem(storedConnectionsKey, JSON.stringify(connections));
+}
+
+function toBackendDraft(draft: ConnectionDraft): BackendConnectionDraft {
+  return {
+    database: draft.database,
+    host: draft.host,
+    name: draft.name,
+    password: draft.password,
+    port: draft.port,
+    sslMode: draft.sslMode,
+    user: draft.user,
+  };
+}
+
+function normalizeTreeForEngine(
+  tree: DatabaseTreeNode[],
+  engine: DatabaseEngine,
+): DatabaseTreeNode[] {
+  return tree.map((node) => {
+    const id = node.id.startsWith("server:") ? `server:${engine}:${node.id.slice(7)}` : node.id;
+
+    return {
+      ...node,
+      id,
+      children: node.children ? normalizeTreeForEngine(node.children, engine) : node.children,
+    };
+  });
+}
+
+function normalizeStoredConnection(connection: unknown): StoredConnectionDraft | null {
+  if (!connection || typeof connection !== "object") return null;
+
+  const candidate = connection as Partial<StoredConnectionDraft> & {
+    sslMode?: SslMode;
+  };
+  if (
+    typeof candidate.name !== "string" ||
+    typeof candidate.host !== "string" ||
+    typeof candidate.port !== "number" ||
+    typeof candidate.database !== "string" ||
+    typeof candidate.user !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    database: candidate.database,
+    engine: normalizeDatabaseEngine(candidate.engine),
+    host: candidate.host,
+    name: candidate.name,
+    port: candidate.port,
+    sslMode: candidate.sslMode ?? "Prefer",
+    user: candidate.user,
+  };
 }

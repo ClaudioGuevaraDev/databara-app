@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import { connectionEngineLabel } from "../../connectionEngines";
 import type { StoredConnectionDraft } from "../../databaraService";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
 
@@ -29,7 +30,8 @@ export function DeleteConnectionDialog({
           <span className="font-mono text-foreground">{connection.database}</span>?
         </div>
         <div className="truncate font-mono text-foreground">
-          {connection.user}@{connection.host}:{connection.port}
+          {connectionEngineLabel(connection.engine)} · {connection.user}@{connection.host}:
+          {connection.port}
         </div>
         <div>This removes the saved profile from this device.</div>
       </DialogBody>

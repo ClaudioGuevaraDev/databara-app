@@ -8,5 +8,6 @@ export { Field } from "./Field";
 export { IconButton } from "./IconButton";
 export { MetricMini } from "./MetricMini";
 export { SectionTitle } from "./SectionTitle";
+export { SelectField, type SelectFieldOption } from "./SelectField";
 export { SmallAction } from "./SmallAction";
 export { DetailRow } from "./DetailRow";

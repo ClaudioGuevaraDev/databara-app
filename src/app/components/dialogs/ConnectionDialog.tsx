@@ -1,7 +1,12 @@
 import { Activity, KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
+import {
+  connectionEngines,
+  getConnectionEngineConfig,
+  normalizeDatabaseEngine,
+} from "../../connectionEngines";
 import { testPostgresConnection, type StoredConnectionDraft } from "../../databaraService";
-import type { ConnectionDraft } from "../../types";
+import type { ConnectionDraft, DatabaseEngine, SslMode } from "../../types";
 import {
   buildConnectionDraft,
   connectionDisplayName,
@@ -15,6 +20,7 @@ import {
   DialogFrame,
   DialogHeader,
   Field,
+  SelectField,
 } from "../ui";
 
 export function ConnectionDialog({
@@ -26,27 +32,42 @@ export function ConnectionDialog({
   onClose: () => void;
   onSave: (draft: ConnectionDraft) => Promise<void>;
 }) {
+  const defaultEngine = connectionEngines[0];
   const defaultDraft: ConnectionFormDraft = {
     database: "",
+    engine: defaultEngine.id,
     host: "",
     name: "",
     password: "",
-    port: "",
-    sslMode: "Prefer",
+    port: String(defaultEngine.defaultPort),
+    sslMode: defaultEngine.defaultSslMode,
     user: "",
   };
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const [formMessage, setFormMessage] = useState<{
+    text: string;
+    tone: "error" | "success";
+  } | null>(null);
   const [draft, setDraft] = useState<ConnectionFormDraft>({
     ...defaultDraft,
     ...(initialDraft
       ? {
           ...initialDraft,
+          engine: normalizeDatabaseEngine(initialDraft.engine),
           port: String(initialDraft.port),
         }
       : null),
   });
+  const engineConfig = getConnectionEngineConfig(draft.engine);
+  const engineOptions = connectionEngines.map((engine) => ({
+    label: engine.label,
+    value: engine.id,
+  }));
+  const sslModeOptions = engineConfig.sslModes.map((sslMode) => ({
+    label: sslMode,
+    value: sslMode,
+  }));
 
   function updateDraft(key: keyof ConnectionFormDraft, value: string) {
     setDraft((current) => ({
@@ -55,13 +76,25 @@ export function ConnectionDialog({
     }));
   }
 
+  function updateEngine(engine: DatabaseEngine) {
+    const nextConfig = getConnectionEngineConfig(engine);
+    setDraft((current) => ({
+      ...current,
+      engine,
+      port: current.port || String(nextConfig.defaultPort),
+      sslMode: nextConfig.sslModes.includes(current.sslMode)
+        ? current.sslMode
+        : nextConfig.defaultSslMode,
+    }));
+  }
+
   async function testConnection() {
-    setTestResult(null);
+    setFormMessage(null);
     let nextDraft: ConnectionDraft;
     try {
       nextDraft = buildConnectionDraft(draft);
     } catch (error) {
-      setTestResult(readErrorMessage(error));
+      setFormMessage({ text: readErrorMessage(error), tone: "error" });
       return;
     }
 
@@ -71,21 +104,21 @@ export function ConnectionDialog({
         ...nextDraft,
         name: connectionDisplayName(nextDraft),
       });
-      setTestResult(result.message);
+      setFormMessage({ text: result.message, tone: result.ok ? "success" : "error" });
     } catch (error) {
-      setTestResult(readErrorMessage(error));
+      setFormMessage({ text: readErrorMessage(error), tone: "error" });
     } finally {
       setTesting(false);
     }
   }
 
   async function saveConnection() {
-    setTestResult(null);
+    setFormMessage(null);
     let nextDraft: ConnectionDraft;
     try {
       nextDraft = buildConnectionDraft(draft);
     } catch (error) {
-      setTestResult(readErrorMessage(error));
+      setFormMessage({ text: readErrorMessage(error), tone: "error" });
       return;
     }
 
@@ -103,7 +136,7 @@ export function ConnectionDialog({
         title={
           <>
             <KeyRound size={16} className="text-primary" />
-            PostgreSQL connection
+            Database connection
           </>
         }
       >
@@ -116,53 +149,58 @@ export function ConnectionDialog({
         }}
       >
         <DialogBody className="grid grid-cols-2 gap-3">
+          <SelectField<DatabaseEngine>
+            className="col-span-2"
+            label="Engine"
+            onChange={updateEngine}
+            options={engineOptions}
+            value={draft.engine}
+          />
           <Field
             autoFocus
             label="Host"
             onChange={(value) => updateDraft("host", value)}
-            placeholder="localhost"
+            placeholder={engineConfig.placeholders.host}
             value={draft.host}
           />
           <Field
             label="Port"
             onChange={(value) => updateDraft("port", value)}
-            placeholder="5432"
+            placeholder={String(engineConfig.defaultPort)}
             value={draft.port}
           />
           <Field
             label="Database"
             onChange={(value) => updateDraft("database", value)}
-            placeholder="databara_dev"
+            placeholder={engineConfig.placeholders.database}
             value={draft.database}
           />
           <Field
             label="User"
             onChange={(value) => updateDraft("user", value)}
-            placeholder="postgres"
+            placeholder={engineConfig.placeholders.user}
             value={draft.user}
           />
           <Field
             label="Password"
             onChange={(value) => updateDraft("password", value)}
-            placeholder="Enter password"
+            placeholder={engineConfig.placeholders.password}
             type="password"
             value={draft.password}
           />
-          <label className="grid gap-1.5 text-[12px] text-muted-foreground">
-            SSL mode
-            <select
-              value={draft.sslMode}
-              onChange={(event) => updateDraft("sslMode", event.target.value)}
-              className="h-8 rounded border border-border bg-[hsl(var(--panel-soft))] px-2 text-foreground outline-none focus:border-primary"
-            >
-              <option>Prefer</option>
-              <option>Require</option>
-              <option>Disable</option>
-            </select>
-          </label>
+          <SelectField<SslMode>
+            label="SSL mode"
+            onChange={(value) => updateDraft("sslMode", value)}
+            options={sslModeOptions}
+            value={draft.sslMode}
+          />
           <div className="col-span-2 min-h-6 text-[12px]">
-            {testResult ? (
-              <span className="text-emerald-300">{testResult}</span>
+            {formMessage ? (
+              <span
+                className={formMessage.tone === "success" ? "text-emerald-300" : "text-destructive"}
+              >
+                {formMessage.text}
+              </span>
             ) : (
               <span className="text-muted-foreground">
                 Password is used for this session only and is not saved.

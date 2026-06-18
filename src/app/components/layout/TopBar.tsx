@@ -11,7 +11,7 @@ export function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
           <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Databara
           </div>
-          <div className="text-[13px] text-foreground">PostgreSQL workspace</div>
+          <div className="text-[13px] text-foreground">Database workspace</div>
         </div>
       </div>
       <button

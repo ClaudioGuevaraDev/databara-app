@@ -189,7 +189,7 @@ export function useDialogs() {
 }
 
 export function savedConnectionNodeId(connection: StoredConnectionDraft) {
-  return `saved-connection:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
+  return `saved-connection:${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
 export function formatColumn(column: ColumnDefinition) {

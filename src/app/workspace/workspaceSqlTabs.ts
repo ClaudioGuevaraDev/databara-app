@@ -9,9 +9,15 @@ type PersistedSqlTabs = {
 const sqlTabsStoragePrefix = "databara.sqlTabs.v1";
 
 export function sqlTabsStorageKey(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
+  connection: Pick<ConnectionDraft, "database" | "engine" | "host" | "port" | "user">,
 ) {
   return `${sqlTabsStoragePrefix}:${connectionKey(connection)}`;
+}
+
+function legacySqlTabsStorageKey(
+  connection: Pick<ConnectionDraft, "database" | "host" | "port" | "user">,
+) {
+  return `${sqlTabsStoragePrefix}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
 export function buildTemporaryObjectTabId(connectionKeyValue: string, objectId: string) {
@@ -129,10 +135,12 @@ function normalizePersistedSqlTab(tab: unknown, fallbackConnectionKey: string): 
 }
 
 export function loadSqlTabsForConnection(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
+  connection: Pick<ConnectionDraft, "database" | "engine" | "host" | "port" | "user">,
 ): PersistedSqlTabs {
   const storageKey = sqlTabsStorageKey(connection);
-  const rawTabs = window.localStorage.getItem(storageKey);
+  const legacyStorageKey = legacySqlTabsStorageKey(connection);
+  const rawTabs =
+    window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey);
   if (!rawTabs) return { activeTabId: "", tabs: [] };
 
   try {
@@ -149,15 +157,22 @@ export function loadSqlTabsForConnection(
         ? parsed.activeTabId
         : (tabs[0]?.id ?? "");
 
-    return { activeTabId, tabs };
+    const persistedTabs = { activeTabId, tabs };
+    if (storageKey !== legacyStorageKey && window.localStorage.getItem(storageKey) === null) {
+      window.localStorage.setItem(storageKey, JSON.stringify(persistedTabs));
+      window.localStorage.removeItem(legacyStorageKey);
+    }
+
+    return persistedTabs;
   } catch {
     window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(legacyStorageKey);
     return { activeTabId: "", tabs: [] };
   }
 }
 
 export function saveSqlTabsForConnection(
-  connection: Pick<ConnectionDraft, "host" | "port" | "database" | "user">,
+  connection: Pick<ConnectionDraft, "database" | "engine" | "host" | "port" | "user">,
   tabs: SqlTab[],
   activeTabId: string,
 ) {
