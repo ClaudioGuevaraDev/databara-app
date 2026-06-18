@@ -1,6 +1,5 @@
 import { DialogsHost } from "../components/dialogs/DialogsHost";
 import { Explorer } from "../components/explorer/Explorer";
-import { StatusBar } from "../components/layout/StatusBar";
 import { TopBar } from "../components/layout/TopBar";
 import { MainWorkspace } from "../components/workspace/MainWorkspace";
 import { useWorkspaceLayout } from "./workspaceCore";
@@ -15,7 +14,6 @@ export function WorkspaceShell() {
         <Explorer />
         <MainWorkspace requiresConnection={workspace.requiresConnection} />
       </div>
-      <StatusBar activeConnection={workspace.activeConnection} />
       <DialogsHost />
     </div>
   );
