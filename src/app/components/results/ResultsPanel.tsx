@@ -8,18 +8,12 @@ import { SchemaView } from "./SchemaView";
 export function ResultsPanel({
   activeTab,
   details,
-  onClose,
-  onCopy,
-  onExport,
   onTabChange,
   queryResult,
   queryState,
 }: {
   activeTab: ResultPanelTab;
   details: DatabaseObjectDetails | null;
-  onClose: () => void;
-  onCopy: () => void;
-  onExport: () => void;
   onTabChange: (tab: ResultPanelTab) => void;
   queryResult: QueryResult | null;
   queryState: QueryState;

@@ -12,11 +12,6 @@ export function ResultsDock() {
       details={results.details}
       queryResult={results.queryResult}
       queryState={results.queryState}
-      onClose={results.closeResults}
-      onCopy={() =>
-        void (results.resultTab === "schema" ? results.copySchema() : results.copyResult())
-      }
-      onExport={results.exportCsv}
       onTabChange={results.selectResultTab}
     />
   );

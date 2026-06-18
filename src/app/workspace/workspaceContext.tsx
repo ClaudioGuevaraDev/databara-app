@@ -76,6 +76,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedObject, setSelectedObject] = useState<DatabaseObjectDetails | null>(null);
+  const [completionObject, setCompletionObject] = useState<DatabaseObjectDetails | null>(null);
   const [sqlTabs, setSqlTabs] = useState<SqlTab[]>([]);
   const [activeTabId, setActiveTabId] = useState("");
   const [loadedSqlTabsKey, setLoadedSqlTabsKey] = useState("");
@@ -133,7 +134,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (requiresConnection || !activeConnection || !selectedObjectId) return;
       try {
         const details = await getPostgresObjectDetails(activeConnection.id, selectedObjectId);
-        if (!cancelled) setSelectedObject(details);
+        if (!cancelled) {
+          setSelectedObject(details);
+          setCompletionObject(details);
+        }
       } catch (error) {
         if (!cancelled) {
           setSelectedObject(null);
@@ -282,6 +286,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setSqlTabs(savedTabs.tabs);
       setActiveTabId(savedTabs.activeTabId);
       setLoadedSqlTabsKey(sqlTabsStorageKey(connection));
+      setCompletionObject(null);
       syncExplorerSelectionWithTab(nextActiveTab);
     },
     [syncExplorerSelectionWithTab],
@@ -291,6 +296,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setSqlTabs([]);
     setActiveTabId("");
     setLoadedSqlTabsKey("");
+    setCompletionObject(null);
     syncExplorerSelectionWithTab(null);
   }, [syncExplorerSelectionWithTab]);
 
@@ -733,6 +739,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       activeTab,
       activeTabId,
       collapsedNodes,
+      completionObject,
       connections,
       deleteConnectionRequest,
       dialogInitialDraft,

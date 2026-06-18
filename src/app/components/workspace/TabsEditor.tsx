@@ -9,15 +9,21 @@ import { QueryToolbar } from "./QueryToolbar";
 
 export function TabsEditor() {
   const editor = useSqlEditor();
-  const selectedObjectRef = useRef<DatabaseObjectDetails | null>(editor.selectedObject);
-  const saveActiveSqlTab = editor.saveActiveSqlTab;
+  const selectedObjectRef = useRef<DatabaseObjectDetails | null>(editor.completionObject);
+  const runQueryRef = useRef(editor.runQuery);
+  const saveActiveSqlTabRef = useRef(editor.saveActiveSqlTab);
   const completionProviderRef = useRef<ReturnType<
     Monaco["languages"]["registerCompletionItemProvider"]
   > | null>(null);
 
   useEffect(() => {
-    selectedObjectRef.current = editor.selectedObject;
-  }, [editor.selectedObject]);
+    selectedObjectRef.current = editor.completionObject;
+  }, [editor.completionObject]);
+
+  useEffect(() => {
+    runQueryRef.current = editor.runQuery;
+    saveActiveSqlTabRef.current = editor.saveActiveSqlTab;
+  }, [editor.runQuery, editor.saveActiveSqlTab]);
 
   useEffect(() => {
     return () => {
@@ -25,20 +31,19 @@ export function TabsEditor() {
     };
   }, []);
 
-  const handleEditorMount = useCallback<OnMount>(
-    (monacoEditor, monaco) => {
-      selectedObjectRef.current = editor.selectedObject;
-      completionProviderRef.current?.dispose();
-      completionProviderRef.current = registerSqlCompletionProvider(monaco, () => ({
-        selectedObject: selectedObjectRef.current,
-      }));
+  const handleEditorMount = useCallback<OnMount>((monacoEditor, monaco) => {
+    completionProviderRef.current?.dispose();
+    completionProviderRef.current = registerSqlCompletionProvider(monaco, () => ({
+      selectedObject: selectedObjectRef.current,
+    }));
 
-      monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-        void saveActiveSqlTab();
-      });
-    },
-    [editor.selectedObject, saveActiveSqlTab],
-  );
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      runQueryRef.current();
+    });
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      void saveActiveSqlTabRef.current();
+    });
+  }, []);
 
   return (
     <>

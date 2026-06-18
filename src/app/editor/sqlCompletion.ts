@@ -595,91 +595,201 @@ function qualifyObjectName(details: DatabaseObjectDetails) {
   return `${details.schema}.${details.name}`;
 }
 
+type CompletionTemplate = Omit<monacoEditor.languages.CompletionItem, "range">;
+
+// Static suggestions (keywords/types/functions/snippets) never change for an engine, so build
+// them once per engine and only attach the per-request `range` on each completion call.
+const staticSuggestionCache = new Map<DatabaseEngine, CompletionTemplate[]>();
+
+const dotQualifierPattern = /([A-Za-z_][\w$]*)\.\w*$/u;
+
+// Clause keywords that can directly follow a table name; used to avoid mistaking them for an alias.
+const aliasStopWords = new Set([
+  "where",
+  "on",
+  "using",
+  "group",
+  "order",
+  "limit",
+  "offset",
+  "having",
+  "join",
+  "inner",
+  "left",
+  "right",
+  "full",
+  "cross",
+  "union",
+  "returning",
+  "set",
+  "values",
+  "as",
+]);
+
+function getStaticSuggestions(monaco: Monaco, engine: DatabaseEngine): CompletionTemplate[] {
+  const cached = staticSuggestionCache.get(engine);
+  if (cached) return cached;
+
+  const profile = getSqlCompletionProfile(engine);
+  const templates: CompletionTemplate[] = [
+    ...profile.snippets.map((snippet) => ({
+      detail: snippet.detail,
+      insertText: snippet.insertText,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+      kind: monaco.languages.CompletionItemKind.Snippet,
+      label: snippet.label,
+      sortText: `2_${snippet.label}`,
+    })),
+    ...profile.keywords.map((keyword) => ({
+      detail: "SQL keyword",
+      insertText: keyword,
+      kind: monaco.languages.CompletionItemKind.Keyword,
+      label: keyword,
+      sortText: `3_${keyword}`,
+    })),
+    ...profile.types.map((type) => ({
+      detail: "SQL type",
+      insertText: type,
+      kind: monaco.languages.CompletionItemKind.TypeParameter,
+      label: type,
+      sortText: `4_${type}`,
+    })),
+    ...profile.functions.map((name) => ({
+      detail: "SQL function",
+      insertText: `${name}($1)`,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+      kind: monaco.languages.CompletionItemKind.Function,
+      label: name,
+      sortText: `5_${name}`,
+    })),
+  ];
+
+  staticSuggestionCache.set(engine, templates);
+  return templates;
+}
+
+function withRange(
+  templates: CompletionTemplate[],
+  range: CompletionRange,
+): monacoEditor.languages.CompletionItem[] {
+  return templates.map((template) => ({ ...template, range }));
+}
+
+function buildTableSuggestions(
+  monaco: Monaco,
+  selectedObject: DatabaseObjectDetails,
+  range: CompletionRange,
+): monacoEditor.languages.CompletionItem[] {
+  const qualifiedName = qualifyObjectName(selectedObject);
+  return [
+    {
+      detail: `${selectedObject.kind} ${qualifiedName}`,
+      insertText: qualifiedName,
+      kind: monaco.languages.CompletionItemKind.Struct,
+      label: qualifiedName,
+      range,
+      sortText: `0_${qualifiedName}`,
+    },
+    {
+      detail: `${selectedObject.kind} ${qualifiedName}`,
+      insertText: selectedObject.name,
+      kind: monaco.languages.CompletionItemKind.Struct,
+      label: selectedObject.name,
+      range,
+      sortText: `0_${selectedObject.name}`,
+    },
+  ];
+}
+
+function buildColumnSuggestions(
+  monaco: Monaco,
+  selectedObject: DatabaseObjectDetails,
+  range: CompletionRange,
+): monacoEditor.languages.CompletionItem[] {
+  return selectedObject.columns.map((column) => ({
+    detail: column.dataType,
+    insertText: column.name,
+    kind: monaco.languages.CompletionItemKind.Field,
+    label: column.name,
+    range,
+    sortText: `1_${column.name}`,
+  }));
+}
+
+// When the cursor sits right after `<identifier>.`, returns that identifier (the column qualifier).
+function getDotQualifier(
+  model: monacoEditor.editor.ITextModel,
+  position: monacoEditor.Position,
+): string | null {
+  const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+  return linePrefix.match(dotQualifierPattern)?.[1] ?? null;
+}
+
+// Range covering only the partial word after the dot, so inserting a column keeps the `table.` prefix.
+function getWordRange(
+  model: monacoEditor.editor.ITextModel,
+  position: monacoEditor.Position,
+): CompletionRange {
+  const word = model.getWordUntilPosition(position);
+  return {
+    endColumn: word.endColumn,
+    endLineNumber: position.lineNumber,
+    startColumn: word.startColumn,
+    startLineNumber: position.lineNumber,
+  };
+}
+
+// True when the dot qualifier refers to the selected object, either by name or by a table alias
+// declared in a FROM/JOIN clause (e.g. `SELECT o. FROM orders o`).
+function qualifierMatchesObject(
+  qualifier: string,
+  selectedObject: DatabaseObjectDetails,
+  model: monacoEditor.editor.ITextModel,
+): boolean {
+  const lowered = qualifier.toLowerCase();
+  if (lowered === selectedObject.name.toLowerCase()) return true;
+  if (aliasStopWords.has(lowered)) return false;
+
+  const escapedName = selectedObject.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const aliasPattern = new RegExp(
+    `(?:from|join)\\s+(?:[A-Za-z_][\\w$]*\\.)?${escapedName}\\s+(?:as\\s+)?([A-Za-z_][\\w$]*)`,
+    "iu",
+  );
+  const alias = model.getValue().match(aliasPattern)?.[1]?.toLowerCase();
+  return Boolean(alias) && !aliasStopWords.has(alias!) && alias === lowered;
+}
+
 export function registerSqlCompletionProvider(
   monaco: Monaco,
   getContext: () => SqlCompletionContext,
 ) {
   return monaco.languages.registerCompletionItemProvider("sql", {
-    triggerCharacters: [".", " ", ","],
+    triggerCharacters: ["."],
     provideCompletionItems(model: monacoEditor.editor.ITextModel, position: monacoEditor.Position) {
-      const range = getCompletionRange(model, position);
       const { selectedObject } = getContext();
-      const profile = getSqlCompletionProfile(selectedObject?.engine);
-      const suggestions: monacoEditor.languages.CompletionItem[] = [];
+      const engine = selectedObject?.engine ?? "postgresql";
+      const dotQualifier = getDotQualifier(model, position);
 
-      suggestions.push(
-        ...profile.keywords.map((keyword) => ({
-          detail: "SQL keyword",
-          insertText: keyword,
-          kind: monaco.languages.CompletionItemKind.Keyword,
-          label: keyword,
-          range,
-          sortText: `2_${keyword}`,
-        })),
-      );
+      // After `<qualifier>.` only column names make sense; never flood with keywords there.
+      if (dotQualifier) {
+        if (selectedObject && qualifierMatchesObject(dotQualifier, selectedObject, model)) {
+          return {
+            suggestions: buildColumnSuggestions(
+              monaco,
+              selectedObject,
+              getWordRange(model, position),
+            ),
+          };
+        }
+        return { suggestions: [] };
+      }
 
-      suggestions.push(
-        ...profile.types.map((type) => ({
-          detail: "SQL type",
-          insertText: type,
-          kind: monaco.languages.CompletionItemKind.TypeParameter,
-          label: type,
-          range,
-          sortText: `3_${type}`,
-        })),
-      );
-
-      suggestions.push(
-        ...profile.functions.map((name) => ({
-          detail: "SQL function",
-          insertText: `${name}($1)`,
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          kind: monaco.languages.CompletionItemKind.Function,
-          label: name,
-          range,
-          sortText: `4_${name}`,
-        })),
-      );
-
-      suggestions.push(
-        ...profile.snippets.map((snippet) => ({
-          detail: snippet.detail,
-          insertText: snippet.insertText,
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          kind: monaco.languages.CompletionItemKind.Snippet,
-          label: snippet.label,
-          range,
-          sortText: `1_${snippet.label}`,
-        })),
-      );
-
+      const range = getCompletionRange(model, position);
+      const suggestions = withRange(getStaticSuggestions(monaco, engine), range);
       if (selectedObject) {
-        const qualifiedName = qualifyObjectName(selectedObject);
         suggestions.push(
-          {
-            detail: `${selectedObject.kind} ${qualifiedName}`,
-            insertText: qualifiedName,
-            kind: monaco.languages.CompletionItemKind.Struct,
-            label: qualifiedName,
-            range,
-            sortText: `0_${qualifiedName}`,
-          },
-          {
-            detail: `${selectedObject.kind} ${qualifiedName}`,
-            insertText: selectedObject.name,
-            kind: monaco.languages.CompletionItemKind.Struct,
-            label: selectedObject.name,
-            range,
-            sortText: `0_${selectedObject.name}`,
-          },
-          ...selectedObject.columns.map((column) => ({
-            detail: column.dataType,
-            insertText: column.name,
-            kind: monaco.languages.CompletionItemKind.Field,
-            label: column.name,
-            range,
-            sortText: `0_${column.name}`,
-          })),
+          ...buildTableSuggestions(monaco, selectedObject, range),
+          ...buildColumnSuggestions(monaco, selectedObject, range),
         );
       }
 

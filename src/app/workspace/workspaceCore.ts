@@ -17,6 +17,7 @@ export type WorkspaceState = {
   activeTab: SqlTab | null;
   activeTabId: string;
   collapsedNodes: Set<string>;
+  completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
   deleteConnectionRequest: StoredConnectionDraft | null;
   dialogInitialDraft: StoredConnectionDraft | null;
@@ -123,6 +124,7 @@ export function useSqlEditor() {
   return {
     activeTab: state.activeTab,
     activeTabId: state.activeTabId,
+    completionObject: state.completionObject,
     selectedObject: state.selectedObject,
     sqlTabs: state.sqlTabs,
     closeSqlTab: actions.closeSqlTab,
