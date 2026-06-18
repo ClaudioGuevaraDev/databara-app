@@ -4,7 +4,7 @@ import { TabsEditor } from "./TabsEditor";
 
 export function MainWorkspace({ requiresConnection }: { requiresConnection: boolean }) {
   return (
-    <main className="flex min-w-0 flex-col">
+    <main className="flex min-h-0 min-w-0 flex-col">
       {requiresConnection ? (
         <EmptyWorkspace />
       ) : (

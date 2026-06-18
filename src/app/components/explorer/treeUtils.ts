@@ -48,19 +48,3 @@ export function findStoredConnectionForNode(
     ) ?? null
   );
 }
-
-export function getExplorerStats(nodes: DatabaseTreeNode[]) {
-  return nodes.reduce(
-    (stats, node) => {
-      if (node.kind === "schema") stats.schemas += 1;
-      if (node.kind === "table") stats.tables += 1;
-      if (node.children) {
-        const childStats = getExplorerStats(node.children);
-        stats.schemas += childStats.schemas;
-        stats.tables += childStats.tables;
-      }
-      return stats;
-    },
-    { schemas: 0, tables: 0 },
-  );
-}

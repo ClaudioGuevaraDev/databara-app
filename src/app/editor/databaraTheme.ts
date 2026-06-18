@@ -74,8 +74,8 @@ export function defineDatabaraTheme(monaco: Monaco) {
       "symbolIcon.snippetForeground": "#8a97a6",
       "scrollbar.shadow": "#00000000",
       "scrollbarSlider.background": "#d3dbe624",
-      "scrollbarSlider.hoverBackground": "#2dd6e073",
-      "scrollbarSlider.activeBackground": "#2dd6e0a6",
+      "scrollbarSlider.hoverBackground": "#2dd6e0cc",
+      "scrollbarSlider.activeBackground": "#2dd6e0",
     },
   });
 

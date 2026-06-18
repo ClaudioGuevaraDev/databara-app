@@ -78,7 +78,6 @@ select {
   background-clip: padding-box;
   border: 3px solid transparent;
   border-radius: 999px;
-  transition: background-color 160ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -91,9 +90,29 @@ select {
   background-clip: padding-box;
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--foreground) / 0.18) transparent;
+/* Mirror the editor's Monaco scrollbar: 14px rail, 4px inset, and the exact
+   scrollbarSlider hex colors from databaraTheme.ts (rest alpha nudged down a
+   touch since the sidebar panel is lighter than the editor canvas). */
+.scroll-overlay::-webkit-scrollbar {
+  height: 14px;
+  width: 14px;
+}
+
+.scroll-overlay::-webkit-scrollbar-thumb {
+  background: #d3dbe61f;
+  background-clip: padding-box;
+  border: 4px solid transparent;
+  border-radius: 999px;
+}
+
+.scroll-overlay::-webkit-scrollbar-thumb:hover {
+  background: #2dd6e0cc;
+  background-clip: padding-box;
+}
+
+.scroll-overlay::-webkit-scrollbar-thumb:active {
+  background: #2dd6e0;
+  background-clip: padding-box;
 }
 
 .monaco-editor,
