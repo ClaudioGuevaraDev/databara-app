@@ -90,6 +90,10 @@ All frontend ↔ backend communication funnels through a single service (`src/ap
 
 Use **pnpm only** and keep dependency versions **exact** (no `^`/`~`). Commits follow [Conventional Commits](https://www.conventionalcommits.org). Run the validation gate above before opening a PR.
 
+## 📄 License
+
+Released under the [MIT License](LICENSE) © 2026 Claudio Guevara.
+
 ---
 
 <div align="center">

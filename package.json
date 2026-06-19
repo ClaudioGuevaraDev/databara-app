@@ -2,6 +2,7 @@
   "name": "databara",
   "version": "0.10.6",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "scripts": {
