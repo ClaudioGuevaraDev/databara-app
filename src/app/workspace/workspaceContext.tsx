@@ -684,6 +684,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [activeConnection, notify]);
 
+  const refreshConnection = useCallback(
+    async (targetConnectionKey?: string) => {
+      const connection = connectionByKey(targetConnectionKey) ?? activeConnection;
+      if (!connection) {
+        notify("Connect to a database before refreshing", "warning");
+        return;
+      }
+
+      try {
+        const tree = await listPostgresTree(connection.id);
+        setActiveExplorerTree((current) => mergeExplorerTree(current, tree));
+        // Refresh the selected object's details too, if it belongs to this connection.
+        if (selectedObjectId && selectedObjectConnectionId === connection.id) {
+          const details = await getPostgresObjectDetails(connection.id, selectedObjectId);
+          setSelectedObject(details);
+          setCompletionObject(details);
+        }
+        notify(`${connection.database} refreshed`, "success");
+      } catch (error) {
+        notify(readErrorMessage(error), "warning");
+      }
+    },
+    [activeConnection, connectionByKey, notify, selectedObjectConnectionId, selectedObjectId],
+  );
+
   const previewObject = useCallback(
     async (objectId = selectedObjectId) => {
       if (requiresConnection) {
@@ -942,6 +967,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openSavedConnection,
       previewObject,
       refreshAll,
+      refreshConnection,
       runQuery,
       saveActiveSqlTab,
       setQueryPageSize,

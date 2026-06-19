@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Circle, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Circle, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseTreeNode } from "../../types";
 import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCore";
@@ -79,6 +79,26 @@ export function ExplorerNode({
                   : "border-amber-300/70 bg-amber-300/75 shadow-[0_0_6px_hsl(43_96%_56%/0.16)]",
               )}
             />
+            {connectedDatabase ? (
+              <span
+                role="button"
+                tabIndex={0}
+                title="Refresh tables"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void explorer.refreshConnection(nodeConnectionKey);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void explorer.refreshConnection(nodeConnectionKey);
+                }}
+                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground"
+              >
+                <RefreshCw size={12} />
+              </span>
+            ) : null}
             <span
               role="button"
               tabIndex={0}

@@ -62,6 +62,7 @@ export type WorkspaceActions = {
   openSavedConnection: (nodeId: string) => void;
   previewObject: (objectId?: string) => Promise<void>;
   refreshAll: () => Promise<void>;
+  refreshConnection: (connectionKey?: string) => Promise<void>;
   runQuery: () => Promise<void>;
   saveActiveSqlTab: () => Promise<void>;
   saveConnection: (draft: ConnectionDraft) => Promise<void>;
@@ -121,6 +122,7 @@ export function useExplorer() {
     confirmObjectTab: actions.confirmObjectTab,
     deleteConnection: actions.deleteConnection,
     openSavedConnection: actions.openSavedConnection,
+    refreshConnection: actions.refreshConnection,
     selectObject: actions.selectObject,
     toggleNode: actions.toggleNode,
   };
