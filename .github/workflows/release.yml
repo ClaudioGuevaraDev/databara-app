@@ -16,13 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # NOTE: macOS and Linux are disabled until proper icons exist
-          # (icon.icns + PNGs). They need `pnpm tauri icon <source.png>` first,
-          # otherwise their bundling step fails. Re-enable by uncommenting.
-          # - platform: macos-latest
-          #   args: "--target universal-apple-darwin"
-          # - platform: ubuntu-22.04
-          #   args: ""
+          # Universal binary so a single .dmg runs on both Intel and Apple Silicon.
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+          - platform: ubuntu-22.04
+            args: ""
           - platform: windows-latest
             args: ""
 
