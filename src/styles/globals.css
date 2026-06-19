@@ -106,7 +106,7 @@ select {
 }
 
 .scroll-overlay::-webkit-scrollbar-thumb:hover {
-  background: #2dd6e0cc;
+  background: #2dd6e0c6;
   background-clip: padding-box;
 }
 
