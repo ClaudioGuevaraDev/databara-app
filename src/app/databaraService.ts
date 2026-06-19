@@ -85,6 +85,22 @@ export async function getPostgresObjectDetails(
   };
 }
 
+export type QueryExecutionResult = {
+  columns: string[];
+  rows: (string | null)[][];
+  rowCount: number;
+  durationMs: number;
+  rowsAffected: number | null;
+  commandTag: string | null;
+};
+
+export async function runPostgresQuery(
+  connectionId: string,
+  sql: string,
+): Promise<QueryExecutionResult> {
+  return invoke<QueryExecutionResult>("run_postgres_query", { connectionId, sql });
+}
+
 export async function setUnsavedSqlTabs(hasUnsaved: boolean): Promise<void> {
   return invoke<void>("set_unsaved_sql_tabs", { hasUnsaved });
 }

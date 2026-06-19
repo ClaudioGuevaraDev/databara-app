@@ -4,12 +4,17 @@ use std::{
     time::{Duration, Instant},
 };
 
+use futures_util::{pin_mut, TryStreamExt};
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 use thiserror::Error;
 use tokio::time::timeout;
-use tokio_postgres::{config::SslMode, Client, Config, NoTls};
+use tokio_postgres::{
+    config::SslMode,
+    types::{ToSql, Type},
+    Client, Config, NoTls, Row,
+};
 
 #[derive(Default)]
 struct AppState {
@@ -31,8 +36,8 @@ enum AppError {
     ConnectionNotFound,
     #[error("Invalid object id")]
     InvalidObjectId,
-    #[error("PostgreSQL error: {0}")]
-    Postgres(#[from] tokio_postgres::Error),
+    #[error("{0}")]
+    Postgres(String),
     #[error("TLS error: {0}")]
     Tls(#[from] native_tls::Error),
     #[error("Operation timed out")]
@@ -50,6 +55,29 @@ impl Serialize for AppError {
     {
         serializer.serialize_str(&self.to_string())
     }
+}
+
+impl From<tokio_postgres::Error> for AppError {
+    fn from(error: tokio_postgres::Error) -> Self {
+        AppError::Postgres(format_postgres_error(&error))
+    }
+}
+
+/// `tokio_postgres::Error`'s `Display` is just a generic "db error"; the useful
+/// message (and optional detail/hint) lives in the underlying `DbError`.
+fn format_postgres_error(error: &tokio_postgres::Error) -> String {
+    let Some(db) = error.as_db_error() else {
+        return format!("PostgreSQL error: {error}");
+    };
+
+    let mut message = format!("PostgreSQL error: {}", db.message());
+    if let Some(detail) = db.detail() {
+        message.push_str(&format!("\nDetail: {detail}"));
+    }
+    if let Some(hint) = db.hint() {
+        message.push_str(&format!("\nHint: {hint}"));
+    }
+    message
 }
 
 #[derive(Debug, Deserialize)]
@@ -157,6 +185,17 @@ struct IndexDefinition {
     primary: bool,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QueryExecution {
+    columns: Vec<String>,
+    rows: Vec<Vec<Option<String>>>,
+    row_count: usize,
+    duration_ms: u128,
+    rows_affected: Option<u64>,
+    command_tag: Option<String>,
+}
+
 #[derive(Clone)]
 struct CatalogObject {
     schema: String,
@@ -237,6 +276,97 @@ async fn get_postgres_object_details(
 ) -> Result<DatabaseObjectDetails, AppError> {
     let (client, _) = session(&state, &connection_id)?;
     load_object_details(&client, &object_id).await
+}
+
+#[tauri::command]
+async fn run_postgres_query(
+    state: State<'_, Mutex<AppState>>,
+    connection_id: String,
+    sql: String,
+) -> Result<QueryExecution, AppError> {
+    let (client, _) = session(&state, &connection_id)?;
+
+    // Prepare first so we can read column metadata even when the result is empty.
+    let statement = client.prepare(&sql).await?;
+    let columns: Vec<String> = statement
+        .columns()
+        .iter()
+        .map(|column| column.name().to_string())
+        .collect();
+
+    // query_raw exposes the command tag and affected-row count once the stream is
+    // exhausted, which `query` does not — needed to report DML/DDL results.
+    let params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    let start = Instant::now();
+    let stream = client.query_raw(&statement, params).await?;
+    pin_mut!(stream);
+
+    let mut converted: Vec<Vec<Option<String>>> = Vec::new();
+    while let Some(row) = stream.try_next().await? {
+        converted.push((0..row.len()).map(|index| cell_to_string(&row, index)).collect());
+    }
+
+    let duration_ms = start.elapsed().as_millis();
+    let rows_affected = stream.rows_affected();
+    // tokio-postgres 0.7 doesn't expose the command tag here, so derive the verb
+    // from the SQL itself (e.g. "DELETE", "INSERT", "CREATE").
+    let command_tag = sql
+        .split_whitespace()
+        .next()
+        .map(|word| word.to_ascii_uppercase());
+
+    Ok(QueryExecution {
+        columns,
+        row_count: converted.len(),
+        rows: converted,
+        duration_ms,
+        rows_affected,
+        command_tag,
+    })
+}
+
+/// Converts a single result cell into a displayable string, returning `None` for
+/// SQL NULL. Covers the common PostgreSQL types; anything unrecognized falls back
+/// to a best-effort text read so the conversion never panics.
+fn cell_to_string(row: &Row, index: usize) -> Option<String> {
+    let column_type = row.columns()[index].type_();
+
+    match *column_type {
+        Type::BOOL => row.get::<_, Option<bool>>(index).map(|value| value.to_string()),
+        Type::INT2 => row.get::<_, Option<i16>>(index).map(|value| value.to_string()),
+        Type::INT4 => row.get::<_, Option<i32>>(index).map(|value| value.to_string()),
+        Type::INT8 => row.get::<_, Option<i64>>(index).map(|value| value.to_string()),
+        Type::FLOAT4 => row.get::<_, Option<f32>>(index).map(|value| value.to_string()),
+        Type::FLOAT8 => row.get::<_, Option<f64>>(index).map(|value| value.to_string()),
+        Type::NUMERIC => row
+            .get::<_, Option<rust_decimal::Decimal>>(index)
+            .map(|value| value.to_string()),
+        Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::CHAR | Type::NAME | Type::UNKNOWN => {
+            row.get::<_, Option<String>>(index)
+        }
+        Type::UUID => row
+            .get::<_, Option<uuid::Uuid>>(index)
+            .map(|value| value.to_string()),
+        Type::TIMESTAMP => row
+            .get::<_, Option<chrono::NaiveDateTime>>(index)
+            .map(|value| value.to_string()),
+        Type::TIMESTAMPTZ => row
+            .get::<_, Option<chrono::DateTime<chrono::Utc>>>(index)
+            .map(|value| value.to_string()),
+        Type::DATE => row
+            .get::<_, Option<chrono::NaiveDate>>(index)
+            .map(|value| value.to_string()),
+        Type::TIME => row
+            .get::<_, Option<chrono::NaiveTime>>(index)
+            .map(|value| value.to_string()),
+        Type::JSON | Type::JSONB => row
+            .get::<_, Option<serde_json::Value>>(index)
+            .map(|value| value.to_string()),
+        _ => match row.try_get::<_, Option<String>>(index) {
+            Ok(value) => value,
+            Err(_) => Some(format!("<unsupported: {}>", column_type.name())),
+        },
+    }
 }
 
 #[tauri::command]
@@ -626,6 +756,7 @@ pub fn run() {
             connect_postgres,
             list_postgres_tree,
             get_postgres_object_details,
+            run_postgres_query,
             set_unsaved_sql_tabs,
             close_main_window_after_unsaved_resolution
         ])

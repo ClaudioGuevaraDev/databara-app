@@ -5,7 +5,15 @@ import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCor
 import { connectionKey, findStoredConnectionForNode } from "./treeUtils";
 import { TreeIcon } from "./TreeIcon";
 
-export function ExplorerNode({ depth, node }: { depth: number; node: DatabaseTreeNode }) {
+export function ExplorerNode({
+  depth,
+  node,
+  inheritedConnectionKey,
+}: {
+  depth: number;
+  node: DatabaseTreeNode;
+  inheritedConnectionKey?: string;
+}) {
   const explorer = useExplorer();
   const hasChildren = Boolean(node.children?.length);
   const selectable = node.kind === "table" || node.kind === "view";
@@ -15,6 +23,11 @@ export function ExplorerNode({ depth, node }: { depth: number; node: DatabaseTre
     explorer.explorerTree,
     explorer.storedConnections,
   );
+  // A database/saved-connection node defines the connection for its whole subtree;
+  // everything below inherits it so object clicks know which connection they belong to.
+  const nodeConnectionKey =
+    (deletableConnection ? connectionKey(deletableConnection) : undefined) ??
+    inheritedConnectionKey;
   const connectedDatabase = deletableConnection
     ? explorer.connectedConnectionKeys.has(connectionKey(deletableConnection))
     : false;
@@ -26,11 +39,11 @@ export function ExplorerNode({ depth, node }: { depth: number; node: DatabaseTre
       <button
         onClick={() => {
           if (hasChildren) explorer.toggleNode(node.id);
-          if (selectable) explorer.selectObject(node.id);
+          if (selectable) explorer.selectObject(node.id, nodeConnectionKey);
           if (savedConnection) explorer.openSavedConnection(node.id);
         }}
         onDoubleClick={() => {
-          if (selectable) explorer.confirmObjectTab(node.id);
+          if (selectable) explorer.confirmObjectTab(node.id, nodeConnectionKey);
         }}
         className={cn(
           "group flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
@@ -94,7 +107,12 @@ export function ExplorerNode({ depth, node }: { depth: number; node: DatabaseTre
       {!collapsed && hasChildren ? (
         <div>
           {node.children?.map((child) => (
-            <ExplorerNode key={child.id} node={child} depth={depth + 1} />
+            <ExplorerNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              inheritedConnectionKey={nodeConnectionKey}
+            />
           ))}
         </div>
       ) : null}

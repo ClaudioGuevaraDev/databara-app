@@ -58,6 +58,7 @@ export function TabsEditor() {
         canSave={Boolean(
           editor.activeTab && (editor.activeTab.state === "temporary" || editor.activeTab.dirty),
         )}
+        isRunning={editor.isRunning}
         onRun={editor.runQuery}
         onSave={() => void editor.saveActiveSqlTab()}
       />

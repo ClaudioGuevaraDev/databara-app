@@ -1,4 +1,3 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   closeMainWindowAfterUnsavedResolution,
@@ -7,6 +6,7 @@ import {
   getPostgresObjectDetails,
   listPostgresTree,
   loadStoredConnections,
+  runPostgresQuery,
   saveStoredConnection,
   setUnsavedSqlTabs,
   type StoredConnectionDraft,
@@ -18,10 +18,13 @@ import {
   type ConnectionProfile,
   type DatabaseObjectDetails,
   type DatabaseTreeNode,
+  type QueryPagination,
   type QueryState,
   type QueryResult,
   type ResultPanelTab,
   type SqlTab,
+  type Toast,
+  type ToastTone,
 } from "../types";
 import {
   savedConnectionNodeId,
@@ -29,13 +32,19 @@ import {
   type WorkspaceContextValue,
 } from "./workspaceCore";
 import {
+  buildCountSql,
   buildDefaultObjectSql,
   buildObjectTabLabel,
+  buildPageSql,
   buildStoredConnectionTree,
   connectionDisplayName,
   connectionKey,
   copyText,
+  formatCommandMessage,
+  isReadQuery,
   mergeExplorerTree,
+  normalizeBaseSql,
+  parseTrailingLimit,
   readErrorMessage,
   removeConnectionFromTree,
 } from "./workspaceContext.utils";
@@ -49,9 +58,26 @@ import {
   sqlTabsStorageKey,
 } from "./workspaceSqlTabs";
 
-type Toast = { text: string; tone?: "default" | "success" | "warning" };
+// Per-tab, in-memory query state (never persisted to localStorage).
+type TabResult = {
+  state: QueryState;
+  result: QueryResult | null;
+  pagination: QueryPagination | null;
+  error: string | null;
+  connectionId: string;
+  baseSql: string;
+};
 
-const defaultRowLimit = 100;
+const emptyTabResult: TabResult = {
+  state: "idle",
+  result: null,
+  pagination: null,
+  error: null,
+  connectionId: "",
+  baseSql: "",
+};
+
+const defaultRowLimit = 50;
 
 function getTabSelectionState(tab: SqlTab | null) {
   return {
@@ -72,30 +98,38 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [deleteConnectionRequest, setDeleteConnectionRequest] =
     useState<StoredConnectionDraft | null>(null);
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
+  const [activeConnectionId, setActiveConnectionId] = useState("");
   const [activeExplorerTree, setActiveExplorerTree] = useState<DatabaseTreeNode[]>([]);
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [selectedObjectId, setSelectedObjectId] = useState("");
+  const [selectedObjectConnectionId, setSelectedObjectConnectionId] = useState("");
   const [selectedObject, setSelectedObject] = useState<DatabaseObjectDetails | null>(null);
   const [completionObject, setCompletionObject] = useState<DatabaseObjectDetails | null>(null);
   const [sqlTabs, setSqlTabs] = useState<SqlTab[]>([]);
   const [activeTabId, setActiveTabId] = useState("");
   const [loadedSqlTabsKey, setLoadedSqlTabsKey] = useState("");
-  const [queryState] = useState<QueryState>("idle");
-  const [queryResult] = useState<QueryResult | null>(null);
+  const [resultsByTab, setResultsByTab] = useState<Record<string, TabResult>>({});
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
-  const [, setToast] = useState<Toast>(() => ({
-    text: "Ready",
-  }));
-  const allowWindowCloseRef = useRef(false);
+  const [toast, setToast] = useState<Toast | null>(null);
   const hasUnsavedTabsRef = useRef(false);
+  const runningTabsRef = useRef<Set<string>>(new Set());
+  const toastCounterRef = useRef(0);
   const sqlTabsRef = useRef<SqlTab[]>([]);
   const activeTabIdRef = useRef("");
 
-  const activeConnection = connections[0] ?? null;
+  const activeConnection =
+    connections.find((connection) => connection.id === activeConnectionId) ??
+    connections[0] ??
+    null;
   const requiresConnection = connections.length === 0;
   const activeTab = sqlTabs.find((tab) => tab.id === activeTabId) ?? null;
+  const activeTabResult = resultsByTab[activeTabId] ?? null;
+  const queryState = activeTabResult?.state ?? "idle";
+  const queryResult = activeTabResult?.result ?? null;
+  const queryPagination = activeTabResult?.pagination ?? null;
+  const queryError = activeTabResult?.error ?? null;
   const hasUnsavedTabs = sqlTabs.some((tab) => tab.dirty);
   const activeConnectionSqlTabsKey = activeConnection ? sqlTabsStorageKey(activeConnection) : "";
   const activeConnectionKey = activeConnection ? connectionKey(activeConnection) : "";
@@ -109,8 +143,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [connections],
   );
 
-  const notify = useCallback((text: string, tone: Toast["tone"] = "default") => {
-    setToast({ text, tone });
+  const connectionByKey = useCallback(
+    (key: string | undefined) =>
+      key ? (connections.find((connection) => connectionKey(connection) === key) ?? null) : null,
+    [connections],
+  );
+
+  const notify = useCallback((text: string, tone: ToastTone = "default") => {
+    toastCounterRef.current += 1;
+    setToast({ id: toastCounterRef.current, text, tone });
+  }, []);
+
+  const patchTabResult = useCallback((tabId: string, patch: Partial<TabResult>) => {
+    setResultsByTab((previous) => ({
+      ...previous,
+      [tabId]: { ...emptyTabResult, ...previous[tabId], ...patch },
+    }));
   }, []);
 
   const syncExplorerSelectionWithTab = useCallback(
@@ -131,9 +179,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function loadSelectedObject() {
-      if (requiresConnection || !activeConnection || !selectedObjectId) return;
+      if (!selectedObjectId) return;
+      // Load details from the connection that owns the selected object, not the
+      // globally active one — they can differ in a multi-connection workspace.
+      const connection =
+        connections.find((item) => item.id === selectedObjectConnectionId) ?? activeConnection;
+      if (!connection) return;
       try {
-        const details = await getPostgresObjectDetails(activeConnection.id, selectedObjectId);
+        const details = await getPostgresObjectDetails(connection.id, selectedObjectId);
         if (!cancelled) {
           setSelectedObject(details);
           setCompletionObject(details);
@@ -151,7 +204,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [activeConnection, notify, requiresConnection, selectedObjectId]);
+  }, [activeConnection, connections, notify, selectedObjectConnectionId, selectedObjectId]);
 
   useEffect(() => {
     hasUnsavedTabsRef.current = hasUnsavedTabs;
@@ -185,38 +238,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       );
     };
   }, []);
-
-  useEffect(() => {
-    if (!("__TAURI_INTERNALS__" in window)) return;
-
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-
-    void getCurrentWindow()
-      .onCloseRequested((event) => {
-        if (allowWindowCloseRef.current) {
-          allowWindowCloseRef.current = false;
-          return;
-        }
-
-        if (!hasUnsavedTabsRef.current) return;
-
-        event.preventDefault();
-        if (!cancelled) setCloseWithUnsavedDialogOpen(true);
-      })
-      .then((dispose) => {
-        if (cancelled) dispose();
-        else unlisten = dispose;
-      })
-      .catch((error) => {
-        if (!cancelled) notify(readErrorMessage(error), "warning");
-      });
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [notify]);
 
   const persistTabs = useCallback(
     (nextTabs: SqlTab[], nextActiveTabId: string) => {
@@ -310,6 +331,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         result.connection,
         ...current.filter((item) => item.id !== result.connection.id),
       ]);
+      setActiveConnectionId(result.connection.id);
       setActiveExplorerTree((current) => mergeExplorerTree(current, result.tree));
       loadConnectionSqlTabs(result.connection);
       notify(`${result.connection.name} connected`, "success");
@@ -336,121 +358,316 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [activeTabId],
   );
 
-  const openTemporaryObjectTab = useCallback(
-    (objectId: string) => {
-      if (!activeConnection) return;
-
-      const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-      const label = buildObjectTabLabel(objectId);
-
-      setSqlTabs((tabs) => {
-        const reusableTemporaryTab = tabs.find(
-          (currentTab) =>
-            currentTab.state === "temporary" &&
-            !currentTab.dirty &&
-            currentTab.connectionKey === activeConnectionKey,
-        );
-
-        if (reusableTemporaryTab) {
-          const nextTab: SqlTab = {
-            ...reusableTemporaryTab,
-            label,
-            objectId,
-            savedSql: sql,
-            sql,
-          };
-          setActiveTabId(nextTab.id);
-          return tabs.map((currentTab) =>
-            currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab,
-          );
-        }
-
-        const nextTab: SqlTab = {
-          connectionKey: activeConnectionKey,
-          dirty: false,
-          id: buildTemporaryObjectTabId(activeConnectionKey, objectId),
-          label,
-          objectId,
-          savedSql: sql,
-          sql,
-          state: "temporary",
-        };
-        setActiveTabId(nextTab.id);
-        return [...tabs, nextTab];
-      });
+  const activateConnection = useCallback(
+    (connection: ConnectionProfile) => {
+      if (connection.id === activeConnectionId) return;
+      setActiveConnectionId(connection.id);
+      loadConnectionSqlTabs(connection);
     },
-    [activeConnection, activeConnectionKey],
+    [activeConnectionId, loadConnectionSqlTabs],
   );
 
-  const makeObjectTabOfficial = useCallback(
-    (objectId: string) => {
-      if (!activeConnection) return;
+  const openTemporaryObjectTab = useCallback((objectId: string, tabConnectionKey: string) => {
+    if (!tabConnectionKey) return;
 
-      const label = buildObjectTabLabel(objectId);
-      const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-      const officialTabId = buildOfficialObjectTabId(activeConnectionKey, objectId);
-      const existingOfficialTab = sqlTabs.find(
-        (tab) => tab.state === "official" && tab.objectId === objectId,
+    const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
+    const label = buildObjectTabLabel(objectId);
+
+    setSqlTabs((tabs) => {
+      const reusableTemporaryTab = tabs.find(
+        (currentTab) =>
+          currentTab.state === "temporary" &&
+          !currentTab.dirty &&
+          currentTab.connectionKey === tabConnectionKey,
       );
 
-      if (existingOfficialTab) {
-        setActiveTabId(existingOfficialTab.id);
-        return;
-      }
-
-      setSqlTabs((tabs) => {
-        const temporaryTab = tabs.find(
-          (tab) => tab.state === "temporary" && tab.objectId === objectId,
-        );
-        if (temporaryTab) {
-          return officializeSqlTab(tabs, temporaryTab.id, activeConnectionKey).tabs;
-        }
-
-        const officialTab = createOfficialSqlTab({
-          connectionKey: activeConnectionKey,
-          dirty: false,
+      if (reusableTemporaryTab) {
+        const nextTab: SqlTab = {
+          ...reusableTemporaryTab,
           label,
           objectId,
           savedSql: sql,
           sql,
-        });
-        return [...tabs, officialTab];
+        };
+        setActiveTabId(nextTab.id);
+        return tabs.map((currentTab) =>
+          currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab,
+        );
+      }
+
+      const nextTab: SqlTab = {
+        connectionKey: tabConnectionKey,
+        dirty: false,
+        id: buildTemporaryObjectTabId(tabConnectionKey, objectId),
+        label,
+        objectId,
+        savedSql: sql,
+        sql,
+        state: "temporary",
+      };
+      setActiveTabId(nextTab.id);
+      return [...tabs, nextTab];
+    });
+  }, []);
+
+  const makeObjectTabOfficial = useCallback((objectId: string, tabConnectionKey: string) => {
+    if (!tabConnectionKey) return;
+
+    const label = buildObjectTabLabel(objectId);
+    const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
+    const officialTabId = buildOfficialObjectTabId(tabConnectionKey, objectId);
+
+    setSqlTabs((tabs) => {
+      const existingOfficialTab = tabs.find(
+        (tab) => tab.state === "official" && tab.objectId === objectId,
+      );
+      if (existingOfficialTab) {
+        setActiveTabId(existingOfficialTab.id);
+        return tabs;
+      }
+
+      const temporaryTab = tabs.find(
+        (tab) => tab.state === "temporary" && tab.objectId === objectId,
+      );
+      if (temporaryTab) {
+        setActiveTabId(officialTabId);
+        return officializeSqlTab(tabs, temporaryTab.id, tabConnectionKey).tabs;
+      }
+
+      const officialTab = createOfficialSqlTab({
+        connectionKey: tabConnectionKey,
+        dirty: false,
+        label,
+        objectId,
+        savedSql: sql,
+        sql,
       });
       setActiveTabId(officialTabId);
-    },
-    [activeConnection, activeConnectionKey, sqlTabs],
-  );
+      return [...tabs, officialTab];
+    });
+  }, []);
 
   const selectObject = useCallback(
-    (objectId: string) => {
+    (objectId: string, objectConnectionKey?: string) => {
+      const connection = connectionByKey(objectConnectionKey) ?? activeConnection;
+      if (!connection) return;
+      activateConnection(connection);
       setSelectedObjectId(objectId);
-      openTemporaryObjectTab(objectId);
+      setSelectedObjectConnectionId(connection.id);
+      openTemporaryObjectTab(objectId, connectionKey(connection));
     },
-    [openTemporaryObjectTab],
+    [activeConnection, activateConnection, connectionByKey, openTemporaryObjectTab],
   );
 
   const confirmObjectTab = useCallback(
-    (objectId: string) => {
+    (objectId: string, objectConnectionKey?: string) => {
+      const connection = connectionByKey(objectConnectionKey) ?? activeConnection;
+      if (!connection) return;
+      activateConnection(connection);
       setSelectedObjectId(objectId);
-      makeObjectTabOfficial(objectId);
+      setSelectedObjectConnectionId(connection.id);
+      makeObjectTabOfficial(objectId, connectionKey(connection));
     },
-    [makeObjectTabOfficial],
+    [activeConnection, activateConnection, connectionByKey, makeObjectTabOfficial],
   );
 
-  const runQuery = useCallback(() => {
-    if (requiresConnection) {
+  // Fetches a single page of a read query via SQL LIMIT/OFFSET and renders it into
+  // the given tab. `baseSql` must be normalized; `totalRows` comes from the COUNT run.
+  const executePage = useCallback(
+    async (
+      tabId: string,
+      connectionId: string,
+      baseSql: string,
+      pageSize: number,
+      page: number,
+      totalRows: number,
+      pageSizeLocked: boolean,
+    ) => {
+      patchTabResult(tabId, { state: "running", error: null });
+      try {
+        const pageSql = buildPageSql(baseSql, pageSize, page);
+        const execution = await runPostgresQuery(connectionId, pageSql);
+        patchTabResult(tabId, {
+          state: "success",
+          error: null,
+          connectionId,
+          baseSql,
+          pagination: { page, pageSize, totalRows, pageSizeLocked },
+          result: {
+            id: crypto.randomUUID(),
+            sql: pageSql,
+            columns: execution.columns,
+            rows: execution.rows.map((row) => row.map((cell) => cell ?? "NULL")),
+            durationMs: execution.durationMs,
+            rowCount: execution.rowCount,
+            message: `${totalRows} rows · ${pageSize}/page · ${execution.durationMs} ms`,
+          },
+        });
+        return true;
+      } catch (error) {
+        const message = readErrorMessage(error);
+        patchTabResult(tabId, { state: "error", error: message, result: null, pagination: null });
+        notify(message, "warning");
+        return false;
+      }
+    },
+    [notify, patchTabResult],
+  );
+
+  const runQuery = useCallback(async () => {
+    if (requiresConnection || !activeConnection) {
       setDialogInitialDraft(null);
       setConnectionDialogOpen(true);
       notify("Create a connection before running queries", "warning");
       return;
     }
 
-    if (activeTabId) {
-      commitSqlTab(activeTabId);
+    // Officializing a temporary tab can change its id (object tabs), so use the
+    // committed tab as the source of truth for both the id and the SQL to run —
+    // otherwise results would be stored under the dead temporary id.
+    const committedTab = activeTabId ? commitSqlTab(activeTabId) : null;
+    if (!committedTab) {
+      notify("Open a tab to run a query", "warning");
+      return;
     }
 
-    notify("SQL execution is not enabled yet", "warning");
-  }, [activeTabId, commitSqlTab, notify, requiresConnection]);
+    const tabId = committedTab.id;
+    if (runningTabsRef.current.has(tabId)) return;
+
+    const sql = committedTab.sql.trim();
+    if (!sql) {
+      notify("Write a query to run", "warning");
+      return;
+    }
+
+    // Run against the connection that owns this tab, not the globally active one.
+    const connection = connectionByKey(committedTab.connectionKey) ?? activeConnection;
+    if (!connection) {
+      notify("This tab's connection is no longer available", "warning");
+      return;
+    }
+    const connectionId = connection.id;
+    const baseSql = normalizeBaseSql(sql);
+
+    runningTabsRef.current.add(tabId);
+    setResultsOpen(true);
+    setResultTab("results");
+    patchTabResult(tabId, { state: "running", error: null, connectionId, baseSql });
+
+    try {
+      if (isReadQuery(baseSql)) {
+        // Pagination is always on for read queries. Page size = the user's own
+        // trailing LIMIT if present (locked), otherwise the selector default. We
+        // strip that trailing LIMIT so COUNT/OFFSET page over the full result set.
+        const parsed = parseTrailingLimit(baseSql);
+        const pageSize = parsed?.pageSize ?? defaultRowLimit;
+        const querySql = parsed?.baseSql ?? baseSql;
+        const locked = parsed !== null;
+        const count = await runPostgresQuery(connectionId, buildCountSql(querySql));
+        const totalRows = Number(count.rows[0]?.[0] ?? 0);
+        const ok = await executePage(tabId, connectionId, querySql, pageSize, 0, totalRows, locked);
+        if (ok) notify(`${totalRows} rows · ${pageSize}/page`, "success");
+      } else {
+        // Non-read statements run as-is (no pagination). Returned rows (incl.
+        // RETURNING) still show, plus the command result message.
+        const execution = await runPostgresQuery(connectionId, baseSql);
+        const message = formatCommandMessage(
+          execution.commandTag,
+          execution.rowsAffected,
+          execution.durationMs,
+        );
+        patchTabResult(tabId, {
+          state: "success",
+          error: null,
+          connectionId,
+          baseSql,
+          pagination: null,
+          result: {
+            id: crypto.randomUUID(),
+            sql: baseSql,
+            columns: execution.columns,
+            rows: execution.rows.map((row) => row.map((cell) => cell ?? "NULL")),
+            durationMs: execution.durationMs,
+            rowCount: execution.rowCount,
+            message,
+          },
+        });
+        notify(message, "success");
+      }
+    } catch (error) {
+      const message = readErrorMessage(error);
+      patchTabResult(tabId, { state: "error", error: message, result: null, pagination: null });
+      notify(message, "warning");
+    } finally {
+      runningTabsRef.current.delete(tabId);
+    }
+  }, [
+    activeConnection,
+    activeTabId,
+    commitSqlTab,
+    connectionByKey,
+    executePage,
+    notify,
+    patchTabResult,
+    requiresConnection,
+  ]);
+
+  const goToQueryPage = useCallback(
+    async (page: number) => {
+      const tabId = activeTabId;
+      const current = resultsByTab[tabId];
+      if (!current || !current.pagination) return;
+      if (runningTabsRef.current.has(tabId)) return;
+
+      const { pageSize, totalRows, page: currentPage, pageSizeLocked } = current.pagination;
+      const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+      const target = Math.min(Math.max(page, 0), totalPages - 1);
+      if (target === currentPage) return;
+
+      runningTabsRef.current.add(tabId);
+      try {
+        await executePage(
+          tabId,
+          current.connectionId,
+          current.baseSql,
+          pageSize,
+          target,
+          totalRows,
+          pageSizeLocked,
+        );
+      } finally {
+        runningTabsRef.current.delete(tabId);
+      }
+    },
+    [activeTabId, executePage, resultsByTab],
+  );
+
+  const setQueryPageSize = useCallback(
+    async (pageSize: number) => {
+      const tabId = activeTabId;
+      const current = resultsByTab[tabId];
+      if (!current || !current.pagination || pageSize === current.pagination.pageSize) return;
+      // When the page size comes from the user's own LIMIT, the selector is locked.
+      if (current.pagination.pageSizeLocked) return;
+      if (runningTabsRef.current.has(tabId)) return;
+
+      runningTabsRef.current.add(tabId);
+      try {
+        await executePage(
+          tabId,
+          current.connectionId,
+          current.baseSql,
+          pageSize,
+          0,
+          current.pagination.totalRows,
+          false,
+        );
+      } finally {
+        runningTabsRef.current.delete(tabId);
+      }
+    },
+    [activeTabId, executePage, resultsByTab],
+  );
 
   const refreshAll = useCallback(async () => {
     if (!activeConnection) {
@@ -556,10 +773,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const connection = storedConnections.find((item) => savedConnectionNodeId(item) === nodeId);
       if (!connection) return;
 
+      // The password dialog already prompts for the password — no toast needed.
       setPasswordConnection(connection);
-      notify(`Enter the password for ${connection.database}`, "warning");
     },
-    [notify, storedConnections],
+    [storedConnections],
   );
 
   const connectStoredConnection = useCallback(
@@ -607,6 +824,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setSqlTabs(nextTabs);
       setActiveTabId(nextActiveTab?.id ?? "");
       syncExplorerSelectionWithTab(nextActiveTab);
+      runningTabsRef.current.delete(tabId);
+      setResultsByTab((previous) => {
+        if (!(tabId in previous)) return previous;
+        const next = { ...previous };
+        delete next[tabId];
+        return next;
+      });
       notify(`Closed ${sqlTabs[closingTabIndex]!.label}`);
     },
     [activeTabId, notify, sqlTabs, syncExplorerSelectionWithTab],
@@ -619,7 +843,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       setCloseWithUnsavedDialogOpen(false);
-      allowWindowCloseRef.current = true;
       await closeMainWindowAfterUnsavedResolution();
     },
     [saveDirtySqlTabs],
@@ -665,6 +888,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       if (activeConnection && connectionKey(activeConnection) === connectionKey(connection)) {
         const nextActiveConnection = nextConnections[0] ?? null;
+        setActiveConnectionId(nextActiveConnection?.id ?? "");
         if (nextActiveConnection) loadConnectionSqlTabs(nextActiveConnection);
         else clearConnectionSqlTabs();
       }
@@ -712,6 +936,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       copyResult,
       deleteConnection,
       exportCsv,
+      goToQueryPage,
       openSchemaTab,
       openNewConnectionDialog,
       openSavedConnection,
@@ -719,6 +944,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       refreshAll,
       runQuery,
       saveActiveSqlTab,
+      setQueryPageSize,
       saveConnection,
       selectObject,
       selectResultTab: setResultTab,
@@ -748,9 +974,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         unsavedTabs: closeWithUnsavedDialogOpen,
       },
       passwordConnection,
+      queryError,
+      queryPagination,
       queryResult,
       queryState,
       resultTab,
+      toast,
       resultsOpen,
       selectedObject,
       selectedObjectId,

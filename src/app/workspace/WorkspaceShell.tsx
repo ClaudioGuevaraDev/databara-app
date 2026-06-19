@@ -1,6 +1,7 @@
 import { DialogsHost } from "../components/dialogs/DialogsHost";
 import { Explorer } from "../components/explorer/Explorer";
 import { TopBar } from "../components/layout/TopBar";
+import { Toaster } from "../components/ui/Toaster";
 import { MainWorkspace } from "../components/workspace/MainWorkspace";
 import { useWorkspaceLayout } from "./workspaceCore";
 
@@ -15,6 +16,7 @@ export function WorkspaceShell() {
         <MainWorkspace requiresConnection={workspace.requiresConnection} />
       </div>
       <DialogsHost />
+      <Toaster />
     </div>
   );
 }

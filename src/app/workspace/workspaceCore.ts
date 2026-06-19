@@ -6,10 +6,12 @@ import type {
   ConnectionProfile,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  QueryPagination,
   QueryState,
   QueryResult,
   ResultPanelTab,
   SqlTab,
+  Toast,
 } from "../types";
 
 export type WorkspaceState = {
@@ -26,9 +28,12 @@ export type WorkspaceState = {
     unsavedTabs: boolean;
   };
   passwordConnection: StoredConnectionDraft | null;
+  queryError: string | null;
+  queryPagination: QueryPagination | null;
   queryResult: QueryResult | null;
   queryState: QueryState;
   resultTab: ResultPanelTab;
+  toast: Toast | null;
   resultsOpen: boolean;
   selectedObject: DatabaseObjectDetails | null;
   selectedObjectId: string;
@@ -44,25 +49,27 @@ export type WorkspaceActions = {
   closeUnsavedTabsDialog: () => void;
   closeWindowAfterResolution: (mode: "save" | "discard") => Promise<void>;
   confirmDeleteConnection: (connection: StoredConnectionDraft) => void;
-  confirmObjectTab: (objectId: string) => void;
+  confirmObjectTab: (objectId: string, connectionKey?: string) => void;
   connectStoredConnection: (connection: StoredConnectionDraft, password: string) => Promise<void>;
   copyObjectName: () => Promise<void>;
   copySchema: () => Promise<void>;
   copyResult: () => Promise<void>;
   deleteConnection: (nodeId: string) => void;
   exportCsv: () => void;
+  goToQueryPage: (page: number) => Promise<void>;
   openSchemaTab: () => Promise<void>;
   openNewConnectionDialog: () => void;
   openSavedConnection: (nodeId: string) => void;
   previewObject: (objectId?: string) => Promise<void>;
   refreshAll: () => Promise<void>;
-  runQuery: () => void;
+  runQuery: () => Promise<void>;
   saveActiveSqlTab: () => Promise<void>;
   saveConnection: (draft: ConnectionDraft) => Promise<void>;
-  selectObject: (objectId: string) => void;
+  selectObject: (objectId: string, connectionKey?: string) => void;
   selectResultTab: (tab: ResultPanelTab) => void;
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
+  setQueryPageSize: (pageSize: number) => Promise<void>;
   toggleNode: (nodeId: string) => void;
   updateActiveSql: (sql: string) => void;
 };
@@ -125,6 +132,7 @@ export function useSqlEditor() {
     activeTab: state.activeTab,
     activeTabId: state.activeTabId,
     completionObject: state.completionObject,
+    isRunning: state.queryState === "running",
     selectedObject: state.selectedObject,
     sqlTabs: state.sqlTabs,
     closeSqlTab: actions.closeSqlTab,
@@ -139,6 +147,8 @@ export function useResults() {
   const { actions, state } = useWorkspace();
   return {
     details: state.selectedObject,
+    queryError: state.queryError,
+    queryPagination: state.queryPagination,
     queryResult: state.queryResult,
     queryState: state.queryState,
     resultTab: state.resultTab,
@@ -147,8 +157,15 @@ export function useResults() {
     copySchema: actions.copySchema,
     copyResult: actions.copyResult,
     exportCsv: actions.exportCsv,
+    goToQueryPage: actions.goToQueryPage,
     selectResultTab: actions.selectResultTab,
+    setQueryPageSize: actions.setQueryPageSize,
   };
+}
+
+export function useToast() {
+  const { state } = useWorkspace();
+  return state.toast;
 }
 
 export function useObjectDetailsPanel() {

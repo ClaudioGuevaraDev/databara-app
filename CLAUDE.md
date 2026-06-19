@@ -39,7 +39,7 @@ There is **no test framework**. The validation gate for any change is: `pnpm run
 
 All communication with the Rust backend funnels through **`src/app/databaraService.ts`** — the only file that calls Tauri's `invoke`. Components and the workspace context never invoke commands directly. This service also normalizes types crossing the boundary: the backend reports `engine: "PostgreSQL"`, which is normalized to the frontend's `"postgresql"` `DatabaseEngine`, and server tree-node IDs are rewritten to embed the engine.
 
-The Rust side exposes exactly six commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `list_postgres_tree`, `get_postgres_object_details`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`.
+The Rust side exposes exactly seven commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `list_postgres_tree`, `get_postgres_object_details`, `run_postgres_query`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`.
 
 ### Rust backend (`src-tauri/src/lib.rs`, single file)
 
@@ -66,7 +66,7 @@ Saved connection drafts and per-connection SQL tabs are persisted in **`window.l
 
 Tabs have a `state` of `"temporary"` or `"official"` (VS Code "preview tab" pattern). Single-clicking an object opens/reuses a temporary tab; confirming (double-click) "officializes" it. Only official tabs are persisted. The officialize/merge logic lives in `workspaceSqlTabs.ts` (`officializeSqlTab`).
 
-> **SQL execution is not implemented yet.** `runQuery`/`previewObject` currently only emit notifications. `QueryResult` types and the results UI exist in anticipation but no query runs against the database.
+> **SQL execution is implemented.** `runQuery` runs the active tab's SQL via the `run_postgres_query` command (which uses `query_raw` to also report `rowsAffected`/`commandTag`) and renders rows in the results grid — for SELECT/WITH and for any statement that returns rows (e.g. `RETURNING`); non-row statements show a status message like "DELETE · 3 rows affected" (`formatCommandMessage`). Read queries are paginated at the SQL level: the helpers in `workspaceContext.utils.ts` (`isReadQuery`, `normalizeBaseSql`, `buildCountSql`, `buildPageSql`) wrap the query as a subquery, run a `COUNT(*)` once per Run, and fetch each page with `LIMIT`/`OFFSET` (default 50; footer `ResultsFooter.tsx`). **Query results are per-tab**: the provider keeps a `resultsByTab` map keyed by SQL-tab id (in-memory, never persisted); `useResults` exposes the active tab's `queryState`/`queryResult`/`queryPagination`/`queryError`. Errors render inline in the Results section; all `notify(...)` calls surface through the `Toaster` (`components/ui/Toaster.tsx`, mounted in `WorkspaceShell`) reading `state.toast`. The Rust `cell_to_string` helper converts arbitrary column types to strings (NULL → `None`). `previewObject` is still a stub.
 
 ### Multi-engine abstraction (PostgreSQL-only today)
 

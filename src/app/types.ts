@@ -76,6 +76,24 @@ export type QueryResult = {
   message: string;
 };
 
+export type ToastTone = "default" | "success" | "warning";
+
+export type Toast = {
+  id: number;
+  text: string;
+  tone: ToastTone;
+};
+
+export const QUERY_PAGE_SIZES = [50, 100, 200, 500] as const;
+
+export type QueryPagination = {
+  page: number; // 0-based
+  pageSize: number;
+  totalRows: number;
+  // true when the page size comes from the user's own LIMIT (selector is locked)
+  pageSizeLocked: boolean;
+};
+
 export type ConnectionDraft = {
   engine: DatabaseEngine;
   name: string;

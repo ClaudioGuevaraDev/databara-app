@@ -137,6 +137,63 @@ export function buildObjectTabLabel(objectId: string) {
   return parseDatabaseObjectId(objectId)?.qualifiedName ?? objectId;
 }
 
+/** Trims surrounding whitespace and a single trailing semicolon so the SQL can be
+ * safely embedded as a subquery for pagination. */
+export function normalizeBaseSql(sql: string): string {
+  return sql.trim().replace(/;\s*$/, "");
+}
+
+/** Read queries (SELECT / WITH) are the ones we paginate by wrapping in a subquery. */
+export function isReadQuery(sql: string): boolean {
+  return /^(select|with)\b/i.test(normalizeBaseSql(sql));
+}
+
+/**
+ * Detects a trailing `LIMIT n` (optionally followed by `OFFSET m`) and returns the
+ * limit value plus the query with that clause removed. Used so the user's own LIMIT
+ * becomes the pagination page size while we still page over the full result set.
+ * Returns `null` when there's no trailing limit (e.g. a `LIMIT` only in a subquery).
+ */
+export function parseTrailingLimit(sql: string): { pageSize: number; baseSql: string } | null {
+  const normalized = normalizeBaseSql(sql);
+  const match = normalized.match(/\s+limit\s+(\d+)\s*(?:offset\s+\d+\s*)?$/i);
+  if (!match || match.index === undefined) return null;
+
+  const pageSize = Number(match[1]);
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return null;
+
+  return { pageSize, baseSql: normalized.slice(0, match.index).trimEnd() };
+}
+
+/**
+ * Wraps a read query as a subquery and applies SQL-level pagination via
+ * `LIMIT`/`OFFSET` so each page is fetched from the database (no JS slicing).
+ * `baseSql` must already be normalized (see {@link normalizeBaseSql}).
+ *
+ * Note: an `ORDER BY` inside `baseSql` is preserved by PostgreSQL in practice
+ * but is not guaranteed by the SQL standard for subqueries — accepted limitation.
+ */
+export function buildPageSql(baseSql: string, pageSize: number, page: number): string {
+  const offset = page * pageSize;
+  return `SELECT * FROM (${baseSql}) AS _databara_q LIMIT ${pageSize} OFFSET ${offset}`;
+}
+
+/** Total row count for the wrapped read query, used to compute the page count. */
+export function buildCountSql(baseSql: string): string {
+  return `SELECT count(*) AS total FROM (${baseSql}) AS _databara_q`;
+}
+
+/** Human-friendly status message for a non-read statement (DELETE/UPDATE/CREATE…). */
+export function formatCommandMessage(
+  commandTag: string | null,
+  rowsAffected: number | null,
+  durationMs: number,
+): string {
+  const tag = commandTag ?? "OK";
+  const affected = rowsAffected != null ? ` · ${rowsAffected} rows affected` : "";
+  return `${tag}${affected} · ${durationMs} ms`;
+}
+
 export async function copyText(text: string) {
   if (navigator.clipboard) {
     await navigator.clipboard.writeText(text);

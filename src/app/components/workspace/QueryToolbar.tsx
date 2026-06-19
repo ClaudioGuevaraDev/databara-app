@@ -1,12 +1,14 @@
-import { Play, Save } from "lucide-react";
+import { Loader2, Play, Save } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 export function QueryToolbar({
   canSave,
+  isRunning,
   onRun,
   onSave,
 }: {
   canSave: boolean;
+  isRunning: boolean;
   onRun: () => void;
   onSave: () => void;
 }) {
@@ -15,10 +17,11 @@ export function QueryToolbar({
       <div className="flex items-center gap-1">
         <button
           onClick={onRun}
+          disabled={isRunning}
           className="flex h-7 items-center gap-1.5 rounded bg-primary px-2.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.14)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          <Play size={14} />
-          Run
+          {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+          {isRunning ? "Running…" : "Run"}
         </button>
         <button
           onClick={onSave}

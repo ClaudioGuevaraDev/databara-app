@@ -10,8 +10,12 @@ export function ResultsDock() {
     <ResultsPanel
       activeTab={results.resultTab}
       details={results.details}
+      queryError={results.queryError}
+      queryPagination={results.queryPagination}
       queryResult={results.queryResult}
       queryState={results.queryState}
+      onPageChange={results.goToQueryPage}
+      onPageSizeChange={results.setQueryPageSize}
       onTabChange={results.selectResultTab}
     />
   );
