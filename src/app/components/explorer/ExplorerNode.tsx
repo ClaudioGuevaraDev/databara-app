@@ -54,22 +54,22 @@ export function ExplorerNode({
       >
         {hasChildren ? (
           collapsed ? (
-            <ChevronRight size={14} />
+            <ChevronRight size={14} className="shrink-0" />
           ) : (
-            <ChevronDown size={14} />
+            <ChevronDown size={14} className="shrink-0" />
           )
         ) : (
-          <span className="w-3.5" />
+          <span className="w-3.5 shrink-0" />
         )}
         <TreeIcon
-          className={cn(selected ? "text-primary" : "text-muted-foreground")}
+          className={cn("shrink-0", selected ? "text-primary" : "text-muted-foreground")}
           kind={node.kind}
         />
         <span className="truncate">{node.label}</span>
         {node.id.startsWith("connection:") ? (
-          <Circle size={7} className="ml-auto fill-emerald-400 text-emerald-400" />
+          <Circle size={7} className="ml-auto shrink-0 fill-emerald-400 text-emerald-400" />
         ) : deletableConnection ? (
-          <span className="ml-auto flex items-center gap-1">
+          <span className="ml-auto flex shrink-0 items-center gap-1">
             <span
               title={connectedDatabase ? "Connected" : "Saved connection"}
               className={cn(

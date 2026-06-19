@@ -55,7 +55,6 @@ import {
   loadSqlTabsForConnection,
   officializeSqlTab,
   saveSqlTabsForConnection,
-  sqlTabsStorageKey,
 } from "./workspaceSqlTabs";
 
 // Per-tab, in-memory query state (never persisted to localStorage).
@@ -107,7 +106,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [completionObject, setCompletionObject] = useState<DatabaseObjectDetails | null>(null);
   const [sqlTabs, setSqlTabs] = useState<SqlTab[]>([]);
   const [activeTabId, setActiveTabId] = useState("");
-  const [loadedSqlTabsKey, setLoadedSqlTabsKey] = useState("");
   const [resultsByTab, setResultsByTab] = useState<Record<string, TabResult>>({});
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
   const [resultsOpen, setResultsOpen] = useState(true);
@@ -131,8 +129,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const queryPagination = activeTabResult?.pagination ?? null;
   const queryError = activeTabResult?.error ?? null;
   const hasUnsavedTabs = sqlTabs.some((tab) => tab.dirty);
-  const activeConnectionSqlTabsKey = activeConnection ? sqlTabsStorageKey(activeConnection) : "";
-  const activeConnectionKey = activeConnection ? connectionKey(activeConnection) : "";
   const hasStoredConnections = storedConnections.length > 0;
   const explorerTree = useMemo(
     () => buildStoredConnectionTree(storedConnections, activeExplorerTree),
@@ -221,9 +217,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [activeTabId, sqlTabs]);
 
   useEffect(() => {
-    if (!activeConnection || loadedSqlTabsKey !== activeConnectionSqlTabsKey) return;
-    saveSqlTabsForConnection(activeConnection, sqlTabs, activeTabId);
-  }, [activeConnection, activeConnectionSqlTabsKey, activeTabId, loadedSqlTabsKey, sqlTabs]);
+    // Tabs from all connected databases live in one array; persist each connection's
+    // own subset under its storage key (saveSqlTabsForConnection keeps activeTabId only
+    // when it belongs to that connection).
+    for (const connection of connections) {
+      const key = connectionKey(connection);
+      saveSqlTabsForConnection(
+        connection,
+        sqlTabs.filter((tab) => tab.connectionKey === key),
+        activeTabId,
+      );
+    }
+  }, [activeTabId, connections, sqlTabs]);
 
   useEffect(() => {
     function handleUnsavedTabsCloseRequest() {
@@ -239,37 +244,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const persistTabs = useCallback(
-    (nextTabs: SqlTab[], nextActiveTabId: string) => {
-      if (!activeConnection) return;
-      saveSqlTabsForConnection(activeConnection, nextTabs, nextActiveTabId);
-    },
-    [activeConnection],
-  );
+  const commitSqlTab = useCallback((tabId: string) => {
+    const currentTabs = sqlTabsRef.current;
+    const currentTab = currentTabs.find((tab) => tab.id === tabId);
+    if (!currentTab) return null;
 
-  const commitSqlTab = useCallback(
-    (tabId: string) => {
-      const currentTabs = sqlTabsRef.current;
-      const currentTab = currentTabs.find((tab) => tab.id === tabId);
-      if (!currentTab) return null;
+    // Fall back to the tab's own connection (the active connection may differ now
+    // that tabs from several databases coexist).
+    const fallbackKey = currentTab.connectionKey ?? "";
+    const officialized = officializeSqlTab(currentTabs, currentTab.id, fallbackKey);
+    const nextActiveTabId = officialized.activeTabId;
+    const nextTabs = officialized.tabs.map((tab) =>
+      tab.id === nextActiveTabId ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
+    );
+    const committedTab = nextTabs.find((tab) => tab.id === nextActiveTabId) ?? currentTab;
 
-      const officialized = officializeSqlTab(currentTabs, currentTab.id, activeConnectionKey);
-      const nextActiveTabId = officialized.activeTabId;
-      const nextTabs = officialized.tabs.map((tab) =>
-        tab.id === nextActiveTabId ? { ...tab, dirty: false, savedSql: tab.sql } : tab,
-      );
-      const committedTab = nextTabs.find((tab) => tab.id === nextActiveTabId) ?? currentTab;
+    sqlTabsRef.current = nextTabs;
+    activeTabIdRef.current = nextActiveTabId;
+    setSqlTabs(nextTabs);
+    setActiveTabId(nextActiveTabId);
+    // Persistence is handled reactively by the per-connection save effect.
 
-      sqlTabsRef.current = nextTabs;
-      activeTabIdRef.current = nextActiveTabId;
-      setSqlTabs(nextTabs);
-      setActiveTabId(nextActiveTabId);
-      persistTabs(nextTabs, nextActiveTabId);
-
-      return committedTab;
-    },
-    [activeConnectionKey, persistTabs],
-  );
+    return committedTab;
+  }, []);
 
   const saveActiveSqlTab = useCallback(async () => {
     const currentTabId = activeTabIdRef.current;
@@ -303,23 +300,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const loadConnectionSqlTabs = useCallback(
     (connection: ConnectionProfile) => {
       const savedTabs = loadSqlTabsForConnection(connection);
+      // Merge this connection's persisted tabs into the shared tab bar (dedupe by id)
+      // instead of replacing — tabs from other connected databases stay open.
+      setSqlTabs((current) => {
+        const existing = new Set(current.map((tab) => tab.id));
+        const additions = savedTabs.tabs.filter((tab) => !existing.has(tab.id));
+        return [...current, ...additions];
+      });
+
       const nextActiveTab = savedTabs.tabs.find((tab) => tab.id === savedTabs.activeTabId) ?? null;
-      setSqlTabs(savedTabs.tabs);
-      setActiveTabId(savedTabs.activeTabId);
-      setLoadedSqlTabsKey(sqlTabsStorageKey(connection));
       setCompletionObject(null);
-      syncExplorerSelectionWithTab(nextActiveTab);
+      if (nextActiveTab) {
+        setActiveTabId(nextActiveTab.id);
+        syncExplorerSelectionWithTab(nextActiveTab);
+      }
     },
     [syncExplorerSelectionWithTab],
   );
-
-  const clearConnectionSqlTabs = useCallback(() => {
-    setSqlTabs([]);
-    setActiveTabId("");
-    setLoadedSqlTabsKey("");
-    setCompletionObject(null);
-    syncExplorerSelectionWithTab(null);
-  }, [syncExplorerSelectionWithTab]);
 
   const connectAndStoreConnection = useCallback(
     async (draft: ConnectionDraft) => {
@@ -358,14 +355,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [activeTabId],
   );
 
-  const activateConnection = useCallback(
-    (connection: ConnectionProfile) => {
-      if (connection.id === activeConnectionId) return;
-      setActiveConnectionId(connection.id);
-      loadConnectionSqlTabs(connection);
-    },
-    [activeConnectionId, loadConnectionSqlTabs],
-  );
+  const activateConnection = useCallback((connection: ConnectionProfile) => {
+    // All connections' tabs already live in the shared bar; just switch focus.
+    setActiveConnectionId(connection.id);
+  }, []);
 
   const openTemporaryObjectTab = useCallback((objectId: string, tabConnectionKey: string) => {
     if (!tabConnectionKey) return;
@@ -830,9 +823,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (tabId: string) => {
       const tab = sqlTabs.find((item) => item.id === tabId) ?? null;
       setActiveTabId(tabId);
+      // The active connection follows the active tab so operations default to its DB.
+      const owner = connectionByKey(tab?.connectionKey);
+      if (owner) setActiveConnectionId(owner.id);
       syncExplorerSelectionWithTab(tab);
     },
-    [sqlTabs, syncExplorerSelectionWithTab],
+    [connectionByKey, sqlTabs, syncExplorerSelectionWithTab],
   );
 
   const closeSqlTab = useCallback(
@@ -848,6 +844,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       setSqlTabs(nextTabs);
       setActiveTabId(nextActiveTab?.id ?? "");
+      // Keep the active connection in sync with the newly focused tab.
+      const owner = connectionByKey(nextActiveTab?.connectionKey);
+      if (owner) setActiveConnectionId(owner.id);
       syncExplorerSelectionWithTab(nextActiveTab);
       runningTabsRef.current.delete(tabId);
       setResultsByTab((previous) => {
@@ -858,7 +857,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
       notify(`Closed ${sqlTabs[closingTabIndex]!.label}`);
     },
-    [activeTabId, notify, sqlTabs, syncExplorerSelectionWithTab],
+    [activeTabId, connectionByKey, notify, sqlTabs, syncExplorerSelectionWithTab],
   );
 
   const closeWindowAfterResolution = useCallback(
@@ -898,24 +897,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           ),
       );
 
+      const removedKey = connectionKey(connection);
       setStoredConnections(nextStoredConnections);
       setActiveExplorerTree((current) => removeConnectionFromTree(current, connection));
       setConnections(nextConnections);
 
-      if (
-        selectedObjectId &&
-        activeConnection &&
-        connectionKey(activeConnection) === connectionKey(connection)
-      ) {
+      // Drop only this connection's tabs from the shared bar.
+      const remainingTabs = sqlTabs.filter((tab) => tab.connectionKey !== removedKey);
+      setSqlTabs(remainingTabs);
+
+      const wasActiveConnection =
+        activeConnection && connectionKey(activeConnection) === removedKey;
+
+      if (wasActiveConnection) {
         setSelectedObjectId("");
         setSelectedObject(null);
-      }
-
-      if (activeConnection && connectionKey(activeConnection) === connectionKey(connection)) {
-        const nextActiveConnection = nextConnections[0] ?? null;
-        setActiveConnectionId(nextActiveConnection?.id ?? "");
-        if (nextActiveConnection) loadConnectionSqlTabs(nextActiveConnection);
-        else clearConnectionSqlTabs();
+        setCompletionObject(null);
+        // Refocus a surviving tab (and its connection) if the active one was removed.
+        const stillActive = remainingTabs.some((tab) => tab.id === activeTabId);
+        const nextActiveTab = stillActive
+          ? (remainingTabs.find((tab) => tab.id === activeTabId) ?? null)
+          : (remainingTabs[0] ?? null);
+        setActiveTabId(nextActiveTab?.id ?? "");
+        const owner = connectionByKey(nextActiveTab?.connectionKey) ?? nextConnections[0] ?? null;
+        setActiveConnectionId(owner?.id ?? "");
       }
 
       if (nextStoredConnections.length === 0) {
@@ -926,14 +931,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       notify(`${connection.database} removed`, "success");
       setDeleteConnectionRequest(null);
     },
-    [
-      activeConnection,
-      clearConnectionSqlTabs,
-      connections,
-      loadConnectionSqlTabs,
-      notify,
-      selectedObjectId,
-    ],
+    [activeConnection, activeTabId, connectionByKey, connections, notify, sqlTabs],
   );
 
   const toggleNode = useCallback((nodeId: string) => {
