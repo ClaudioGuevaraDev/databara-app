@@ -93,9 +93,3 @@ Use **pnpm only** and keep dependency versions **exact** (no `^`/`~`). Commits f
 ## 📄 License
 
 Released under the [MIT License](LICENSE) © 2026 Claudio Guevara.
-
----
-
-<div align="center">
-Made with 🦫 + ☕
-</div>
