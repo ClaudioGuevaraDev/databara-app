@@ -3,9 +3,7 @@ dist/
 .pnpm-store/
 src-tauri/target/
 src-tauri/gen/
-.agents/
 skills-lock.json
-.claude/skills
 
 .env
 .env.*
