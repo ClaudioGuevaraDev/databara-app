@@ -10,3 +10,7 @@ src-tauri/gen/
 
 *.log
 *.local
+
+# Tauri updater signing keys — never commit these
+*.key
+*.key.pub
