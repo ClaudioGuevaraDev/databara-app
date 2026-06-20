@@ -2,7 +2,7 @@
 
 <img src="src-tauri/icons/128x128@2x.png" width="128" alt="databara logo" />
 
-# databara
+# Databara
 
 **A modern, lightweight desktop database client for PostgreSQL.**
 
