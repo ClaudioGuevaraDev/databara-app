@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import {
   defaultDatabaseEngine,
@@ -41,6 +42,13 @@ export type ConnectResult = {
 const legacyStoredConnectionKey = "databara.postgres.connection";
 const legacyStoredConnectionsKey = "databara.postgres.connections";
 const storedConnectionsKey = "databara.connections.v1";
+
+// Reads the running app version from the Tauri runtime (tauri.conf.json `version`).
+// Falls back to "dev" in the browser-only dev server where the runtime is absent.
+export async function getAppVersion(): Promise<string> {
+  if (!("__TAURI_INTERNALS__" in window)) return "dev";
+  return getVersion();
+}
 
 export async function testPostgresConnection(
   draft: ConnectionDraft,
