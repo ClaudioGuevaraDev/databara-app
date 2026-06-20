@@ -4,7 +4,7 @@ Databara se distribuye vía **GitHub Releases**. Los instaladores de macOS, Linu
 construyen automáticamente en GitHub Actions (`.github/workflows/release.yml`) cuando se empuja un tag
 de versión. Tauri no permite cross-compilar, por eso cada SO se construye en su propio runner.
 
-Los usuarios descargan desde: <https://github.com/ClaudioGuevaraDev/Databara/releases>
+Los usuarios descargan desde: <https://github.com/ClaudioGuevaraDev/databara-app/releases>
 
 ## Requisito único: generar el set de íconos
 

@@ -1,6 +1,6 @@
 {
-  "name": "databara",
-  "version": "1.0.2",
+  "name": "databara-app",
+  "version": "1.0.3",
   "private": true,
   "license": "MIT",
   "type": "module",

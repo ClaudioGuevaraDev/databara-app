@@ -8,8 +8,8 @@
 
 Built with [Tauri](https://tauri.app), [React](https://react.dev) and [Rust](https://www.rust-lang.org) — fast, native, and beautifully dark.
 
-[![Download](https://img.shields.io/github/v/release/ClaudioGuevaraDev/Databara?include_prereleases&label=download&color=0DC6D3)](https://github.com/ClaudioGuevaraDev/Databara/releases)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0DC6D3)](https://github.com/ClaudioGuevaraDev/Databara/releases)
+[![Download](https://img.shields.io/github/v/release/ClaudioGuevaraDev/databara-app?include_prereleases&label=download&color=0DC6D3)](https://github.com/ClaudioGuevaraDev/databara-app/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0DC6D3)](https://github.com/ClaudioGuevaraDev/databara-app/releases)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%20v2-24C8DB)](https://tauri.app)
 
 </div>
@@ -29,17 +29,17 @@ Built with [Tauri](https://tauri.app), [React](https://react.dev) and [Rust](htt
 
 ## ⬇️ Download
 
-Grab the latest installer for your OS from the [**Releases page**](https://github.com/ClaudioGuevaraDev/Databara/releases):
+Grab the latest installer for your OS from the [**Releases page**](https://github.com/ClaudioGuevaraDev/databara-app/releases):
 
 | OS          | File                                |
 | ----------- | ----------------------------------- |
-| **Windows** | `databara_x.y.z_x64-setup.exe` (or `.msi`) |
-| **macOS**   | `databara_x.y.z_universal.dmg` (Intel + Apple Silicon) |
-| **Linux**   | `databara_x.y.z_amd64.AppImage`, `.deb` or `.rpm` |
+| **Windows** | `Databara_x.y.z_x64-setup.exe` (or `.msi`) |
+| **macOS**   | `Databara_x.y.z_universal.dmg` (Intel + Apple Silicon) |
+| **Linux**   | `Databara_x.y.z_amd64.AppImage`, `.deb` or `.rpm` |
 
 > [!NOTE]
 > The installers are currently **unsigned**. On first launch:
-> - **macOS** → right-click the app → **Open** (or run `xattr -dr com.apple.quarantine /Applications/databara.app`).
+> - **macOS** → right-click the app → **Open** (or run `xattr -dr com.apple.quarantine /Applications/Databara.app`).
 > - **Windows** → SmartScreen → **More info → Run anyway**.
 
 ## 🛠️ Tech stack
