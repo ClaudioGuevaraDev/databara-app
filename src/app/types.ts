@@ -76,6 +76,17 @@ export type QueryResult = {
   message: string;
 };
 
+export type UpdatePhase = "checking" | "downloading" | "installing" | "done" | "error";
+
+export type UpdateProgress = {
+  phase: UpdatePhase;
+  downloaded: number;
+  total: number;
+  version?: string;
+  notes?: string;
+  error?: string;
+};
+
 export type ToastTone = "default" | "success" | "warning";
 
 export type Toast = {

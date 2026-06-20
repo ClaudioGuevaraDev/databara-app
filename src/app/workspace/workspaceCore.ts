@@ -12,6 +12,7 @@ import type {
   ResultPanelTab,
   SqlTab,
   Toast,
+  UpdateProgress,
 } from "../types";
 
 export type WorkspaceState = {
@@ -39,6 +40,8 @@ export type WorkspaceState = {
   selectedObjectId: string;
   sqlTabs: SqlTab[];
   storedConnections: StoredConnectionDraft[];
+  updateDialogOpen: boolean;
+  updateProgress: UpdateProgress | null;
 };
 
 export type WorkspaceActions = {
@@ -71,6 +74,8 @@ export type WorkspaceActions = {
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
+  startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
+  dismissUpdateDialog: () => void;
   toggleNode: (nodeId: string) => void;
   updateActiveSql: (sql: string) => void;
 };
@@ -106,6 +111,16 @@ export function useWorkspaceLayout() {
     activeConnection: state.activeConnection,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     requiresConnection: meta.requiresConnection,
+    checkForUpdates: actions.startUpdateCheck,
+  };
+}
+
+export function useUpdater() {
+  const { actions, state } = useWorkspace();
+  return {
+    updateDialogOpen: state.updateDialogOpen,
+    updateProgress: state.updateProgress,
+    dismissUpdateDialog: actions.dismissUpdateDialog,
   };
 }
 

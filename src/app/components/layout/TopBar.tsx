@@ -1,6 +1,12 @@
-import { Database, Plus } from "lucide-react";
+import { Database, Plus, RefreshCw } from "lucide-react";
 
-export function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
+export function TopBar({
+  onNewConnection,
+  onCheckForUpdates,
+}: {
+  onNewConnection: () => void;
+  onCheckForUpdates: () => void;
+}) {
   return (
     <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
       <div className="flex items-center gap-2">
@@ -14,14 +20,25 @@ export function TopBar({ onNewConnection }: { onNewConnection: () => void }) {
           <div className="text-[13px] text-foreground">Database workspace</div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onNewConnection}
-        className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
-      >
-        <Plus size={14} />
-        Connection
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onNewConnection}
+          className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
+        >
+          <Plus size={14} />
+          Connection
+        </button>
+        <button
+          type="button"
+          onClick={onCheckForUpdates}
+          title="Check for updates"
+          className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
+        >
+          <RefreshCw size={14} />
+          Update
+        </button>
+      </div>
     </header>
   );
 }

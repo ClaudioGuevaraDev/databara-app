@@ -56,6 +56,43 @@ El bundle de macOS necesita `icon.icns` y el de Linux necesita PNGs; hoy el repo
 | macOS   | `.dmg` / `.app` (binario universal Intel + Apple Silicon) |
 | Linux   | `.deb`, `.rpm`, `.AppImage`                               |
 
+## Auto-actualización (in-app)
+
+La app usa el plugin oficial **`tauri-plugin-updater`**: al abrir (y con el botón **"Buscar
+actualizaciones"** del header) consulta el último release **publicado**, y si hay una versión nueva
+la descarga, instala y reinicia mostrando un modal con el progreso.
+
+### Requisito único: clave de firma del updater
+
+El updater **exige** que los binarios estén firmados con una clave propia (independiente del code
+signing de Windows/macOS). Generarla **una sola vez**:
+
+1. Generar el par de claves localmente:
+   ```bash
+   pnpm tauri signer generate -w databara-updater.key
+   ```
+   Imprime una **clave pública** y crea la **clave privada** (pidiendo una contraseña).
+2. Pegar la **clave pública** en `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`
+   (reemplaza el placeholder `REEMPLAZAR_CON_LA_CLAVE_PUBLICA_...`).
+3. Cargar como **secrets** del repo (Settings → Secrets and variables → Actions):
+   - `TAURI_SIGNING_PRIVATE_KEY` → contenido de `databara-updater.key`
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` → la contraseña elegida
+4. **Nunca** commitear la clave privada. Guárdala en un lugar seguro.
+
+### Cómo funciona en CI
+
+Con `bundle.createUpdaterArtifacts: true` (ya configurado) y los dos secrets de arriba,
+`tauri-action` firma los bundles y **genera/sube `latest.json`** al release automáticamente
+(lo mergea entre los 3 runners). No hay pasos manuales extra.
+
+### Importante
+
+- El endpoint apunta al **último release publicado**. Como el workflow crea releases en **borrador**,
+  los usuarios reciben la actualización **recién al publicar** el release.
+- En Linux solo se auto-actualiza el **AppImage** (`.deb`/`.rpm` se actualizan manualmente).
+- El mecanismo funciona **hacia adelante**: usuarios con una versión anterior a la primera que
+  incluyó el plugin deben actualizar manualmente una vez.
+
 ## Sin firma de código
 
 Los instaladores se publican **sin firmar** (no configurado por ahora):

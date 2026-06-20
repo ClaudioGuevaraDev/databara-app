@@ -25,7 +25,9 @@ import {
   type SqlTab,
   type Toast,
   type ToastTone,
+  type UpdateProgress,
 } from "../types";
+import { checkForUpdate, downloadAndInstallUpdate, relaunchApp } from "../updaterService";
 import {
   savedConnectionNodeId,
   WorkspaceContext,
@@ -111,6 +113,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
+  const updateInProgressRef = useRef(false);
+  const didCheckUpdateRef = useRef(false);
   const hasUnsavedTabsRef = useRef(false);
   const runningTabsRef = useRef<Set<string>>(new Set());
   const toastCounterRef = useRef(0);
@@ -149,6 +155,96 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     toastCounterRef.current += 1;
     setToast({ id: toastCounterRef.current, text, tone });
   }, []);
+
+  // Checks for a new release and, if found, downloads + installs it while a modal
+  // reports progress, then relaunches into the new version. `silent` (the startup
+  // check) stays quiet when already up to date or running outside the desktop app.
+  const startUpdateCheck = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = opts?.silent ?? false;
+      if (updateInProgressRef.current) return;
+
+      if (!("__TAURI_INTERNALS__" in window)) {
+        if (!silent) notify("Updates are only available in the desktop app", "warning");
+        return;
+      }
+
+      updateInProgressRef.current = true;
+      try {
+        // Checking can fail for benign reasons (no published release yet, offline,
+        // missing latest.json). Never surface that as a modal — on the startup
+        // (silent) check stay quiet; on a manual check just toast it.
+        let update;
+        try {
+          update = await checkForUpdate();
+        } catch (error) {
+          if (!silent) notify(`Couldn't check for updates: ${readErrorMessage(error)}`, "warning");
+          return;
+        }
+
+        if (!update) {
+          if (!silent) notify("You're on the latest version", "success");
+          return;
+        }
+
+        // An update exists: show the modal and report download/install progress.
+        // Errors from here on are shown inside the modal since it's already open.
+        setUpdateProgress({
+          phase: "downloading",
+          downloaded: 0,
+          total: 0,
+          version: update.version,
+          notes: update.body ?? undefined,
+        });
+        setUpdateDialogOpen(true);
+
+        try {
+          await downloadAndInstallUpdate(update, ({ downloaded, total }) => {
+            setUpdateProgress((previous) => ({
+              phase: total > 0 && downloaded >= total ? "installing" : "downloading",
+              downloaded,
+              total,
+              version: previous?.version ?? update.version,
+              notes: previous?.notes,
+            }));
+          });
+
+          setUpdateProgress((previous) => ({
+            phase: "done",
+            downloaded: previous?.total ?? 0,
+            total: previous?.total ?? 0,
+            version: previous?.version ?? update.version,
+            notes: previous?.notes,
+          }));
+          await relaunchApp();
+        } catch (error) {
+          setUpdateProgress((previous) => ({
+            phase: "error",
+            downloaded: previous?.downloaded ?? 0,
+            total: previous?.total ?? 0,
+            version: previous?.version,
+            error: readErrorMessage(error),
+          }));
+        }
+      } finally {
+        updateInProgressRef.current = false;
+      }
+    },
+    [notify],
+  );
+
+  const dismissUpdateDialog = useCallback(() => {
+    // Only meaningful on terminal states (error/done) — during download the modal
+    // shows no close affordance, so this won't interrupt an in-flight install.
+    setUpdateDialogOpen(false);
+    setUpdateProgress(null);
+  }, []);
+
+  useEffect(() => {
+    if (didCheckUpdateRef.current) return;
+    didCheckUpdateRef.current = true;
+    void startUpdateCheck({ silent: true });
+  }, [startUpdateCheck]);
 
   const patchTabResult = useCallback((tabId: string, patch: Partial<TabResult>) => {
     setResultsByTab((previous) => ({
@@ -974,6 +1070,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectResultTab: setResultTab,
       selectSqlTab,
       setConnectionDialogOpen,
+      startUpdateCheck,
+      dismissUpdateDialog,
       toggleNode,
       updateActiveSql,
     },
@@ -1009,6 +1107,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectedObjectId,
       sqlTabs,
       storedConnections,
+      updateDialogOpen,
+      updateProgress,
     },
   };
 

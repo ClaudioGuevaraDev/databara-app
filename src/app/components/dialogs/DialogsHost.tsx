@@ -1,12 +1,14 @@
 import { useEffect } from "react";
-import { useDialogs } from "../../workspace/workspaceCore";
+import { useDialogs, useUpdater } from "../../workspace/workspaceCore";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
 import { UnsavedTabsDialog } from "./UnsavedTabsDialog";
+import { UpdateDialog } from "./UpdateDialog";
 
 export function DialogsHost() {
   const dialogs = useDialogs();
+  const { updateDialogOpen, updateProgress, dismissUpdateDialog } = useUpdater();
   const {
     closeDeleteConnectionDialog,
     closePasswordDialog,
@@ -102,6 +104,9 @@ export function DialogsHost() {
           onDiscard={() => void closeWindowAfterResolution("discard")}
           onSave={() => void closeWindowAfterResolution("save")}
         />
+      ) : null}
+      {updateDialogOpen && updateProgress ? (
+        <UpdateDialog progress={updateProgress} onDismiss={dismissUpdateDialog} />
       ) : null}
     </>
   );

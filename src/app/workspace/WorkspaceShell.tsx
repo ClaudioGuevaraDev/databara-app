@@ -10,7 +10,10 @@ export function WorkspaceShell() {
 
   return (
     <div className="flex h-screen min-h-0 flex-col bg-background text-[13px] text-foreground">
-      <TopBar onNewConnection={workspace.openNewConnectionDialog} />
+      <TopBar
+        onNewConnection={workspace.openNewConnectionDialog}
+        onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })}
+      />
       <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
         <Explorer />
         <MainWorkspace requiresConnection={workspace.requiresConnection} />
