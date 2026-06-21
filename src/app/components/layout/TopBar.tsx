@@ -28,7 +28,7 @@ export function TopBar({
             Databara
           </div>
           <div className="text-[13px] text-foreground">
-            Database workspace{version ? ` · v${version}` : ""}
+            Database workspace{version ? ` · v${version}` : ""} · test
           </div>
         </div>
       </div>
