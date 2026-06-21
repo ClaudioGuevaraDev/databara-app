@@ -27,7 +27,12 @@ import {
   type ToastTone,
   type UpdateProgress,
 } from "../types";
-import { checkForUpdate, downloadAndInstallUpdate, relaunchApp } from "../updaterService";
+import {
+  checkForUpdate,
+  downloadAndInstallUpdate,
+  openDownloadPage,
+  relaunchApp,
+} from "../updaterService";
 import {
   savedConnectionNodeId,
   WorkspaceContext,
@@ -1072,6 +1077,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setConnectionDialogOpen,
       startUpdateCheck,
       dismissUpdateDialog,
+      openDownloadPage: () => void openDownloadPage(),
       toggleNode,
       updateActiveSql,
     },

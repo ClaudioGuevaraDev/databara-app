@@ -8,7 +8,7 @@ import { UpdateDialog } from "./UpdateDialog";
 
 export function DialogsHost() {
   const dialogs = useDialogs();
-  const { updateDialogOpen, updateProgress, dismissUpdateDialog } = useUpdater();
+  const { updateDialogOpen, updateProgress, dismissUpdateDialog, openDownloadPage } = useUpdater();
   const {
     closeDeleteConnectionDialog,
     closePasswordDialog,
@@ -106,7 +106,11 @@ export function DialogsHost() {
         />
       ) : null}
       {updateDialogOpen && updateProgress ? (
-        <UpdateDialog progress={updateProgress} onDismiss={dismissUpdateDialog} />
+        <UpdateDialog
+          progress={updateProgress}
+          onDismiss={dismissUpdateDialog}
+          onDownloadManually={openDownloadPage}
+        />
       ) : null}
     </>
   );

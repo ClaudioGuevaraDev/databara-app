@@ -1,10 +1,15 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 
-// This module is the only place that talks to the Tauri updater/process plugins,
+// This module is the only place that talks to the Tauri updater/process/opener plugins,
 // mirroring the boundary rule that keeps databaraService.ts as the sole `invoke` caller.
 
 export type { Update };
+
+// Where users are sent when an in-app update can't be applied (e.g. Linux deb/rpm
+// or an AppImage in a non-writable location).
+export const DOWNLOAD_PAGE_URL = "https://databara.vercel.app/#download";
 
 export type DownloadProgress = {
   downloaded: number;
@@ -51,4 +56,13 @@ export async function downloadAndInstallUpdate(
 export async function relaunchApp(): Promise<void> {
   if (!isTauriRuntime()) return;
   await relaunch();
+}
+
+// Opens the download page in the user's default browser.
+export async function openDownloadPage(): Promise<void> {
+  if (!isTauriRuntime()) {
+    window.open(DOWNLOAD_PAGE_URL, "_blank", "noopener");
+    return;
+  }
+  await openUrl(DOWNLOAD_PAGE_URL);
 }

@@ -76,6 +76,7 @@ export type WorkspaceActions = {
   setQueryPageSize: (pageSize: number) => Promise<void>;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
   dismissUpdateDialog: () => void;
+  openDownloadPage: () => void;
   toggleNode: (nodeId: string) => void;
   updateActiveSql: (sql: string) => void;
 };
@@ -121,6 +122,7 @@ export function useUpdater() {
     updateDialogOpen: state.updateDialogOpen,
     updateProgress: state.updateProgress,
     dismissUpdateDialog: actions.dismissUpdateDialog,
+    openDownloadPage: actions.openDownloadPage,
   };
 }
 

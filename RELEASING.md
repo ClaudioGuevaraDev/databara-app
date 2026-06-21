@@ -52,7 +52,7 @@ El bundle de macOS necesita `icon.icns` y el de Linux necesita PNGs; hoy el repo
 
 | SO      | Archivos                                                  |
 | ------- | --------------------------------------------------------- |
-| Windows | `.msi` (WiX), `-setup.exe` (NSIS)                         |
+| Windows | `-setup.exe` (NSIS) — sin MSI, ver nota abajo              |
 | macOS   | `.dmg` / `.app` (binario universal Intel + Apple Silicon) |
 | Linux   | `.deb`, `.rpm`, `.AppImage`                               |
 
@@ -89,9 +89,28 @@ Con `bundle.createUpdaterArtifacts: true` (ya configurado) y los dos secrets de 
 
 - El endpoint apunta al **último release publicado**. Como el workflow crea releases en **borrador**,
   los usuarios reciben la actualización **recién al publicar** el release.
-- En Linux solo se auto-actualiza el **AppImage** (`.deb`/`.rpm` se actualizan manualmente).
 - El mecanismo funciona **hacia adelante**: usuarios con una versión anterior a la primera que
   incluyó el plugin deben actualizar manualmente una vez.
+
+#### Windows: solo NSIS (sin MSI)
+
+El bundle de Windows produce **solo el `-setup.exe` (NSIS)**, no `.msi`. Motivo: MSI y NSIS instalan
+en rutas/registro distintos, así que actualizar un MSI con el instalador NSIS del updater dejaba
+**dos apps instaladas**. Con NSIS la instalación inicial y la actualización usan el mismo mecanismo
+y se reemplaza en sitio (`installMode: currentUser`, sin permisos de admin).
+
+> Si un usuario tenía la app instalada vía MSI, debe **desinstalar todas las copias** y reinstalar
+> con el `-setup.exe` una vez; a partir de ahí el auto-update reemplaza en sitio.
+
+#### Linux: solo AppImage se auto-actualiza
+
+El updater reemplaza el archivo `.AppImage` en su sitio, por lo que necesita **permiso de escritura**
+sobre ese archivo. Requisitos para que funcione:
+
+- Ejecutar el **`.AppImage`** desde una carpeta **escribible por el usuario** (ej. `~/Applications`,
+  `~/Descargas`), no desde una ruta del sistema.
+- Las instalaciones por **`.deb`/`.rpm`** **no** se auto-actualizan (las maneja el gestor de paquetes
+  con root) → dan "permiso denegado". Esos usuarios actualizan con su gestor de paquetes.
 
 ## Sin firma de código
 

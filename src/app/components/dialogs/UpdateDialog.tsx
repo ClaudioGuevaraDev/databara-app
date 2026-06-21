@@ -1,4 +1,4 @@
-import { AlertTriangle, Download } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink } from "lucide-react";
 import type { UpdateProgress } from "../../types";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
 
@@ -19,9 +19,11 @@ const PHASE_TITLE: Record<UpdateProgress["phase"], string> = {
 export function UpdateDialog({
   progress,
   onDismiss,
+  onDownloadManually,
 }: {
   progress: UpdateProgress;
   onDismiss: () => void;
+  onDownloadManually: () => void;
 }) {
   const { phase, downloaded, total, version, notes, error } = progress;
   const isError = phase === "error";
@@ -48,7 +50,10 @@ export function UpdateDialog({
       </DialogHeader>
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         {isError ? (
-          <div className="text-destructive">{error ?? "The update could not be completed."}</div>
+          <div className="grid gap-2">
+            <div className="text-destructive">{error ?? "The update could not be completed."}</div>
+            <div>You can download the latest version manually from the website.</div>
+          </div>
         ) : (
           <>
             {version ? (
@@ -95,6 +100,13 @@ export function UpdateDialog({
         <DialogActions>
           <button onClick={onDismiss} className="control h-8 rounded px-3 text-[12px]">
             Close
+          </button>
+          <button
+            onClick={onDownloadManually}
+            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
+          >
+            <ExternalLink size={14} />
+            Download manually
           </button>
         </DialogActions>
       ) : null}
