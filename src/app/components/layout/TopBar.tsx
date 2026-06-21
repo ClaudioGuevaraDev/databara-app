@@ -1,6 +1,4 @@
 import { Database, Plus, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { getAppVersion } from "../../databaraService";
 
 export function TopBar({
   onNewConnection,
@@ -9,14 +7,6 @@ export function TopBar({
   onNewConnection: () => void;
   onCheckForUpdates: () => void;
 }) {
-  const [version, setVersion] = useState("");
-
-  useEffect(() => {
-    void getAppVersion()
-      .then(setVersion)
-      .catch(() => setVersion(""));
-  }, []);
-
   return (
     <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
       <div className="flex items-center gap-2">
@@ -27,9 +17,7 @@ export function TopBar({
           <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Databara
           </div>
-          <div className="text-[13px] text-foreground">
-            Database workspace{version ? ` · v${version}` : ""} · test
-          </div>
+          <div className="text-[13px] text-foreground">Database workspace</div>
         </div>
       </div>
       <div className="flex items-center gap-2">
