@@ -42,6 +42,13 @@ const legacyStoredConnectionKey = "databara.postgres.connection";
 const legacyStoredConnectionsKey = "databara.postgres.connections";
 const storedConnectionsKey = "databara.connections.v1";
 
+// Whether this install can apply an in-app update. False for Linux .deb/.rpm
+// installs (only an AppImage can self-update). Assume true outside Tauri.
+export async function updatesSupported(): Promise<boolean> {
+  if (!("__TAURI_INTERNALS__" in window)) return true;
+  return invoke<boolean>("updates_supported");
+}
+
 export async function testPostgresConnection(
   draft: ConnectionDraft,
 ): Promise<ConnectionTestResult> {

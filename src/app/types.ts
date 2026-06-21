@@ -76,7 +76,13 @@ export type QueryResult = {
   message: string;
 };
 
-export type UpdatePhase = "checking" | "downloading" | "installing" | "done" | "error";
+export type UpdatePhase =
+  | "checking"
+  | "downloading"
+  | "installing"
+  | "done"
+  | "error"
+  | "unavailable";
 
 export type UpdateProgress = {
   phase: UpdatePhase;

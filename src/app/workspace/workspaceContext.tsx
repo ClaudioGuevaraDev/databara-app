@@ -9,6 +9,7 @@ import {
   runPostgresQuery,
   saveStoredConnection,
   setUnsavedSqlTabs,
+  updatesSupported,
   type StoredConnectionDraft,
 } from "../databaraService";
 import { exportQueryResultCsv } from "../query/exportCsv";
@@ -189,6 +190,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
         if (!update) {
           if (!silent) notify("You're on the latest version", "success");
+          return;
+        }
+
+        // This install can't replace itself (Linux .deb/.rpm). Don't attempt a
+        // download that would fail with "permission denied" — point the user
+        // straight to the manual download instead.
+        if (!(await updatesSupported())) {
+          setUpdateProgress({
+            phase: "unavailable",
+            downloaded: 0,
+            total: 0,
+            version: update.version,
+            notes: update.body ?? undefined,
+          });
+          setUpdateDialogOpen(true);
           return;
         }
 

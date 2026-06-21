@@ -39,7 +39,7 @@ There is **no test framework**. The validation gate for any change is: `pnpm run
 
 All communication with the Rust backend funnels through **`src/app/databaraService.ts`** — the only file that calls Tauri's `invoke`. Components and the workspace context never invoke commands directly. This service also normalizes types crossing the boundary: the backend reports `engine: "PostgreSQL"`, which is normalized to the frontend's `"postgresql"` `DatabaseEngine`, and server tree-node IDs are rewritten to embed the engine.
 
-The Rust side exposes exactly seven commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `list_postgres_tree`, `get_postgres_object_details`, `run_postgres_query`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`.
+The Rust side exposes exactly eight commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `list_postgres_tree`, `get_postgres_object_details`, `run_postgres_query`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`, `updates_supported`.
 
 ### Rust backend (`src-tauri/src/lib.rs`, single file)
 

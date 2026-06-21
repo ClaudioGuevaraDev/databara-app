@@ -398,6 +398,22 @@ fn close_main_window_after_unsaved_resolution(
         .map_err(|error| AppError::Connection(error.to_string()))
 }
 
+/// Whether this installation can apply an in-app update.
+/// On Linux the updater can only replace an AppImage (which sets the `APPIMAGE`
+/// env var); `.deb`/`.rpm` installs live in root-owned system paths and can't be
+/// updated in place. macOS and Windows always support it.
+#[tauri::command]
+fn updates_supported() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        std::env::var_os("APPIMAGE").is_some()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 fn session(
     state: &State<'_, Mutex<AppState>>,
     connection_id: &str,
@@ -761,7 +777,8 @@ pub fn run() {
             get_postgres_object_details,
             run_postgres_query,
             set_unsaved_sql_tabs,
-            close_main_window_after_unsaved_resolution
+            close_main_window_after_unsaved_resolution,
+            updates_supported
         ])
         .run(tauri::generate_context!())
         .expect("error while running Databara");

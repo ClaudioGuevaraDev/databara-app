@@ -14,6 +14,7 @@ const PHASE_TITLE: Record<UpdateProgress["phase"], string> = {
   installing: "Installing update",
   done: "Restarting…",
   error: "Update failed",
+  unavailable: "Update available",
 };
 
 export function UpdateDialog({
@@ -27,9 +28,13 @@ export function UpdateDialog({
 }) {
   const { phase, downloaded, total, version, notes, error } = progress;
   const isError = phase === "error";
+  const isUnavailable = phase === "unavailable";
+  // Terminal states that send the user to a manual download: a failed update, or an
+  // install type that can't self-update (Linux .deb/.rpm). Both get Close + Download.
+  const needsManualDownload = isError || isUnavailable;
   // The download/install/restart flow is automatic — no way to abort midway, so we
-  // only offer a dismiss affordance once it has terminally failed.
-  const dismissible = isError;
+  // only offer a dismiss affordance on the terminal (manual-download) states.
+  const dismissible = needsManualDownload;
   const percent = total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : null;
 
   return (
@@ -53,6 +58,19 @@ export function UpdateDialog({
           <div className="grid gap-2">
             <div className="text-destructive">{error ?? "The update could not be completed."}</div>
             <div>You can download the latest version manually from the website.</div>
+          </div>
+        ) : isUnavailable ? (
+          <div className="grid gap-2">
+            {version ? (
+              <div>
+                New version available:{" "}
+                <span className="font-semibold text-foreground">v{version}</span>
+              </div>
+            ) : null}
+            <div>
+              This installation can&apos;t update itself. Download the latest version manually from
+              the website.
+            </div>
           </div>
         ) : (
           <>
