@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  clampZoomLevel,
   closeMainWindowAfterUnsavedResolution,
   connectPostgres,
   deleteStoredConnection,
   getPostgresObjectDetails,
   listPostgresTree,
+  loadAppSettings,
   loadStoredConnections,
   runPostgresQuery,
+  saveAppSettings,
   saveStoredConnection,
   setUnsavedSqlTabs,
   updatesSupported,
+  type AppSettings,
   type StoredConnectionDraft,
 } from "../databaraService";
 import { exportQueryResultCsv } from "../query/exportCsv";
@@ -118,6 +122,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
   const [toast, setToast] = useState<Toast | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
@@ -150,6 +156,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => new Set(connections.map((connection) => connectionKey(connection))),
     [connections],
   );
+
+  // Apply the zoom setting to the whole webview and persist any change.
+  // Runs on mount too, so a saved zoom is restored on startup. 100% means
+  // normal, so we clear the property instead of setting "1".
+  useEffect(() => {
+    document.documentElement.style.zoom =
+      settings.zoom.level === 100 ? "" : String(settings.zoom.level / 100);
+    saveAppSettings(settings);
+  }, [settings]);
 
   const connectionByKey = useCallback(
     (key: string | undefined) =>
@@ -1065,6 +1080,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       closeDeleteConnectionDialog: () => setDeleteConnectionRequest(null),
       closePasswordDialog: () => setPasswordConnection(null),
       closeResults: () => setResultsOpen(false),
+      closeSettingsDialog: () => setSettingsDialogOpen(false),
       closeSqlTab,
       closeUnsavedTabsDialog: () => setCloseWithUnsavedDialogOpen(false),
       closeWindowAfterResolution,
@@ -1080,6 +1096,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openSchemaTab,
       openNewConnectionDialog,
       openSavedConnection,
+      openSettingsDialog: () => setSettingsDialogOpen(true),
       previewObject,
       refreshAll,
       refreshConnection,
@@ -1091,6 +1108,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectResultTab: setResultTab,
       selectSqlTab,
       setConnectionDialogOpen,
+      setZoomLevel: (level) =>
+        setSettings((current) => ({
+          ...current,
+          zoom: { ...current.zoom, level: clampZoomLevel(level) },
+        })),
       startUpdateCheck,
       dismissUpdateDialog,
       openDownloadPage: () => void openDownloadPage(),
@@ -1115,9 +1137,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       dialogInitialDraft,
       dialogs: {
         connection: connectionDialogOpen,
+        settings: settingsDialogOpen,
         unsavedTabs: closeWithUnsavedDialogOpen,
       },
       passwordConnection,
+      settings,
       queryError,
       queryPagination,
       queryResult,

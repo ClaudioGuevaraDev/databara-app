@@ -1,5 +1,5 @@
 import { createContext, use } from "react";
-import type { StoredConnectionDraft } from "../databaraService";
+import type { AppSettings, StoredConnectionDraft } from "../databaraService";
 import type {
   ColumnDefinition,
   ConnectionDraft,
@@ -26,9 +26,11 @@ export type WorkspaceState = {
   dialogInitialDraft: StoredConnectionDraft | null;
   dialogs: {
     connection: boolean;
+    settings: boolean;
     unsavedTabs: boolean;
   };
   passwordConnection: StoredConnectionDraft | null;
+  settings: AppSettings;
   queryError: string | null;
   queryPagination: QueryPagination | null;
   queryResult: QueryResult | null;
@@ -47,6 +49,7 @@ export type WorkspaceState = {
 export type WorkspaceActions = {
   closeDeleteConnectionDialog: () => void;
   closePasswordDialog: () => void;
+  closeSettingsDialog: () => void;
   closeResults: () => void;
   closeSqlTab: (tabId: string) => void;
   closeUnsavedTabsDialog: () => void;
@@ -63,6 +66,7 @@ export type WorkspaceActions = {
   openSchemaTab: () => Promise<void>;
   openNewConnectionDialog: () => void;
   openSavedConnection: (nodeId: string) => void;
+  openSettingsDialog: () => void;
   previewObject: (objectId?: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   refreshConnection: (connectionKey?: string) => Promise<void>;
@@ -74,6 +78,7 @@ export type WorkspaceActions = {
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
+  setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
   dismissUpdateDialog: () => void;
   openDownloadPage: () => void;
@@ -111,8 +116,19 @@ export function useWorkspaceLayout() {
   return {
     activeConnection: state.activeConnection,
     openNewConnectionDialog: actions.openNewConnectionDialog,
+    openSettingsDialog: actions.openSettingsDialog,
     requiresConnection: meta.requiresConnection,
     checkForUpdates: actions.startUpdateCheck,
+  };
+}
+
+export function useSettings() {
+  const { actions, state } = useWorkspace();
+  return {
+    settings: state.settings,
+    settingsDialogOpen: state.dialogs.settings,
+    closeSettingsDialog: actions.closeSettingsDialog,
+    setZoomLevel: actions.setZoomLevel,
   };
 }
 

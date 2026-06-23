@@ -1,11 +1,13 @@
-import { Database, Plus, RefreshCw } from "lucide-react";
+import { Database, Plus, RefreshCw, Settings } from "lucide-react";
 
 export function TopBar({
   onNewConnection,
   onCheckForUpdates,
+  onOpenSettings,
 }: {
   onNewConnection: () => void;
   onCheckForUpdates: () => void;
+  onOpenSettings: () => void;
 }) {
   return (
     <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
@@ -37,6 +39,15 @@ export function TopBar({
         >
           <RefreshCw size={14} />
           Update
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Settings"
+          className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
+        >
+          <Settings size={14} />
+          Settings
         </button>
       </div>
     </header>

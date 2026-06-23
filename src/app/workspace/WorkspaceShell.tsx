@@ -13,6 +13,7 @@ export function WorkspaceShell() {
       <TopBar
         onNewConnection={workspace.openNewConnectionDialog}
         onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })}
+        onOpenSettings={workspace.openSettingsDialog}
       />
       <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
         <Explorer />

@@ -42,6 +42,53 @@ const legacyStoredConnectionKey = "databara.postgres.connection";
 const legacyStoredConnectionsKey = "databara.postgres.connections";
 const storedConnectionsKey = "databara.connections.v1";
 
+const settingsStorageKey = "databara.settings.v1";
+
+export type AppSettings = {
+  zoom: { level: number };
+};
+
+// Zoom level is stored as a percent integer (100 = normal, no scaling). CSS
+// `zoom` receives level / 100.
+export const ZOOM_MIN = 50;
+export const ZOOM_MAX = 200;
+export const ZOOM_STEP = 10;
+
+export const defaultAppSettings: AppSettings = { zoom: { level: 100 } };
+
+export function clampZoomLevel(level: number): number {
+  if (!Number.isFinite(level)) return defaultAppSettings.zoom.level;
+  const snapped = Math.round(level / ZOOM_STEP) * ZOOM_STEP;
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, snapped));
+}
+
+function normalizeAppSettings(raw: unknown): AppSettings {
+  if (!raw || typeof raw !== "object") return defaultAppSettings;
+  const zoom = (raw as { zoom?: unknown }).zoom;
+  if (!zoom || typeof zoom !== "object") return defaultAppSettings;
+  const { level } = zoom as { level?: unknown };
+  return {
+    zoom: {
+      level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
+    },
+  };
+}
+
+export function loadAppSettings(): AppSettings {
+  const raw = window.localStorage.getItem(settingsStorageKey);
+  if (!raw) return defaultAppSettings;
+  try {
+    return normalizeAppSettings(JSON.parse(raw));
+  } catch {
+    window.localStorage.removeItem(settingsStorageKey);
+    return defaultAppSettings;
+  }
+}
+
+export function saveAppSettings(settings: AppSettings): void {
+  window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+}
+
 // Whether this install can apply an in-app update. False for Linux .deb/.rpm
 // installs (only an AppImage can self-update). Assume true outside Tauri.
 export async function updatesSupported(): Promise<boolean> {

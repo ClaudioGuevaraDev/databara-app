@@ -1,13 +1,15 @@
 import { useEffect } from "react";
-import { useDialogs, useUpdater } from "../../workspace/workspaceCore";
+import { useDialogs, useSettings, useUpdater } from "../../workspace/workspaceCore";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
+import { SettingsDialog } from "./SettingsDialog";
 import { UnsavedTabsDialog } from "./UnsavedTabsDialog";
 import { UpdateDialog } from "./UpdateDialog";
 
 export function DialogsHost() {
   const dialogs = useDialogs();
+  const { settingsDialogOpen, closeSettingsDialog } = useSettings();
   const { updateDialogOpen, updateProgress, dismissUpdateDialog, openDownloadPage } = useUpdater();
   const {
     closeDeleteConnectionDialog,
@@ -42,6 +44,11 @@ export function DialogsHost() {
         return;
       }
 
+      if (settingsDialogOpen) {
+        closeSettingsDialog();
+        return;
+      }
+
       if (connectionDialogOpen) {
         setConnectionDialogOpen(false);
       }
@@ -53,6 +60,7 @@ export function DialogsHost() {
         !unsavedTabsDialogOpen &&
         !deleteConnectionRequest &&
         !passwordConnection &&
+        !settingsDialogOpen &&
         !connectionDialogOpen
       ) {
         return;
@@ -67,10 +75,12 @@ export function DialogsHost() {
   }, [
     closeDeleteConnectionDialog,
     closePasswordDialog,
+    closeSettingsDialog,
     closeUnsavedTabsDialog,
     connectionDialogOpen,
     deleteConnectionRequest,
     passwordConnection,
+    settingsDialogOpen,
     setConnectionDialogOpen,
     unsavedTabsDialogOpen,
   ]);
@@ -105,6 +115,7 @@ export function DialogsHost() {
           onSave={() => void closeWindowAfterResolution("save")}
         />
       ) : null}
+      {settingsDialogOpen ? <SettingsDialog onClose={closeSettingsDialog} /> : null}
       {updateDialogOpen && updateProgress ? (
         <UpdateDialog
           progress={updateProgress}
