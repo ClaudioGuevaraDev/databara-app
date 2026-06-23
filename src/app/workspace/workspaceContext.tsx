@@ -3,7 +3,9 @@ import {
   clampZoomLevel,
   closeMainWindowAfterUnsavedResolution,
   connectPostgres,
+  deleteConnectionPassword,
   deleteStoredConnection,
+  getConnectionPassword,
   getPostgresObjectDetails,
   listPostgresTree,
   loadAppSettings,
@@ -12,6 +14,7 @@ import {
   saveAppSettings,
   saveStoredConnection,
   setUnsavedSqlTabs,
+  storeConnectionPassword,
   updatesSupported,
   type AppSettings,
   type StoredConnectionDraft,
@@ -124,16 +127,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
+  // True on startup while saved connections are being reconnected, so the UI can
+  // hold off the "no connections" view instead of flashing it before reconnect.
+  const [autoReconnecting, setAutoReconnecting] = useState(
+    () => settings.keepConnectionsActive.enabled && storedConnections.length > 0,
+  );
   const [toast, setToast] = useState<Toast | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
   const updateInProgressRef = useRef(false);
   const didCheckUpdateRef = useRef(false);
+  const didAutoReconnectRef = useRef(false);
   const hasUnsavedTabsRef = useRef(false);
   const runningTabsRef = useRef<Set<string>>(new Set());
   const toastCounterRef = useRef(0);
   const sqlTabsRef = useRef<SqlTab[]>([]);
   const activeTabIdRef = useRef("");
+  // Read inside connectAndStoreConnection without making it depend on settings;
+  // kept current by the settings effect below.
+  const keepConnectionsActiveRef = useRef(settings.keepConnectionsActive.enabled);
 
   const activeConnection =
     connections.find((connection) => connection.id === activeConnectionId) ??
@@ -167,6 +179,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.style.zoom =
       settings.zoom.level === 100 ? "" : String(settings.zoom.level / 100);
+    keepConnectionsActiveRef.current = settings.keepConnectionsActive.enabled;
     saveAppSettings(settings);
   }, [settings]);
 
@@ -469,10 +482,43 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setActiveConnectionId(result.connection.id);
       setActiveExplorerTree((current) => mergeExplorerTree(current, result.tree));
       loadConnectionSqlTabs(result.connection);
+      // Persist the password so this connection can reconnect on startup, when
+      // the "keep connections active" setting is on.
+      if (keepConnectionsActiveRef.current) {
+        void storeConnectionPassword(connectionKey(connectionDraft), draft.password);
+      }
       notify(`${result.connection.name} connected`, "success");
     },
     [loadConnectionSqlTabs, notify],
   );
+
+  // On startup, when "keep connections active" is on, reconnect each saved
+  // connection whose password is in the keychain. Failures (changed password,
+  // server down, no keychain) just warn and leave that connection inactive.
+  useEffect(() => {
+    if (didAutoReconnectRef.current) return;
+    didAutoReconnectRef.current = true;
+    if (!settings.keepConnectionsActive.enabled) return;
+
+    void (async () => {
+      try {
+        for (const connection of storedConnections) {
+          try {
+            const password = await getConnectionPassword(connectionKey(connection));
+            if (!password) continue;
+            await connectAndStoreConnection({ ...connection, password });
+          } catch (error) {
+            notify(
+              `Could not reconnect ${connection.database}: ${readErrorMessage(error)}`,
+              "warning",
+            );
+          }
+        }
+      } finally {
+        setAutoReconnecting(false);
+      }
+    })();
+  }, [connectAndStoreConnection, notify, settings.keepConnectionsActive.enabled, storedConnections]);
 
   const updateActiveSql = useCallback(
     (sql: string) => {
@@ -1042,6 +1088,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       );
 
       const removedKey = connectionKey(connection);
+      void deleteConnectionPassword(removedKey);
       setStoredConnections(nextStoredConnections);
       setActiveExplorerTree((current) => removeConnectionFromTree(current, connection));
       setConnections(nextConnections);
@@ -1120,6 +1167,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       selectResultTab: setResultTab,
       selectSqlTab,
       setConnectionDialogOpen,
+      setKeepConnectionsActive: (enabled) => {
+        setSettings((current) => ({ ...current, keepConnectionsActive: { enabled } }));
+        // Turning it off removes every stored password from the keychain.
+        if (!enabled) {
+          storedConnections.forEach((connection) =>
+            void deleteConnectionPassword(connectionKey(connection)),
+          );
+        }
+      },
       setZoomLevel: (level) =>
         setSettings((current) => ({
           ...current,
@@ -1132,6 +1188,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       updateActiveSql,
     },
     meta: {
+      autoReconnecting,
       connectedConnectionKeys,
       explorerTree,
       hasStoredConnections,

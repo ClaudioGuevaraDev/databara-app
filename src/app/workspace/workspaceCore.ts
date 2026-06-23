@@ -77,6 +77,7 @@ export type WorkspaceActions = {
   selectResultTab: (tab: ResultPanelTab) => void;
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
+  setKeepConnectionsActive: (enabled: boolean) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
   setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
@@ -87,6 +88,7 @@ export type WorkspaceActions = {
 };
 
 export type WorkspaceMeta = {
+  autoReconnecting: boolean;
   connectedConnectionKeys: Set<string>;
   explorerTree: DatabaseTreeNode[];
   hasStoredConnections: boolean;
@@ -116,6 +118,7 @@ export function useWorkspaceLayout() {
   const { actions, meta, state } = useWorkspace();
   return {
     activeConnection: state.activeConnection,
+    autoReconnecting: meta.autoReconnecting,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openSettingsDialog: actions.openSettingsDialog,
     requiresConnection: meta.requiresConnection,
@@ -129,6 +132,7 @@ export function useSettings() {
     settings: state.settings,
     settingsDialogOpen: state.dialogs.settings,
     closeSettingsDialog: actions.closeSettingsDialog,
+    setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setZoomLevel: actions.setZoomLevel,
   };
 }

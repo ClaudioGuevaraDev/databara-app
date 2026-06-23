@@ -17,7 +17,10 @@ export function WorkspaceShell() {
       />
       <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
         <Explorer />
-        <MainWorkspace requiresConnection={workspace.requiresConnection} />
+        <MainWorkspace
+          requiresConnection={workspace.requiresConnection}
+          autoReconnecting={workspace.autoReconnecting}
+        />
       </div>
       <StatusBar onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })} />
       <DialogsHost />

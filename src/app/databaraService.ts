@@ -46,6 +46,9 @@ const settingsStorageKey = "databara.settings.v1";
 
 export type AppSettings = {
   zoom: { level: number };
+  // When enabled, connection passwords are stored in the OS keychain so
+  // connections reconnect on startup without prompting.
+  keepConnectionsActive: { enabled: boolean };
 };
 
 // Zoom level is stored as a percent integer (100 = normal, no scaling). CSS
@@ -54,7 +57,10 @@ export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
 export const ZOOM_STEP = 10;
 
-export const defaultAppSettings: AppSettings = { zoom: { level: 100 } };
+export const defaultAppSettings: AppSettings = {
+  zoom: { level: 100 },
+  keepConnectionsActive: { enabled: false },
+};
 
 export function clampZoomLevel(level: number): number {
   if (!Number.isFinite(level)) return defaultAppSettings.zoom.level;
@@ -65,11 +71,19 @@ export function clampZoomLevel(level: number): number {
 function normalizeAppSettings(raw: unknown): AppSettings {
   if (!raw || typeof raw !== "object") return defaultAppSettings;
   const zoom = (raw as { zoom?: unknown }).zoom;
-  if (!zoom || typeof zoom !== "object") return defaultAppSettings;
-  const { level } = zoom as { level?: unknown };
+  const level = zoom && typeof zoom === "object" ? (zoom as { level?: unknown }).level : undefined;
+  const keepActive = (raw as { keepConnectionsActive?: unknown }).keepConnectionsActive;
+  const enabled =
+    keepActive && typeof keepActive === "object"
+      ? (keepActive as { enabled?: unknown }).enabled
+      : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
+    },
+    keepConnectionsActive: {
+      enabled:
+        typeof enabled === "boolean" ? enabled : defaultAppSettings.keepConnectionsActive.enabled,
     },
   };
 }
@@ -94,6 +108,24 @@ export function saveAppSettings(settings: AppSettings): void {
 export async function updatesSupported(): Promise<boolean> {
   if (!("__TAURI_INTERNALS__" in window)) return true;
   return invoke<boolean>("updates_supported");
+}
+
+// Connection passwords are stored in the OS keychain (never localStorage),
+// keyed by the connection key. These no-op / return null outside the Tauri
+// runtime (e.g. `pnpm run dev` in a browser).
+export async function storeConnectionPassword(account: string, password: string): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  return invoke<void>("store_connection_password", { account, password });
+}
+
+export async function getConnectionPassword(account: string): Promise<string | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  return invoke<string | null>("get_connection_password", { account });
+}
+
+export async function deleteConnectionPassword(account: string): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  return invoke<void>("delete_connection_password", { account });
 }
 
 export async function testPostgresConnection(

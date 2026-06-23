@@ -10,4 +10,5 @@ export { MetricMini } from "./MetricMini";
 export { SectionTitle } from "./SectionTitle";
 export { SelectField, type SelectFieldOption } from "./SelectField";
 export { SmallAction } from "./SmallAction";
+export { Switch } from "./Switch";
 export { DetailRow } from "./DetailRow";

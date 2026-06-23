@@ -16,6 +16,11 @@ use tokio_postgres::{
     Client, Config, NoTls, Row,
 };
 
+// Service name under which connection passwords are stored in the OS keychain
+// (Windows Credential Manager / macOS Keychain / Linux Secret Service). Entries
+// are keyed by the frontend's connection key as the account.
+const KEYCHAIN_SERVICE: &str = "dev.databara.app";
+
 #[derive(Default)]
 struct AppState {
     sessions: HashMap<String, PostgresSession>,
@@ -46,6 +51,8 @@ enum AppError {
     StateLock,
     #[error("Main window not found")]
     MainWindowNotFound,
+    #[error("Keychain error: {0}")]
+    Keychain(String),
 }
 
 impl Serialize for AppError {
@@ -257,6 +264,40 @@ async fn connect_postgres(
         selected_object_id: None,
         selected_object: None,
     })
+}
+
+// Persists a connection password in the OS keychain so the connection can be
+// reconnected on startup without prompting (opt-in "keep connections active").
+#[tauri::command]
+fn store_connection_password(account: String, password: String) -> Result<(), AppError> {
+    let entry =
+        keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| AppError::Keychain(e.to_string()))?;
+    entry
+        .set_password(&password)
+        .map_err(|e| AppError::Keychain(e.to_string()))
+}
+
+// Returns the stored password for a connection, or None when nothing is saved.
+#[tauri::command]
+fn get_connection_password(account: String) -> Result<Option<String>, AppError> {
+    let entry =
+        keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| AppError::Keychain(e.to_string()))?;
+    match entry.get_password() {
+        Ok(password) => Ok(Some(password)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(AppError::Keychain(e.to_string())),
+    }
+}
+
+// Removes a connection's stored password (on disable or connection deletion).
+#[tauri::command]
+fn delete_connection_password(account: String) -> Result<(), AppError> {
+    let entry =
+        keyring::Entry::new(KEYCHAIN_SERVICE, &account).map_err(|e| AppError::Keychain(e.to_string()))?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(AppError::Keychain(e.to_string())),
+    }
 }
 
 #[tauri::command]
@@ -773,6 +814,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             test_postgres_connection,
             connect_postgres,
+            store_connection_password,
+            get_connection_password,
+            delete_connection_password,
             list_postgres_tree,
             get_postgres_object_details,
             run_postgres_query,
