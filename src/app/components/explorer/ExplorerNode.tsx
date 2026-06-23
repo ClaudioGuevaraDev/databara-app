@@ -31,18 +31,28 @@ export function ExplorerNode({
   const connectedDatabase = deletableConnection
     ? explorer.connectedConnectionKeys.has(connectionKey(deletableConnection))
     : false;
-  const selected = node.id === explorer.selectedObjectId;
-  // Connection groups start expanded; everything below them (schemas, etc.)
-  // starts collapsed. `toggledNodes` records the nodes the user flipped from
-  // that default, so toggling works both ways without re-seeding on refresh.
-  const userToggled = explorer.toggledNodes.has(node.id);
-  const collapsed = savedConnection ? userToggled : !userToggled;
+  // Node ids (e.g. `table:public.analytics`, `schema:public`) repeat across
+  // connections, so scope selection and expand/collapse by the owning
+  // connection to avoid two same-named objects acting as one.
+  const selected =
+    node.id === explorer.selectedObjectId &&
+    nodeConnectionKey === explorer.selectedConnectionKey;
+  // Servers and databases start expanded; schemas and below start collapsed.
+  // `toggledNodes` records the nodes the user flipped from that default, so
+  // toggling works both ways without re-seeding on refresh.
+  const defaultExpanded =
+    node.id.startsWith("server:") ||
+    node.id.startsWith("database:") ||
+    node.id.startsWith("saved-connection:");
+  const nodeKey = `${nodeConnectionKey ?? ""}::${node.id}`;
+  const userToggled = explorer.toggledNodes.has(nodeKey);
+  const collapsed = defaultExpanded ? userToggled : !userToggled;
 
   return (
     <div>
       <button
         onClick={() => {
-          if (hasChildren) explorer.toggleNode(node.id);
+          if (hasChildren) explorer.toggleNode(nodeKey);
           if (selectable) explorer.selectObject(node.id, nodeConnectionKey);
           // A live connection group toggles its tables; only an unconnected one
           // should (re)open the connect/password flow.

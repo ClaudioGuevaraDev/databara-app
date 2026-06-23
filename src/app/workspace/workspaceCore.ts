@@ -92,6 +92,7 @@ export type WorkspaceMeta = {
   hasStoredConnections: boolean;
   hasUnsavedTabs: boolean;
   requiresConnection: boolean;
+  selectedConnectionKey: string;
 };
 
 export type WorkspaceContextValue = {
@@ -150,6 +151,7 @@ export function useExplorer() {
     connectedConnectionKeys: meta.connectedConnectionKeys,
     explorerTree: meta.explorerTree,
     openNewConnectionDialog: actions.openNewConnectionDialog,
+    selectedConnectionKey: meta.selectedConnectionKey,
     selectedObjectId: state.selectedObjectId,
     storedConnections: state.storedConnections,
     confirmObjectTab: actions.confirmObjectTab,

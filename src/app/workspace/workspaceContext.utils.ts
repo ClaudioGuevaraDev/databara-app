@@ -17,31 +17,44 @@ export function connectionKey(
   return `${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
-// Each saved connection is shown as a single "connection group" node labelled
-// `host:port`. The intermediate server and database-name levels from the
-// backend tree are flattened away: when the connection is live, the database's
-// schema nodes are hoisted to become the group's direct children.
+// Connections are grouped by server (`host:port`); each server node holds its
+// databases, which in turn hold the schema → table tree from the backend. A
+// saved-but-not-yet-connected connection contributes a placeholder database
+// node so it can be clicked to connect.
 export function buildStoredConnectionTree(
   storedConnections: StoredConnectionDraft[],
   activeTree: DatabaseTreeNode[],
 ) {
-  const serversById = new Map(activeTree.map((node) => [node.id, node]));
+  const serverNodes = new Map<string, DatabaseTreeNode>();
 
-  return storedConnections
-    .map((connection) => {
-      const serverNode = serversById.get(serverNodeId(connection));
-      const databaseNode = serverNode?.children?.find(
-        (node) => node.id === `database:${connection.database}`,
-      );
+  for (const node of activeTree) {
+    serverNodes.set(node.id, node);
+  }
 
-      return {
+  for (const connection of storedConnections) {
+    const serverId = serverNodeId(connection);
+    const serverNode = serverNodes.get(serverId) ?? {
+      children: [],
+      id: serverId,
+      kind: "database" as const,
+      label: `${connection.host}:${connection.port}`,
+      open: true,
+    };
+    const children = serverNode.children ?? [];
+    const hasDatabase = children.some((node) => node.label === connection.database);
+
+    if (!hasDatabase) {
+      children.push({
         id: savedConnectionNodeId(connection),
-        kind: "database" as const,
-        label: `${connection.host}:${connection.port}`,
-        children: databaseNode?.children,
-      } satisfies DatabaseTreeNode;
-    })
-    .sort((first, second) => first.label.localeCompare(second.label));
+        kind: "database",
+        label: connection.database,
+      });
+    }
+
+    serverNodes.set(serverId, { ...serverNode, children });
+  }
+
+  return [...serverNodes.values()].sort((first, second) => first.label.localeCompare(second.label));
 }
 
 export function mergeExplorerTree(

@@ -139,6 +139,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     connections.find((connection) => connection.id === activeConnectionId) ??
     connections[0] ??
     null;
+  const selectedConnection = connections.find(
+    (connection) => connection.id === selectedObjectConnectionId,
+  );
+  const selectedConnectionKey = selectedConnection ? connectionKey(selectedConnection) : "";
   const requiresConnection = connections.length === 0;
   const activeTab = sqlTabs.find((tab) => tab.id === activeTabId) ?? null;
   const activeTabResult = resultsByTab[activeTabId] ?? null;
@@ -293,6 +297,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     (tab: SqlTab | null) => {
       const nextSelection = getTabSelectionState(tab);
       setSelectedObjectId(nextSelection.selectedObjectId);
+      const owner = connectionByKey(tab?.connectionKey);
+      if (owner) setSelectedObjectConnectionId(owner.id);
       if (
         nextSelection.clearObjectDetails ||
         selectedObject?.id !== nextSelection.selectedObjectId
@@ -300,7 +306,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSelectedObject(null);
       }
     },
-    [selectedObject],
+    [connectionByKey, selectedObject],
   );
 
   useEffect(() => {
@@ -544,7 +550,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     setSqlTabs((tabs) => {
       const existingOfficialTab = tabs.find(
-        (tab) => tab.state === "official" && tab.objectId === objectId,
+        (tab) =>
+          tab.state === "official" &&
+          tab.objectId === objectId &&
+          tab.connectionKey === tabConnectionKey,
       );
       if (existingOfficialTab) {
         setActiveTabId(existingOfficialTab.id);
@@ -552,7 +561,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       const temporaryTab = tabs.find(
-        (tab) => tab.state === "temporary" && tab.objectId === objectId,
+        (tab) =>
+          tab.state === "temporary" &&
+          tab.objectId === objectId &&
+          tab.connectionKey === tabConnectionKey,
       );
       if (temporaryTab) {
         setActiveTabId(officialTabId);
@@ -1125,6 +1137,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       hasStoredConnections,
       hasUnsavedTabs,
       requiresConnection,
+      selectedConnectionKey,
     },
     state: {
       activeConnection,
