@@ -19,7 +19,7 @@ export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;
   activeTab: SqlTab | null;
   activeTabId: string;
-  collapsedNodes: Set<string>;
+  toggledNodes: Set<string>;
   completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
   deleteConnectionRequest: StoredConnectionDraft | null;
@@ -146,7 +146,7 @@ export function useExplorer() {
   const { actions, meta, state } = useWorkspace();
   return {
     activeConnection: state.activeConnection,
-    collapsedNodes: state.collapsedNodes,
+    toggledNodes: state.toggledNodes,
     connectedConnectionKeys: meta.connectedConnectionKeys,
     explorerTree: meta.explorerTree,
     openNewConnectionDialog: actions.openNewConnectionDialog,

@@ -17,40 +17,31 @@ export function connectionKey(
   return `${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
 }
 
+// Each saved connection is shown as a single "connection group" node labelled
+// `host:port`. The intermediate server and database-name levels from the
+// backend tree are flattened away: when the connection is live, the database's
+// schema nodes are hoisted to become the group's direct children.
 export function buildStoredConnectionTree(
   storedConnections: StoredConnectionDraft[],
   activeTree: DatabaseTreeNode[],
 ) {
-  const serverNodes = new Map<string, DatabaseTreeNode>();
+  const serversById = new Map(activeTree.map((node) => [node.id, node]));
 
-  for (const node of activeTree) {
-    serverNodes.set(node.id, node);
-  }
+  return storedConnections
+    .map((connection) => {
+      const serverNode = serversById.get(serverNodeId(connection));
+      const databaseNode = serverNode?.children?.find(
+        (node) => node.id === `database:${connection.database}`,
+      );
 
-  for (const connection of storedConnections) {
-    const serverId = serverNodeId(connection);
-    const serverNode = serverNodes.get(serverId) ?? {
-      children: [],
-      id: serverId,
-      kind: "database" as const,
-      label: `${connectionEngineLabel(connection.engine)} ${connection.host}:${connection.port}`,
-      open: true,
-    };
-    const children = serverNode.children ?? [];
-    const hasDatabase = children.some((node) => node.label === connection.database);
-
-    if (!hasDatabase) {
-      children.push({
+      return {
         id: savedConnectionNodeId(connection),
-        kind: "database",
-        label: connection.database,
-      });
-    }
-
-    serverNodes.set(serverId, { ...serverNode, children });
-  }
-
-  return [...serverNodes.values()].sort((first, second) => first.label.localeCompare(second.label));
+        kind: "database" as const,
+        label: `${connection.host}:${connection.port}`,
+        children: databaseNode?.children,
+      } satisfies DatabaseTreeNode;
+    })
+    .sort((first, second) => first.label.localeCompare(second.label));
 }
 
 export function mergeExplorerTree(

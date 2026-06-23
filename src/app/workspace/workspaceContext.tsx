@@ -111,7 +111,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
   const [activeConnectionId, setActiveConnectionId] = useState("");
   const [activeExplorerTree, setActiveExplorerTree] = useState<DatabaseTreeNode[]>([]);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  const [toggledNodes, setToggledNodes] = useState<Set<string>>(new Set());
   const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedObjectConnectionId, setSelectedObjectConnectionId] = useState("");
   const [selectedObject, setSelectedObject] = useState<DatabaseObjectDetails | null>(null);
@@ -1067,7 +1067,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const toggleNode = useCallback((nodeId: string) => {
-    setCollapsedNodes((current) => {
+    setToggledNodes((current) => {
       const next = new Set(current);
       if (next.has(nodeId)) next.delete(nodeId);
       else next.add(nodeId);
@@ -1130,7 +1130,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       activeConnection,
       activeTab,
       activeTabId,
-      collapsedNodes,
+      toggledNodes,
       completionObject,
       connections,
       deleteConnectionRequest,

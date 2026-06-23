@@ -32,7 +32,11 @@ export function ExplorerNode({
     ? explorer.connectedConnectionKeys.has(connectionKey(deletableConnection))
     : false;
   const selected = node.id === explorer.selectedObjectId;
-  const collapsed = node.open === false || explorer.collapsedNodes.has(node.id);
+  // Connection groups start expanded; everything below them (schemas, etc.)
+  // starts collapsed. `toggledNodes` records the nodes the user flipped from
+  // that default, so toggling works both ways without re-seeding on refresh.
+  const userToggled = explorer.toggledNodes.has(node.id);
+  const collapsed = savedConnection ? userToggled : !userToggled;
 
   return (
     <div>
@@ -40,7 +44,9 @@ export function ExplorerNode({
         onClick={() => {
           if (hasChildren) explorer.toggleNode(node.id);
           if (selectable) explorer.selectObject(node.id, nodeConnectionKey);
-          if (savedConnection) explorer.openSavedConnection(node.id);
+          // A live connection group toggles its tables; only an unconnected one
+          // should (re)open the connect/password flow.
+          if (savedConnection && !connectedDatabase) explorer.openSavedConnection(node.id);
         }}
         onDoubleClick={() => {
           if (selectable) explorer.confirmObjectTab(node.id, nodeConnectionKey);
@@ -52,11 +58,11 @@ export function ExplorerNode({
         )}
         style={{ paddingLeft: `${6 + depth * 16}px` }}
       >
-        {hasChildren ? (
-          collapsed ? (
-            <ChevronRight size={14} className="shrink-0" />
-          ) : (
+        {hasChildren || savedConnection ? (
+          hasChildren && !collapsed ? (
             <ChevronDown size={14} className="shrink-0" />
+          ) : (
+            <ChevronRight size={14} className="shrink-0" />
           )
         ) : (
           <span className="w-3.5 shrink-0" />
