@@ -1,12 +1,10 @@
-import { Database, Plus, RefreshCw, Settings } from "lucide-react";
+import { Database, Plus, Settings } from "lucide-react";
 
 export function TopBar({
   onNewConnection,
-  onCheckForUpdates,
   onOpenSettings,
 }: {
   onNewConnection: () => void;
-  onCheckForUpdates: () => void;
   onOpenSettings: () => void;
 }) {
   return (
@@ -30,15 +28,6 @@ export function TopBar({
         >
           <Plus size={14} />
           Connection
-        </button>
-        <button
-          type="button"
-          onClick={onCheckForUpdates}
-          title="Check for updates"
-          className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
-        >
-          <RefreshCw size={14} />
-          Update
         </button>
         <button
           type="button"

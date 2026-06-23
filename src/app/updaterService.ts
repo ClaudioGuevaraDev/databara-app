@@ -11,6 +11,37 @@ export type { Update };
 // or an AppImage in a non-writable location).
 export const DOWNLOAD_PAGE_URL = "https://databara.vercel.app/#download";
 
+// GitHub releases API for the repo behind the updater endpoint. Used to surface
+// the latest *published* release version, which can differ from the bundled app
+// version (the local version is often bumped ahead of an actual release).
+const LATEST_RELEASE_API_URL =
+  "https://api.github.com/repos/ClaudioGuevaraDev/databara-app/releases/latest";
+
+// Returns the latest published release version (e.g. "1.1.7"), or null when it
+// can't be determined (offline, network/CORS error, malformed response). Works
+// both inside the desktop app and in the browser since the GitHub API allows
+// cross-origin reads.
+export async function fetchLatestReleaseVersion(): Promise<string | null> {
+  try {
+    const response = await fetch(LATEST_RELEASE_API_URL, {
+      headers: { Accept: "application/vnd.github+json" },
+    });
+    if (!response.ok) return null;
+    const release = (await response.json()) as { tag_name?: unknown; name?: unknown };
+    const raw =
+      typeof release.tag_name === "string"
+        ? release.tag_name
+        : typeof release.name === "string"
+          ? release.name
+          : "";
+    // Tags may be "v1.1.7", "app-v1.1.7", or "1.1.7" — pull the semver out.
+    const match = raw.match(/\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?/);
+    return match ? match[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 export type DownloadProgress = {
   downloaded: number;
   total: number;
