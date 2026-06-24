@@ -85,16 +85,18 @@ export function ExplorerNode({
         {node.id.startsWith("connection:") ? (
           <Circle size={7} className="ml-auto shrink-0 fill-emerald-400 text-emerald-400" />
         ) : deletableConnection ? (
-          <span className="ml-auto flex shrink-0 items-center gap-1">
-            <span
-              title={connectedDatabase ? "Connected" : "Saved connection"}
-              className={cn(
-                "h-2.5 w-2.5 rounded-full border",
-                connectedDatabase
-                  ? "border-emerald-300/80 bg-emerald-400 shadow-[0_0_10px_hsl(142_76%_55%/0.45)]"
-                  : "border-amber-300/70 bg-amber-300/75 shadow-[0_0_6px_hsl(43_96%_56%/0.16)]",
-              )}
-            />
+          <span className="ml-auto flex shrink-0 items-center gap-0">
+            <span className="flex h-5 w-5 items-center justify-center">
+              <span
+                title={connectedDatabase ? "Connected" : "Saved connection"}
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full border",
+                  connectedDatabase
+                    ? "border-emerald-300/80 bg-emerald-400 shadow-[0_0_10px_hsl(142_76%_55%/0.45)]"
+                    : "border-amber-300/70 bg-amber-300/75 shadow-[0_0_6px_hsl(43_96%_56%/0.16)]",
+                )}
+              />
+            </span>
             {connectedDatabase ? (
               <span
                 role="button"
