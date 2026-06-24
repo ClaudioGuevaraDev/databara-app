@@ -9,8 +9,26 @@ import {
   ZOOM_STEP,
 } from "../../databaraService";
 import { cn } from "../../../lib/utils";
+import type { NotificationPosition } from "../../types";
 import { useSettings } from "../../workspace/workspaceCore";
-import { DialogActions, DialogCloseButton, DialogFrame, DialogHeader, Switch } from "../ui";
+import {
+  DialogActions,
+  DialogCloseButton,
+  DialogFrame,
+  DialogHeader,
+  SelectField,
+  Switch,
+  type SelectFieldOption,
+} from "../ui";
+
+const NOTIFICATION_POSITION_OPTIONS: SelectFieldOption<NotificationPosition>[] = [
+  { value: "top-left", label: "Top left" },
+  { value: "top-center", label: "Top center" },
+  { value: "top-right", label: "Top right" },
+  { value: "bottom-left", label: "Bottom left" },
+  { value: "bottom-center", label: "Bottom center" },
+  { value: "bottom-right", label: "Bottom right" },
+];
 
 type SettingsTab = "general" | "editor" | "connections";
 
@@ -21,10 +39,17 @@ const TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: numbe
 ];
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const { settings, setZoomLevel, setKeepConnectionsActive, setEditorFontSize } = useSettings();
+  const {
+    settings,
+    setZoomLevel,
+    setKeepConnectionsActive,
+    setEditorFontSize,
+    setNotificationPosition,
+  } = useSettings();
   const { level } = settings.zoom;
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
   const { size: editorFontSize } = settings.editorFontSize;
+  const { position: notificationPosition } = settings.notificationPosition;
   const [tab, setTab] = useState<SettingsTab>("general");
 
   return (
@@ -91,6 +116,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     <Plus size={14} />
                   </button>
                 </div>
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">Notifications</div>
+                  <div className="text-muted-foreground">Where on-screen toasts appear.</div>
+                </div>
+                <SelectField
+                  label=""
+                  className="w-36 justify-self-end"
+                  value={notificationPosition}
+                  onChange={setNotificationPosition}
+                  options={NOTIFICATION_POSITION_OPTIONS}
+                />
               </>
             ) : null}
             {tab === "editor" ? (

@@ -6,6 +6,7 @@ import type {
   ConnectionProfile,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  NotificationPosition,
   QueryPagination,
   QueryState,
   QueryResult,
@@ -114,6 +115,7 @@ export type WorkspaceActions = {
   setConnectionDialogOpen: (open: boolean) => void;
   setKeepConnectionsActive: (enabled: boolean) => void;
   setEditorFontSize: (size: number) => void;
+  setNotificationPosition: (position: NotificationPosition) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
   setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
@@ -170,6 +172,7 @@ export function useSettings() {
     closeSettingsDialog: actions.closeSettingsDialog,
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setEditorFontSize: actions.setEditorFontSize,
+    setNotificationPosition: actions.setNotificationPosition,
     setZoomLevel: actions.setZoomLevel,
   };
 }

@@ -11,6 +11,7 @@ import type {
   DatabaseEngine,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  NotificationPosition,
   SslMode,
 } from "./types";
 
@@ -55,7 +56,18 @@ export type AppSettings = {
   keepConnectionsActive: { enabled: boolean };
   // Font size (in px) of the Monaco SQL editor.
   editorFontSize: { size: number };
+  // On-screen corner/edge where toast notifications appear.
+  notificationPosition: { position: NotificationPosition };
 };
+
+export const NOTIFICATION_POSITIONS: readonly NotificationPosition[] = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+];
 
 // Zoom level is stored as a percent integer (100 = normal, no scaling). CSS
 // `zoom` receives level / 100.
@@ -72,6 +84,7 @@ export const defaultAppSettings: AppSettings = {
   zoom: { level: 100 },
   keepConnectionsActive: { enabled: false },
   editorFontSize: { size: 13 },
+  notificationPosition: { position: "top-center" },
 };
 
 export function clampZoomLevel(level: number): number {
@@ -100,6 +113,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     editorFontSize && typeof editorFontSize === "object"
       ? (editorFontSize as { size?: unknown }).size
       : undefined;
+  const notificationPosition = (raw as { notificationPosition?: unknown }).notificationPosition;
+  const position =
+    notificationPosition && typeof notificationPosition === "object"
+      ? (notificationPosition as { position?: unknown }).position
+      : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
@@ -112,6 +130,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
       size: clampEditorFontSize(
         typeof size === "number" ? size : defaultAppSettings.editorFontSize.size,
       ),
+    },
+    notificationPosition: {
+      position: NOTIFICATION_POSITIONS.includes(position as NotificationPosition)
+        ? (position as NotificationPosition)
+        : defaultAppSettings.notificationPosition.position,
     },
   };
 }

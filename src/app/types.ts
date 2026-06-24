@@ -101,6 +101,14 @@ export type Toast = {
   tone: ToastTone;
 };
 
+export type NotificationPosition =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+
 export const QUERY_PAGE_SIZES = [50, 100, 200, 500] as const;
 
 export type QueryPagination = {

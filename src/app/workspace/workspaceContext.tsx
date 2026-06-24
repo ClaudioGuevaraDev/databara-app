@@ -1333,6 +1333,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           ...current,
           editorFontSize: { size: clampEditorFontSize(size) },
         })),
+      setNotificationPosition: (position) =>
+        setSettings((current) => ({
+          ...current,
+          notificationPosition: { position },
+        })),
       startUpdateCheck,
       dismissUpdateDialog,
       openDownloadPage: () => void openDownloadPage(),
