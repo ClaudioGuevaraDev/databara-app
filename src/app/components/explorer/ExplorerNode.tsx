@@ -1,4 +1,13 @@
-import { ChevronDown, ChevronRight, Circle, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Database,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseTreeNode } from "../../types";
 import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCore";
@@ -79,12 +88,38 @@ export function ExplorerNode({
         <TreeIcon
           className={cn("shrink-0", selected ? "text-primary" : "text-muted-foreground")}
           kind={node.kind}
+          isServer={node.id.startsWith("server:")}
         />
         <span className="truncate">{node.label}</span>
         {node.id.startsWith("connection:") ? (
           <Circle size={7} className="ml-auto shrink-0 fill-emerald-400 text-emerald-400" />
         ) : node.id.startsWith("server:") ? (
           <span className="ml-auto flex shrink-0 items-center gap-0">
+            <span
+              role="button"
+              tabIndex={0}
+              title="Add database"
+              onClick={(event) => {
+                event.stopPropagation();
+                void explorer.openAddDatabase(node.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                event.stopPropagation();
+                void explorer.openAddDatabase(node.id);
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground"
+            >
+              <span className="relative flex items-center justify-center">
+                <Database size={12} />
+                <Plus
+                  size={8}
+                  strokeWidth={3}
+                  className="absolute -bottom-1 -right-1.5 rounded-full bg-[hsl(var(--background))]"
+                />
+              </span>
+            </span>
             <span
               role="button"
               tabIndex={0}

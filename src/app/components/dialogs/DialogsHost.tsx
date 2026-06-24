@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useDialogs, useSettings, useUpdater } from "../../workspace/workspaceCore";
+import { AddDatabaseDialog } from "./AddDatabaseDialog";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { DeleteServerDialog } from "./DeleteServerDialog";
@@ -14,6 +15,8 @@ export function DialogsHost() {
   const { settingsDialogOpen, closeSettingsDialog } = useSettings();
   const { updateDialogOpen, updateProgress, dismissUpdateDialog, openDownloadPage } = useUpdater();
   const {
+    addDatabaseRequest,
+    closeAddDatabaseDialog,
     closeDeleteConnectionDialog,
     closeDeleteServerDialog,
     closeRenameServerDialog,
@@ -29,6 +32,7 @@ export function DialogsHost() {
     setConnectionDialogOpen,
     unsavedTabsDialogOpen,
     closeWindowAfterResolution,
+    confirmAddDatabase,
     confirmDeleteConnection,
     confirmDeleteServer,
     confirmRenameServer,
@@ -49,6 +53,11 @@ export function DialogsHost() {
 
       if (renameServerRequest) {
         closeRenameServerDialog();
+        return;
+      }
+
+      if (addDatabaseRequest) {
+        closeAddDatabaseDialog();
         return;
       }
 
@@ -78,6 +87,7 @@ export function DialogsHost() {
         !unsavedTabsDialogOpen &&
         !deleteServerRequest &&
         !renameServerRequest &&
+        !addDatabaseRequest &&
         !deleteConnectionRequest &&
         !passwordConnection &&
         !settingsDialogOpen &&
@@ -93,6 +103,8 @@ export function DialogsHost() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    addDatabaseRequest,
+    closeAddDatabaseDialog,
     closeDeleteConnectionDialog,
     closeDeleteServerDialog,
     closeRenameServerDialog,
@@ -144,6 +156,13 @@ export function DialogsHost() {
           request={deleteServerRequest}
           onCancel={closeDeleteServerDialog}
           onConfirm={confirmDeleteServer}
+        />
+      ) : null}
+      {addDatabaseRequest ? (
+        <AddDatabaseDialog
+          request={addDatabaseRequest}
+          onCancel={closeAddDatabaseDialog}
+          onConfirm={confirmAddDatabase}
         />
       ) : null}
       {unsavedTabsDialogOpen ? (

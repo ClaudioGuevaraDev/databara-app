@@ -29,6 +29,15 @@ export type DeleteServerRequest = {
   connections: StoredConnectionDraft[];
 };
 
+export type AddDatabaseRequest = {
+  serverId: string;
+  host: string;
+  port: number;
+  // True when no password is in the keychain for this server, so the modal must
+  // also prompt for the password (not just the database name).
+  needsPassword: boolean;
+};
+
 export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;
   activeTab: SqlTab | null;
@@ -36,6 +45,7 @@ export type WorkspaceState = {
   toggledNodes: Set<string>;
   completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
+  addDatabaseRequest: AddDatabaseRequest | null;
   deleteConnectionRequest: StoredConnectionDraft | null;
   deleteServerRequest: DeleteServerRequest | null;
   renameServerRequest: RenameServerRequest | null;
@@ -63,6 +73,7 @@ export type WorkspaceState = {
 };
 
 export type WorkspaceActions = {
+  closeAddDatabaseDialog: () => void;
   closeDeleteConnectionDialog: () => void;
   closeDeleteServerDialog: () => void;
   closePasswordDialog: () => void;
@@ -72,6 +83,7 @@ export type WorkspaceActions = {
   closeSqlTab: (tabId: string) => void;
   closeUnsavedTabsDialog: () => void;
   closeWindowAfterResolution: (mode: "save" | "discard") => Promise<void>;
+  confirmAddDatabase: (serverId: string, database: string, password?: string) => Promise<void>;
   confirmDeleteConnection: (connection: StoredConnectionDraft) => void;
   confirmDeleteServer: (serverId: string) => void;
   confirmRenameServer: (serverId: string, name: string) => void;
@@ -81,6 +93,7 @@ export type WorkspaceActions = {
   copySchema: () => Promise<void>;
   copyResult: () => Promise<void>;
   deleteConnection: (nodeId: string) => void;
+  openAddDatabase: (serverId: string) => void;
   openDeleteServer: (serverId: string) => void;
   openRenameServer: (serverId: string) => void;
   exportCsv: () => void;
@@ -182,6 +195,7 @@ export function useExplorer() {
     storedConnections: state.storedConnections,
     confirmObjectTab: actions.confirmObjectTab,
     deleteConnection: actions.deleteConnection,
+    openAddDatabase: actions.openAddDatabase,
     openDeleteServer: actions.openDeleteServer,
     openRenameServer: actions.openRenameServer,
     openSavedConnection: actions.openSavedConnection,
@@ -258,18 +272,21 @@ export function useDialogs() {
   const { actions, state } = useWorkspace();
   return {
     connectionDialogOpen: state.dialogs.connection,
+    addDatabaseRequest: state.addDatabaseRequest,
     deleteConnectionRequest: state.deleteConnectionRequest,
     deleteServerRequest: state.deleteServerRequest,
     renameServerRequest: state.renameServerRequest,
     dialogInitialDraft: state.dialogInitialDraft,
     passwordConnection: state.passwordConnection,
     unsavedTabsDialogOpen: state.dialogs.unsavedTabs,
+    closeAddDatabaseDialog: actions.closeAddDatabaseDialog,
     closeDeleteConnectionDialog: actions.closeDeleteConnectionDialog,
     closeDeleteServerDialog: actions.closeDeleteServerDialog,
     closeRenameServerDialog: actions.closeRenameServerDialog,
     closePasswordDialog: actions.closePasswordDialog,
     closeUnsavedTabsDialog: actions.closeUnsavedTabsDialog,
     closeWindowAfterResolution: actions.closeWindowAfterResolution,
+    confirmAddDatabase: actions.confirmAddDatabase,
     confirmDeleteConnection: actions.confirmDeleteConnection,
     confirmDeleteServer: actions.confirmDeleteServer,
     confirmRenameServer: actions.confirmRenameServer,

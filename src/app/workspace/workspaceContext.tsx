@@ -47,6 +47,7 @@ import {
 import {
   savedConnectionNodeId,
   WorkspaceContext,
+  type AddDatabaseRequest,
   type DeleteServerRequest,
   type RenameServerRequest,
   type WorkspaceContextValue,
@@ -119,6 +120,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     useState<StoredConnectionDraft | null>(null);
   const [renameServerRequest, setRenameServerRequest] = useState<RenameServerRequest | null>(null);
   const [deleteServerRequest, setDeleteServerRequest] = useState<DeleteServerRequest | null>(null);
+  const [addDatabaseRequest, setAddDatabaseRequest] = useState<AddDatabaseRequest | null>(null);
   const [serverLabels, setServerLabels] = useState<Record<string, string>>(loadServerLabels);
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
   const [activeConnectionId, setActiveConnectionId] = useState("");
@@ -1224,6 +1226,42 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [notify, removeConnections, serverConnectionsFor, serverLabels],
   );
 
+  // Add another database living on the same server, reusing a sibling connection's
+  // credentials. The password comes from the keychain when available; otherwise the
+  // modal prompts for it (needsPassword).
+  const openAddDatabase = useCallback(
+    async (serverId: string) => {
+      const template = serverConnectionsFor(serverId)[0];
+      if (!template) return;
+      const password = await getConnectionPassword(connectionKey(template));
+      setAddDatabaseRequest({
+        serverId,
+        host: template.host,
+        port: template.port,
+        needsPassword: !password,
+      });
+    },
+    [serverConnectionsFor],
+  );
+
+  const confirmAddDatabase = useCallback(
+    async (serverId: string, database: string, password?: string) => {
+      const name = database.trim();
+      if (!name) return;
+      const template = serverConnectionsFor(serverId)[0];
+      if (!template) return;
+      const resolvedPassword =
+        password ?? (await getConnectionPassword(connectionKey(template))) ?? "";
+      await connectAndStoreConnection({
+        ...template,
+        database: name,
+        password: resolvedPassword,
+      });
+      setAddDatabaseRequest(null);
+    },
+    [connectAndStoreConnection, serverConnectionsFor],
+  );
+
   const toggleNode = useCallback((nodeId: string) => {
     setToggledNodes((current) => {
       const next = new Set(current);
@@ -1235,6 +1273,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const value: WorkspaceContextValue = {
     actions: {
+      closeAddDatabaseDialog: () => setAddDatabaseRequest(null),
       closeDeleteConnectionDialog: () => setDeleteConnectionRequest(null),
       closeDeleteServerDialog: () => setDeleteServerRequest(null),
       closeRenameServerDialog: () => setRenameServerRequest(null),
@@ -1244,6 +1283,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       closeSqlTab,
       closeUnsavedTabsDialog: () => setCloseWithUnsavedDialogOpen(false),
       closeWindowAfterResolution,
+      confirmAddDatabase,
       confirmDeleteConnection,
       confirmDeleteServer,
       confirmRenameServer,
@@ -1253,6 +1293,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       copyObjectName,
       copyResult,
       deleteConnection,
+      openAddDatabase,
       openDeleteServer,
       openRenameServer,
       exportCsv,
@@ -1308,6 +1349,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       toggledNodes,
       completionObject,
       connections,
+      addDatabaseRequest,
       deleteConnectionRequest,
       deleteServerRequest,
       renameServerRequest,
