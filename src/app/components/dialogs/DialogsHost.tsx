@@ -2,7 +2,9 @@ import { useEffect } from "react";
 import { useDialogs, useSettings, useUpdater } from "../../workspace/workspaceCore";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
+import { DeleteServerDialog } from "./DeleteServerDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
+import { RenameServerDialog } from "./RenameServerDialog";
 import { SettingsDialog } from "./SettingsDialog";
 import { UnsavedTabsDialog } from "./UnsavedTabsDialog";
 import { UpdateDialog } from "./UpdateDialog";
@@ -13,10 +15,14 @@ export function DialogsHost() {
   const { updateDialogOpen, updateProgress, dismissUpdateDialog, openDownloadPage } = useUpdater();
   const {
     closeDeleteConnectionDialog,
+    closeDeleteServerDialog,
+    closeRenameServerDialog,
     closePasswordDialog,
     closeUnsavedTabsDialog,
     connectionDialogOpen,
     deleteConnectionRequest,
+    deleteServerRequest,
+    renameServerRequest,
     dialogInitialDraft,
     passwordConnection,
     saveConnection,
@@ -24,6 +30,8 @@ export function DialogsHost() {
     unsavedTabsDialogOpen,
     closeWindowAfterResolution,
     confirmDeleteConnection,
+    confirmDeleteServer,
+    confirmRenameServer,
     connectStoredConnection,
   } = dialogs;
 
@@ -31,6 +39,16 @@ export function DialogsHost() {
     function closeTopmostDialog() {
       if (unsavedTabsDialogOpen) {
         closeUnsavedTabsDialog();
+        return;
+      }
+
+      if (deleteServerRequest) {
+        closeDeleteServerDialog();
+        return;
+      }
+
+      if (renameServerRequest) {
+        closeRenameServerDialog();
         return;
       }
 
@@ -58,6 +76,8 @@ export function DialogsHost() {
       if (event.key !== "Escape") return;
       if (
         !unsavedTabsDialogOpen &&
+        !deleteServerRequest &&
+        !renameServerRequest &&
         !deleteConnectionRequest &&
         !passwordConnection &&
         !settingsDialogOpen &&
@@ -74,11 +94,15 @@ export function DialogsHost() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     closeDeleteConnectionDialog,
+    closeDeleteServerDialog,
+    closeRenameServerDialog,
     closePasswordDialog,
     closeSettingsDialog,
     closeUnsavedTabsDialog,
     connectionDialogOpen,
     deleteConnectionRequest,
+    deleteServerRequest,
+    renameServerRequest,
     passwordConnection,
     settingsDialogOpen,
     setConnectionDialogOpen,
@@ -106,6 +130,20 @@ export function DialogsHost() {
           connection={deleteConnectionRequest}
           onCancel={closeDeleteConnectionDialog}
           onConfirm={confirmDeleteConnection}
+        />
+      ) : null}
+      {renameServerRequest ? (
+        <RenameServerDialog
+          request={renameServerRequest}
+          onCancel={closeRenameServerDialog}
+          onConfirm={confirmRenameServer}
+        />
+      ) : null}
+      {deleteServerRequest ? (
+        <DeleteServerDialog
+          request={deleteServerRequest}
+          onCancel={closeDeleteServerDialog}
+          onConfirm={confirmDeleteServer}
         />
       ) : null}
       {unsavedTabsDialogOpen ? (

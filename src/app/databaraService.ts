@@ -44,6 +44,10 @@ const storedConnectionsKey = "databara.connections.v1";
 
 const settingsStorageKey = "databara.settings.v1";
 
+// Custom display names for server groups, keyed by server node id
+// (`server:<engine>:<host>:<port>`). Absent entry → fall back to `host:port`.
+const serverLabelsKey = "databara.serverLabels.v1";
+
 export type AppSettings = {
   zoom: { level: number };
   // When enabled, connection passwords are stored in the OS keychain so
@@ -101,6 +105,43 @@ export function loadAppSettings(): AppSettings {
 
 export function saveAppSettings(settings: AppSettings): void {
   window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+}
+
+export function loadServerLabels(): Record<string, string> {
+  const raw = window.localStorage.getItem(serverLabelsKey);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const entries = Object.entries(parsed as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    );
+    return Object.fromEntries(entries);
+  } catch {
+    window.localStorage.removeItem(serverLabelsKey);
+    return {};
+  }
+}
+
+function saveServerLabels(labels: Record<string, string>): void {
+  window.localStorage.setItem(serverLabelsKey, JSON.stringify(labels));
+}
+
+// Trims the name; an empty name removes the custom label (reverts to host:port).
+export function saveServerLabel(serverId: string, name: string): Record<string, string> {
+  const labels = loadServerLabels();
+  const trimmed = name.trim();
+  if (trimmed) labels[serverId] = trimmed;
+  else delete labels[serverId];
+  saveServerLabels(labels);
+  return labels;
+}
+
+export function deleteServerLabel(serverId: string): Record<string, string> {
+  const labels = loadServerLabels();
+  delete labels[serverId];
+  saveServerLabels(labels);
+  return labels;
 }
 
 // Whether this install can apply an in-app update. False for Linux .deb/.rpm

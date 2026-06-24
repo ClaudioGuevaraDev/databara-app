@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Circle, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Circle, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseTreeNode } from "../../types";
 import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCore";
@@ -35,8 +35,7 @@ export function ExplorerNode({
   // connections, so scope selection and expand/collapse by the owning
   // connection to avoid two same-named objects acting as one.
   const selected =
-    node.id === explorer.selectedObjectId &&
-    nodeConnectionKey === explorer.selectedConnectionKey;
+    node.id === explorer.selectedObjectId && nodeConnectionKey === explorer.selectedConnectionKey;
   // Servers and databases start expanded; schemas and below start collapsed.
   // `toggledNodes` records the nodes the user flipped from that default, so
   // toggling works both ways without re-seeding on refresh.
@@ -84,6 +83,45 @@ export function ExplorerNode({
         <span className="truncate">{node.label}</span>
         {node.id.startsWith("connection:") ? (
           <Circle size={7} className="ml-auto shrink-0 fill-emerald-400 text-emerald-400" />
+        ) : node.id.startsWith("server:") ? (
+          <span className="ml-auto flex shrink-0 items-center gap-0">
+            <span
+              role="button"
+              tabIndex={0}
+              title="Rename server"
+              onClick={(event) => {
+                event.stopPropagation();
+                explorer.openRenameServer(node.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                event.stopPropagation();
+                explorer.openRenameServer(node.id);
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground"
+            >
+              <Pencil size={12} />
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
+              title="Delete server"
+              onClick={(event) => {
+                event.stopPropagation();
+                explorer.openDeleteServer(node.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                event.stopPropagation();
+                explorer.openDeleteServer(node.id);
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus:bg-muted focus:text-destructive"
+            >
+              <Trash2 size={12} />
+            </span>
+          </span>
         ) : deletableConnection ? (
           <span className="ml-auto flex shrink-0 items-center gap-0">
             <span className="flex h-5 w-5 items-center justify-center">

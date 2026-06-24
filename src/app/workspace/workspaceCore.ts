@@ -15,6 +15,20 @@ import type {
   UpdateProgress,
 } from "../types";
 
+export type RenameServerRequest = {
+  serverId: string;
+  host: string;
+  port: number;
+  currentName: string;
+};
+
+export type DeleteServerRequest = {
+  serverId: string;
+  host: string;
+  port: number;
+  connections: StoredConnectionDraft[];
+};
+
 export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;
   activeTab: SqlTab | null;
@@ -23,6 +37,8 @@ export type WorkspaceState = {
   completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
   deleteConnectionRequest: StoredConnectionDraft | null;
+  deleteServerRequest: DeleteServerRequest | null;
+  renameServerRequest: RenameServerRequest | null;
   dialogInitialDraft: StoredConnectionDraft | null;
   dialogs: {
     connection: boolean;
@@ -48,19 +64,25 @@ export type WorkspaceState = {
 
 export type WorkspaceActions = {
   closeDeleteConnectionDialog: () => void;
+  closeDeleteServerDialog: () => void;
   closePasswordDialog: () => void;
+  closeRenameServerDialog: () => void;
   closeSettingsDialog: () => void;
   closeResults: () => void;
   closeSqlTab: (tabId: string) => void;
   closeUnsavedTabsDialog: () => void;
   closeWindowAfterResolution: (mode: "save" | "discard") => Promise<void>;
   confirmDeleteConnection: (connection: StoredConnectionDraft) => void;
+  confirmDeleteServer: (serverId: string) => void;
+  confirmRenameServer: (serverId: string, name: string) => void;
   confirmObjectTab: (objectId: string, connectionKey?: string) => void;
   connectStoredConnection: (connection: StoredConnectionDraft, password: string) => Promise<void>;
   copyObjectName: () => Promise<void>;
   copySchema: () => Promise<void>;
   copyResult: () => Promise<void>;
   deleteConnection: (nodeId: string) => void;
+  openDeleteServer: (serverId: string) => void;
+  openRenameServer: (serverId: string) => void;
   exportCsv: () => void;
   goToQueryPage: (page: number) => Promise<void>;
   openSchemaTab: () => Promise<void>;
@@ -160,6 +182,8 @@ export function useExplorer() {
     storedConnections: state.storedConnections,
     confirmObjectTab: actions.confirmObjectTab,
     deleteConnection: actions.deleteConnection,
+    openDeleteServer: actions.openDeleteServer,
+    openRenameServer: actions.openRenameServer,
     openSavedConnection: actions.openSavedConnection,
     refreshConnection: actions.refreshConnection,
     selectObject: actions.selectObject,
@@ -235,14 +259,20 @@ export function useDialogs() {
   return {
     connectionDialogOpen: state.dialogs.connection,
     deleteConnectionRequest: state.deleteConnectionRequest,
+    deleteServerRequest: state.deleteServerRequest,
+    renameServerRequest: state.renameServerRequest,
     dialogInitialDraft: state.dialogInitialDraft,
     passwordConnection: state.passwordConnection,
     unsavedTabsDialogOpen: state.dialogs.unsavedTabs,
     closeDeleteConnectionDialog: actions.closeDeleteConnectionDialog,
+    closeDeleteServerDialog: actions.closeDeleteServerDialog,
+    closeRenameServerDialog: actions.closeRenameServerDialog,
     closePasswordDialog: actions.closePasswordDialog,
     closeUnsavedTabsDialog: actions.closeUnsavedTabsDialog,
     closeWindowAfterResolution: actions.closeWindowAfterResolution,
     confirmDeleteConnection: actions.confirmDeleteConnection,
+    confirmDeleteServer: actions.confirmDeleteServer,
+    confirmRenameServer: actions.confirmRenameServer,
     connectStoredConnection: actions.connectStoredConnection,
     saveConnection: actions.saveConnection,
     setConnectionDialogOpen: actions.setConnectionDialogOpen,

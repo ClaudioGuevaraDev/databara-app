@@ -4,12 +4,15 @@ import {
   closeMainWindowAfterUnsavedResolution,
   connectPostgres,
   deleteConnectionPassword,
+  deleteServerLabel,
   deleteStoredConnection,
   getConnectionPassword,
   getPostgresObjectDetails,
   listPostgresTree,
   loadAppSettings,
+  loadServerLabels,
   loadStoredConnections,
+  saveServerLabel,
   runPostgresQuery,
   saveAppSettings,
   saveStoredConnection,
@@ -44,6 +47,8 @@ import {
 import {
   savedConnectionNodeId,
   WorkspaceContext,
+  type DeleteServerRequest,
+  type RenameServerRequest,
   type WorkspaceContextValue,
 } from "./workspaceCore";
 import {
@@ -62,6 +67,7 @@ import {
   parseTrailingLimit,
   readErrorMessage,
   removeConnectionFromTree,
+  serverNodeId,
 } from "./workspaceContext.utils";
 import {
   buildOfficialObjectTabId,
@@ -111,6 +117,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [passwordConnection, setPasswordConnection] = useState<StoredConnectionDraft | null>(null);
   const [deleteConnectionRequest, setDeleteConnectionRequest] =
     useState<StoredConnectionDraft | null>(null);
+  const [renameServerRequest, setRenameServerRequest] = useState<RenameServerRequest | null>(null);
+  const [deleteServerRequest, setDeleteServerRequest] = useState<DeleteServerRequest | null>(null);
+  const [serverLabels, setServerLabels] = useState<Record<string, string>>(loadServerLabels);
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
   const [activeConnectionId, setActiveConnectionId] = useState("");
   const [activeExplorerTree, setActiveExplorerTree] = useState<DatabaseTreeNode[]>([]);
@@ -165,8 +174,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const hasUnsavedTabs = sqlTabs.some((tab) => tab.dirty);
   const hasStoredConnections = storedConnections.length > 0;
   const explorerTree = useMemo(
-    () => buildStoredConnectionTree(storedConnections, activeExplorerTree),
-    [activeExplorerTree, storedConnections],
+    () => buildStoredConnectionTree(storedConnections, activeExplorerTree, serverLabels),
+    [activeExplorerTree, serverLabels, storedConnections],
   );
   const connectedConnectionKeys = useMemo(
     () => new Set(connections.map((connection) => connectionKey(connection))),
@@ -518,7 +527,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setAutoReconnecting(false);
       }
     })();
-  }, [connectAndStoreConnection, notify, settings.keepConnectionsActive.enabled, storedConnections]);
+  }, [
+    connectAndStoreConnection,
+    notify,
+    settings.keepConnectionsActive.enabled,
+    storedConnections,
+  ]);
 
   const updateActiveSql = useCallback(
     (sql: string) => {
@@ -1073,32 +1087,36 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handleSaveShortcut);
   }, [saveActiveSqlTab]);
 
-  const confirmDeleteConnection = useCallback(
-    (connection: StoredConnectionDraft) => {
-      const nextStoredConnections = deleteStoredConnection(connection);
-      const nextConnections = connections.filter(
-        (item) =>
-          !(
-            item.engine === connection.engine &&
-            item.host === connection.host &&
-            item.port === connection.port &&
-            item.database === connection.database &&
-            item.user === connection.user
-          ),
-      );
+  // Removes one or more saved connections in a single batch: localStorage profiles,
+  // keychain passwords, explorer tree nodes, and their SQL tabs. Used by both the
+  // single-connection delete and the whole-server delete so cleanup stays identical.
+  const removeConnections = useCallback(
+    (toRemove: StoredConnectionDraft[]) => {
+      if (toRemove.length === 0) return;
 
-      const removedKey = connectionKey(connection);
-      void deleteConnectionPassword(removedKey);
+      const removeKeys = new Set(toRemove.map((item) => connectionKey(item)));
+      let nextStoredConnections = storedConnections;
+      for (const connection of toRemove) {
+        nextStoredConnections = deleteStoredConnection(connection);
+        void deleteConnectionPassword(connectionKey(connection));
+      }
+
+      const nextConnections = connections.filter((item) => !removeKeys.has(connectionKey(item)));
+
       setStoredConnections(nextStoredConnections);
-      setActiveExplorerTree((current) => removeConnectionFromTree(current, connection));
+      setActiveExplorerTree((current) =>
+        toRemove.reduce((tree, connection) => removeConnectionFromTree(tree, connection), current),
+      );
       setConnections(nextConnections);
 
-      // Drop only this connection's tabs from the shared bar.
-      const remainingTabs = sqlTabs.filter((tab) => tab.connectionKey !== removedKey);
+      // Drop only the removed connections' tabs from the shared bar.
+      const remainingTabs = sqlTabs.filter(
+        (tab) => !tab.connectionKey || !removeKeys.has(tab.connectionKey),
+      );
       setSqlTabs(remainingTabs);
 
       const wasActiveConnection =
-        activeConnection && connectionKey(activeConnection) === removedKey;
+        activeConnection && removeKeys.has(connectionKey(activeConnection));
 
       if (wasActiveConnection) {
         setSelectedObjectId("");
@@ -1118,11 +1136,92 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setDialogInitialDraft(null);
         setConnectionDialogOpen(true);
       }
+    },
+    [activeConnection, activeTabId, connectionByKey, connections, sqlTabs, storedConnections],
+  );
 
+  const confirmDeleteConnection = useCallback(
+    (connection: StoredConnectionDraft) => {
+      removeConnections([connection]);
       notify(`${connection.database} removed`, "success");
       setDeleteConnectionRequest(null);
     },
-    [activeConnection, activeTabId, connectionByKey, connections, notify, sqlTabs],
+    [notify, removeConnections],
+  );
+
+  // A server is the group of saved/active connections sharing engine:host:port.
+  const serverConnectionsFor = useCallback(
+    (serverId: string) => {
+      const byKey = new Map<string, StoredConnectionDraft>();
+      for (const connection of storedConnections) {
+        if (serverNodeId(connection) === serverId) byKey.set(connectionKey(connection), connection);
+      }
+      for (const connection of connections) {
+        const key = connectionKey(connection);
+        if (serverNodeId(connection) === serverId && !byKey.has(key)) {
+          byKey.set(key, {
+            engine: connection.engine,
+            name: connection.name,
+            host: connection.host,
+            port: connection.port,
+            database: connection.database,
+            user: connection.user,
+            sslMode: connection.sslMode,
+          });
+        }
+      }
+      return [...byKey.values()];
+    },
+    [connections, storedConnections],
+  );
+
+  const openRenameServer = useCallback(
+    (serverId: string) => {
+      const first = serverConnectionsFor(serverId)[0];
+      if (!first) return;
+      setRenameServerRequest({
+        serverId,
+        host: first.host,
+        port: first.port,
+        currentName: serverLabels[serverId] ?? "",
+      });
+    },
+    [serverConnectionsFor, serverLabels],
+  );
+
+  const confirmRenameServer = useCallback((serverId: string, name: string) => {
+    setServerLabels(saveServerLabel(serverId, name));
+    setRenameServerRequest(null);
+  }, []);
+
+  const openDeleteServer = useCallback(
+    (serverId: string) => {
+      const serverConnections = serverConnectionsFor(serverId);
+      const first = serverConnections[0];
+      if (!first) return;
+      setDeleteServerRequest({
+        serverId,
+        host: first.host,
+        port: first.port,
+        connections: serverConnections,
+      });
+    },
+    [serverConnectionsFor],
+  );
+
+  const confirmDeleteServer = useCallback(
+    (serverId: string) => {
+      const serverConnections = serverConnectionsFor(serverId);
+      const first = serverConnections[0];
+      removeConnections(serverConnections);
+      setServerLabels(deleteServerLabel(serverId));
+      notify(
+        `${serverLabels[serverId] ?? (first ? `${first.host}:${first.port}` : "Server")} removed`,
+        "success",
+      );
+      setDeleteServerRequest(null);
+    },
+    [notify, removeConnections, serverConnectionsFor, serverLabels],
   );
 
   const toggleNode = useCallback((nodeId: string) => {
@@ -1137,6 +1236,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value: WorkspaceContextValue = {
     actions: {
       closeDeleteConnectionDialog: () => setDeleteConnectionRequest(null),
+      closeDeleteServerDialog: () => setDeleteServerRequest(null),
+      closeRenameServerDialog: () => setRenameServerRequest(null),
       closePasswordDialog: () => setPasswordConnection(null),
       closeResults: () => setResultsOpen(false),
       closeSettingsDialog: () => setSettingsDialogOpen(false),
@@ -1144,12 +1245,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       closeUnsavedTabsDialog: () => setCloseWithUnsavedDialogOpen(false),
       closeWindowAfterResolution,
       confirmDeleteConnection,
+      confirmDeleteServer,
+      confirmRenameServer,
       confirmObjectTab,
       connectStoredConnection,
       copySchema,
       copyObjectName,
       copyResult,
       deleteConnection,
+      openDeleteServer,
+      openRenameServer,
       exportCsv,
       goToQueryPage,
       openSchemaTab,
@@ -1171,8 +1276,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({ ...current, keepConnectionsActive: { enabled } }));
         // Turning it off removes every stored password from the keychain.
         if (!enabled) {
-          storedConnections.forEach((connection) =>
-            void deleteConnectionPassword(connectionKey(connection)),
+          storedConnections.forEach(
+            (connection) => void deleteConnectionPassword(connectionKey(connection)),
           );
         }
       },
@@ -1204,6 +1309,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       completionObject,
       connections,
       deleteConnectionRequest,
+      deleteServerRequest,
+      renameServerRequest,
       dialogInitialDraft,
       dialogs: {
         connection: connectionDialogOpen,

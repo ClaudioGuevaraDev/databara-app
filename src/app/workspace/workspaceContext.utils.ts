@@ -24,11 +24,12 @@ export function connectionKey(
 export function buildStoredConnectionTree(
   storedConnections: StoredConnectionDraft[],
   activeTree: DatabaseTreeNode[],
+  serverLabels: Record<string, string> = {},
 ) {
   const serverNodes = new Map<string, DatabaseTreeNode>();
 
   for (const node of activeTree) {
-    serverNodes.set(node.id, node);
+    serverNodes.set(node.id, { ...node, label: serverLabels[node.id] ?? node.label });
   }
 
   for (const connection of storedConnections) {
@@ -37,7 +38,7 @@ export function buildStoredConnectionTree(
       children: [],
       id: serverId,
       kind: "database" as const,
-      label: `${connection.host}:${connection.port}`,
+      label: serverLabels[serverId] ?? `${connection.host}:${connection.port}`,
       open: true,
     };
     const children = serverNode.children ?? [];
