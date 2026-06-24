@@ -53,6 +53,8 @@ export type AppSettings = {
   // When enabled, connection passwords are stored in the OS keychain so
   // connections reconnect on startup without prompting.
   keepConnectionsActive: { enabled: boolean };
+  // Font size (in px) of the Monaco SQL editor.
+  editorFontSize: { size: number };
 };
 
 // Zoom level is stored as a percent integer (100 = normal, no scaling). CSS
@@ -61,15 +63,27 @@ export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 200;
 export const ZOOM_STEP = 10;
 
+// SQL editor font size, in px.
+export const EDITOR_FONT_SIZE_MIN = 8;
+export const EDITOR_FONT_SIZE_MAX = 24;
+export const EDITOR_FONT_SIZE_STEP = 1;
+
 export const defaultAppSettings: AppSettings = {
   zoom: { level: 100 },
   keepConnectionsActive: { enabled: false },
+  editorFontSize: { size: 13 },
 };
 
 export function clampZoomLevel(level: number): number {
   if (!Number.isFinite(level)) return defaultAppSettings.zoom.level;
   const snapped = Math.round(level / ZOOM_STEP) * ZOOM_STEP;
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, snapped));
+}
+
+export function clampEditorFontSize(size: number): number {
+  if (!Number.isFinite(size)) return defaultAppSettings.editorFontSize.size;
+  const snapped = Math.round(size);
+  return Math.min(EDITOR_FONT_SIZE_MAX, Math.max(EDITOR_FONT_SIZE_MIN, snapped));
 }
 
 function normalizeAppSettings(raw: unknown): AppSettings {
@@ -81,6 +95,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     keepActive && typeof keepActive === "object"
       ? (keepActive as { enabled?: unknown }).enabled
       : undefined;
+  const editorFontSize = (raw as { editorFontSize?: unknown }).editorFontSize;
+  const size =
+    editorFontSize && typeof editorFontSize === "object"
+      ? (editorFontSize as { size?: unknown }).size
+      : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
@@ -88,6 +107,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     keepConnectionsActive: {
       enabled:
         typeof enabled === "boolean" ? enabled : defaultAppSettings.keepConnectionsActive.enabled,
+    },
+    editorFontSize: {
+      size: clampEditorFontSize(
+        typeof size === "number" ? size : defaultAppSettings.editorFontSize.size,
+      ),
     },
   };
 }

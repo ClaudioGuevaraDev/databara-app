@@ -3,13 +3,15 @@ import { useCallback, useEffect, useRef } from "react";
 import { DATABARA_EDITOR_THEME, defineDatabaraTheme } from "../../editor/databaraTheme";
 import { registerSqlCompletionProvider } from "../../editor/sqlCompletion";
 import type { DatabaseObjectDetails } from "../../types";
-import { useSqlEditor } from "../../workspace/workspaceCore";
+import { useSettings, useSqlEditor } from "../../workspace/workspaceCore";
 import { EditorTabs } from "./EditorTabs";
 import { EmptyEditor } from "./EmptyEditor";
 import { QueryToolbar } from "./QueryToolbar";
 
 export function TabsEditor() {
   const editor = useSqlEditor();
+  const { settings } = useSettings();
+  const editorFontSize = settings.editorFontSize.size;
   const selectedObjectRef = useRef<DatabaseObjectDetails | null>(editor.completionObject);
   const runQueryRef = useRef(editor.runQuery);
   const saveActiveSqlTabRef = useRef(editor.saveActiveSqlTab);
@@ -81,10 +83,10 @@ export function TabsEditor() {
               cursorSmoothCaretAnimation: "on",
               fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
               fontLigatures: true,
-              fontSize: 13,
+              fontSize: editorFontSize,
               glyphMargin: false,
               guides: { bracketPairs: "active", indentation: true },
-              lineHeight: 21,
+              lineHeight: Math.round(editorFontSize * 1.6),
               lineNumbersMinChars: 3,
               minimap: { enabled: false },
               overviewRulerBorder: false,

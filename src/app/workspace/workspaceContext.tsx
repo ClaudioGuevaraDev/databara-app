@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  clampEditorFontSize,
   clampZoomLevel,
   closeMainWindowAfterUnsavedResolution,
   connectPostgres,
@@ -1326,6 +1327,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           zoom: { ...current.zoom, level: clampZoomLevel(level) },
+        })),
+      setEditorFontSize: (size) =>
+        setSettings((current) => ({
+          ...current,
+          editorFontSize: { size: clampEditorFontSize(size) },
         })),
       startUpdateCheck,
       dismissUpdateDialog,

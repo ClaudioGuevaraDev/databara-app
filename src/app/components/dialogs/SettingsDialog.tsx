@@ -1,5 +1,12 @@
 import { Minus, Plus, Settings } from "lucide-react";
-import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../../databaraService";
+import {
+  EDITOR_FONT_SIZE_MAX,
+  EDITOR_FONT_SIZE_MIN,
+  EDITOR_FONT_SIZE_STEP,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  ZOOM_STEP,
+} from "../../databaraService";
 import { useSettings } from "../../workspace/workspaceCore";
 import {
   DialogActions,
@@ -11,9 +18,10 @@ import {
 } from "../ui";
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const { settings, setZoomLevel, setKeepConnectionsActive } = useSettings();
+  const { settings, setZoomLevel, setKeepConnectionsActive, setEditorFontSize } = useSettings();
   const { level } = settings.zoom;
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
+  const { size: editorFontSize } = settings.editorFontSize;
 
   return (
     <DialogFrame maxWidth="max-w-[460px]">
@@ -32,7 +40,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="text-[13px] font-semibold text-foreground">Zoom</div>
           <div className="text-muted-foreground">Scale the entire interface. 100% is normal.</div>
         </div>
-        <div className="flex items-center justify-self-end gap-2">
+        <div className="flex items-center gap-2 justify-self-end">
           <button
             type="button"
             title="Zoom out"
@@ -42,7 +50,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           >
             <Minus size={14} />
           </button>
-          <span className="w-12 text-center font-mono text-[13px] text-foreground tabular-nums">
+          <span className="w-12 text-center font-mono text-[13px] tabular-nums text-foreground">
             {level}%
           </span>
           <button
@@ -50,6 +58,33 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             title="Zoom in"
             disabled={level >= ZOOM_MAX}
             onClick={() => setZoomLevel(level + ZOOM_STEP)}
+            className="control flex h-8 w-8 items-center justify-center rounded"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+        <div className="grid gap-0.5">
+          <div className="text-[13px] font-semibold text-foreground">Editor font size</div>
+          <div className="text-muted-foreground">Font size of the SQL editor.</div>
+        </div>
+        <div className="flex items-center gap-2 justify-self-end">
+          <button
+            type="button"
+            title="Decrease font size"
+            disabled={editorFontSize <= EDITOR_FONT_SIZE_MIN}
+            onClick={() => setEditorFontSize(editorFontSize - EDITOR_FONT_SIZE_STEP)}
+            className="control flex h-8 w-8 items-center justify-center rounded"
+          >
+            <Minus size={14} />
+          </button>
+          <span className="w-12 text-center font-mono text-[13px] tabular-nums text-foreground">
+            {editorFontSize}
+          </span>
+          <button
+            type="button"
+            title="Increase font size"
+            disabled={editorFontSize >= EDITOR_FONT_SIZE_MAX}
+            onClick={() => setEditorFontSize(editorFontSize + EDITOR_FONT_SIZE_STEP)}
             className="control flex h-8 w-8 items-center justify-center rounded"
           >
             <Plus size={14} />

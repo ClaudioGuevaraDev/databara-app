@@ -113,6 +113,7 @@ export type WorkspaceActions = {
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setKeepConnectionsActive: (enabled: boolean) => void;
+  setEditorFontSize: (size: number) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
   setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
@@ -168,6 +169,7 @@ export function useSettings() {
     settingsDialogOpen: state.dialogs.settings,
     closeSettingsDialog: actions.closeSettingsDialog,
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
+    setEditorFontSize: actions.setEditorFontSize,
     setZoomLevel: actions.setZoomLevel,
   };
 }
