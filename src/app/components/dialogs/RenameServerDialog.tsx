@@ -38,30 +38,38 @@ export function RenameServerDialog({
       >
         <DialogCloseButton onClick={onCancel} />
       </DialogHeader>
-      <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
-        <Field
-          autoFocus
-          label="Server name"
-          value={name}
-          onChange={setName}
-          placeholder={hostPort}
-        />
-        <div>
-          Leave it empty to revert to <span className="font-mono text-foreground">{hostPort}</span>.
-        </div>
-      </DialogBody>
-      <DialogActions>
-        <button onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
-          Cancel
-        </button>
-        <button
-          onClick={submit}
-          className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
-        >
-          <Pencil size={14} />
-          Save
-        </button>
-      </DialogActions>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
+          <Field
+            autoFocus
+            label="Server name"
+            value={name}
+            onChange={setName}
+            placeholder={hostPort}
+          />
+          <div>
+            Leave it empty to revert to{" "}
+            <span className="font-mono text-foreground">{hostPort}</span>.
+          </div>
+        </DialogBody>
+        <DialogActions>
+          <button type="button" onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
+          >
+            <Pencil size={14} />
+            Save
+          </button>
+        </DialogActions>
+      </form>
     </DialogFrame>
   );
 }
