@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { ServerOff } from "lucide-react";
 import type { DeleteServerRequest } from "../../workspace/workspaceCore";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
 
@@ -19,8 +19,8 @@ export function DeleteServerDialog({
       <DialogHeader
         title={
           <>
-            <Trash2 size={16} className="shrink-0 text-destructive" />
-            <span className="truncate">Delete server</span>
+            <ServerOff size={16} className="shrink-0 text-amber-400" />
+            <span className="truncate">Disconnect server</span>
           </>
         }
       >
@@ -28,8 +28,8 @@ export function DeleteServerDialog({
       </DialogHeader>
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         <div>
-          Delete the server <span className="font-mono text-foreground">{hostPort}</span> and all{" "}
-          {count} saved {count === 1 ? "database" : "databases"} under it?
+          Disconnect the server <span className="font-mono text-foreground">{hostPort}</span> and
+          all {count} {count === 1 ? "database" : "databases"} under it?
         </div>
         {count > 0 ? (
           <ul className="grid max-h-40 gap-1 overflow-auto rounded border border-border bg-[hsl(var(--panel-soft))] p-2 font-mono text-foreground">
@@ -41,7 +41,10 @@ export function DeleteServerDialog({
             ))}
           </ul>
         ) : null}
-        <div>This removes the saved profiles and their passwords from this device.</div>
+        <div>
+          This only removes them from your saved connections — the databases themselves are not
+          deleted.
+        </div>
       </DialogBody>
       <DialogActions>
         <button onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
@@ -49,10 +52,10 @@ export function DeleteServerDialog({
         </button>
         <button
           onClick={() => onConfirm(request.serverId)}
-          className="flex h-8 items-center gap-1.5 rounded bg-destructive px-3 text-[12px] font-semibold text-destructive-foreground hover:brightness-110"
+          className="flex h-8 items-center gap-1.5 rounded bg-amber-400 px-3 text-[12px] font-semibold text-[hsl(var(--background))] hover:brightness-110"
         >
-          <Trash2 size={14} />
-          Delete server
+          <ServerOff size={14} />
+          Disconnect server
         </button>
       </DialogActions>
     </DialogFrame>

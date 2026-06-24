@@ -1145,7 +1145,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const confirmDeleteConnection = useCallback(
     (connection: StoredConnectionDraft) => {
       removeConnections([connection]);
-      notify(`${connection.database} removed`, "success");
+      notify(`${connection.database} disconnected`, "success");
       setDeleteConnectionRequest(null);
     },
     [notify, removeConnections],
@@ -1218,7 +1218,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       removeConnections(serverConnections);
       setServerLabels(deleteServerLabel(serverId));
       notify(
-        `${serverLabels[serverId] ?? (first ? `${first.host}:${first.port}` : "Server")} removed`,
+        `${serverLabels[serverId] ?? (first ? `${first.host}:${first.port}` : "Server")} disconnected`,
         "success",
       );
       setDeleteServerRequest(null);

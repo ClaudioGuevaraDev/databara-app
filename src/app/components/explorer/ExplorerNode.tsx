@@ -6,7 +6,8 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Trash2,
+  ServerOff,
+  Unlink,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { DatabaseTreeNode } from "../../types";
@@ -141,7 +142,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Delete server"
+              title="Disconnect server"
               onClick={(event) => {
                 event.stopPropagation();
                 explorer.openDeleteServer(node.id);
@@ -152,9 +153,9 @@ export function ExplorerNode({
                 event.stopPropagation();
                 explorer.openDeleteServer(node.id);
               }}
-              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus:bg-muted focus:text-destructive"
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-amber-400 focus:bg-muted focus:text-amber-400"
             >
-              <Trash2 size={12} />
+              <ServerOff size={12} />
             </span>
           </span>
         ) : deletableConnection ? (
@@ -193,7 +194,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Delete connection"
+              title="Disconnect database"
               onClick={(event) => {
                 event.stopPropagation();
                 explorer.deleteConnection(
@@ -208,9 +209,9 @@ export function ExplorerNode({
                   savedConnection ? node.id : savedConnectionNodeId(deletableConnection),
                 );
               }}
-              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus:bg-muted focus:text-destructive"
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-amber-400 focus:bg-muted focus:text-amber-400"
             >
-              <Trash2 size={12} />
+              <Unlink size={12} />
             </span>
           </span>
         ) : null}

@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Unlink } from "lucide-react";
 import { connectionEngineLabel } from "../../connectionEngines";
 import type { StoredConnectionDraft } from "../../databaraService";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
@@ -17,8 +17,8 @@ export function DeleteConnectionDialog({
       <DialogHeader
         title={
           <>
-            <Trash2 size={16} className="shrink-0 text-destructive" />
-            <span className="truncate">Delete connection</span>
+            <Unlink size={16} className="shrink-0 text-amber-400" />
+            <span className="truncate">Disconnect database</span>
           </>
         }
       >
@@ -26,14 +26,16 @@ export function DeleteConnectionDialog({
       </DialogHeader>
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         <div>
-          Delete the saved connection for{" "}
-          <span className="font-mono text-foreground">{connection.database}</span>?
+          Disconnect <span className="font-mono text-foreground">{connection.database}</span>?
         </div>
         <div className="truncate font-mono text-foreground">
           {connectionEngineLabel(connection.engine)} · {connection.user}@{connection.host}:
           {connection.port}
         </div>
-        <div>This removes the saved profile from this device.</div>
+        <div>
+          This only removes it from your saved connections on this device — the database itself is
+          not deleted.
+        </div>
       </DialogBody>
       <DialogActions>
         <button onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
@@ -41,10 +43,10 @@ export function DeleteConnectionDialog({
         </button>
         <button
           onClick={() => onConfirm(connection)}
-          className="flex h-8 items-center gap-1.5 rounded bg-destructive px-3 text-[12px] font-semibold text-destructive-foreground hover:brightness-110"
+          className="flex h-8 items-center gap-1.5 rounded bg-amber-400 px-3 text-[12px] font-semibold text-[hsl(var(--background))] hover:brightness-110"
         >
-          <Trash2 size={14} />
-          Delete
+          <Unlink size={14} />
+          Disconnect
         </button>
       </DialogActions>
     </DialogFrame>
