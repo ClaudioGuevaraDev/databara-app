@@ -1,4 +1,6 @@
 import { AlertTriangle, Download, ExternalLink } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
+import type { TranslationKey } from "../../i18n/translate";
 import type { UpdateProgress } from "../../types";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
 
@@ -7,15 +9,6 @@ function formatBytes(bytes: number): string {
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(1)} MB`;
 }
-
-const PHASE_TITLE: Record<UpdateProgress["phase"], string> = {
-  checking: "Checking for updates",
-  downloading: "Downloading update",
-  installing: "Installing update",
-  done: "Restarting…",
-  error: "Update failed",
-  unavailable: "Update available",
-};
 
 export function UpdateDialog({
   progress,
@@ -26,6 +19,7 @@ export function UpdateDialog({
   onDismiss: () => void;
   onDownloadManually: () => void;
 }) {
+  const { t } = useI18n();
   const { phase, downloaded, total, version, notes, error } = progress;
   const isError = phase === "error";
   const isUnavailable = phase === "unavailable";
@@ -47,7 +41,7 @@ export function UpdateDialog({
             ) : (
               <Download size={16} className="shrink-0 text-primary" />
             )}
-            <span className="truncate">{PHASE_TITLE[phase]}</span>
+            <span className="truncate">{t(`dialogs.update.phase.${phase}` as TranslationKey)}</span>
           </>
         }
       >
@@ -56,27 +50,24 @@ export function UpdateDialog({
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         {isError ? (
           <div className="grid gap-2">
-            <div className="text-destructive">{error ?? "The update could not be completed."}</div>
-            <div>You can download the latest version manually from the website.</div>
+            <div className="text-destructive">{error ?? t("dialogs.update.errorFallback")}</div>
+            <div>{t("dialogs.update.errorHelp")}</div>
           </div>
         ) : isUnavailable ? (
           <div className="grid gap-2">
             {version ? (
               <div>
-                New version available:{" "}
+                {t("dialogs.update.newVersion")}{" "}
                 <span className="font-semibold text-foreground">v{version}</span>
               </div>
             ) : null}
-            <div>
-              This installation can&apos;t update itself. Download the latest version manually from
-              the website.
-            </div>
+            <div>{t("dialogs.update.cannotSelfUpdate")}</div>
           </div>
         ) : (
           <>
             {version ? (
               <div>
-                New version available:{" "}
+                {t("dialogs.update.newVersion")}{" "}
                 <span className="font-semibold text-foreground">v{version}</span>
               </div>
             ) : null}
@@ -96,10 +87,10 @@ export function UpdateDialog({
                 <div className="flex items-center justify-between text-[11px]">
                   <span>
                     {phase === "installing"
-                      ? "Installing…"
+                      ? t("dialogs.update.installing")
                       : percent !== null
                         ? `${percent}%`
-                        : "Downloading…"}
+                        : t("dialogs.update.downloading")}
                   </span>
                   {total > 0 ? (
                     <span>
@@ -109,22 +100,22 @@ export function UpdateDialog({
                 </div>
               </div>
             ) : null}
-            {phase === "done" ? <div>The app will restart to apply the update.</div> : null}
-            {phase === "checking" ? <div>Checking for a new version…</div> : null}
+            {phase === "done" ? <div>{t("dialogs.update.willRestart")}</div> : null}
+            {phase === "checking" ? <div>{t("dialogs.update.checking")}</div> : null}
           </>
         )}
       </DialogBody>
       {dismissible ? (
         <DialogActions>
           <button onClick={onDismiss} className="control h-8 rounded px-3 text-[12px]">
-            Close
+            {t("common.close")}
           </button>
           <button
             onClick={onDownloadManually}
             className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
           >
             <ExternalLink size={14} />
-            Download manually
+            {t("dialogs.update.downloadManually")}
           </button>
         </DialogActions>
       ) : null}

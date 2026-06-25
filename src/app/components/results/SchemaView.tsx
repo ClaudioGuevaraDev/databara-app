@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseObjectDetails } from "../../types";
 import { EmptyPanel } from "../ui";
 import { buildObjectSchema } from "./objectSchema";
@@ -127,7 +128,8 @@ function tokenToneClass(tone: SqlTokenTone) {
 }
 
 export function SchemaView({ details }: { details: DatabaseObjectDetails | null }) {
-  if (!details) return <EmptyPanel text="Select an object to inspect its schema." />;
+  const { t } = useI18n();
+  if (!details) return <EmptyPanel text={t("results.emptySchema")} />;
 
   const schemaSql = buildObjectSchema(details);
   const badgeSurfaceClass = "bg-[hsl(var(--panel-soft)/0.74)]";

@@ -7,9 +7,11 @@ import { ResizeHandle } from "../components/ui";
 import { Toaster } from "../components/ui/Toaster";
 import { MainWorkspace } from "../components/workspace/MainWorkspace";
 import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../databaraService";
+import { useI18n } from "../i18n/I18nContext";
 import { useSettings, useWorkspaceLayout } from "./workspaceCore";
 
 export function WorkspaceShell() {
+  const { t } = useI18n();
   const workspace = useWorkspaceLayout();
   const { settings, setSidebarWidth } = useSettings();
   // Live width while dragging; falls back to the persisted setting at rest so
@@ -35,7 +37,7 @@ export function WorkspaceShell() {
         {/* Overlaid on the sidebar/content boundary so it doesn't consume layout width. */}
         <ResizeHandle
           axis="x"
-          ariaLabel="Resize sidebar"
+          ariaLabel={t("workspace.resizeSidebar")}
           value={sidebarWidth}
           min={SIDEBAR_WIDTH_MIN}
           max={SIDEBAR_WIDTH_MAX}

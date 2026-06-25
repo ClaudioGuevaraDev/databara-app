@@ -1,4 +1,5 @@
 import { connectionEngineLabel, defaultDatabaseEngine } from "../../connectionEngines";
+import { translate } from "../../i18n/translate";
 import type { ConnectionDraft } from "../../types";
 
 export type ConnectionFormDraft = Omit<ConnectionDraft, "port"> & { port: string };
@@ -6,7 +7,7 @@ export type ConnectionFormDraft = Omit<ConnectionDraft, "port"> & { port: string
 export function readErrorMessage(error: unknown) {
   if (typeof error === "string") return error;
   if (error instanceof Error) return error.message;
-  return "Unexpected error";
+  return translate("validation.unexpectedError");
 }
 
 export function connectionDisplayName(
@@ -23,12 +24,12 @@ export function buildConnectionDraft(formDraft: ConnectionFormDraft): Connection
   const user = formDraft.user.trim();
 
   if (!host || !port || !database || !user) {
-    throw new Error("Host, port, database, and user are required.");
+    throw new Error(translate("validation.requiredFields"));
   }
 
   const parsedPort = Number(port);
   if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
-    throw new Error("Port must be a valid positive number.");
+    throw new Error(translate("validation.invalidPort"));
   }
 
   return {

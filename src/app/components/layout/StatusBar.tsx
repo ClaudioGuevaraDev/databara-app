@@ -1,8 +1,10 @@
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "../../i18n/I18nContext";
 import { fetchLatestReleaseVersion } from "../../updaterService";
 
 export function StatusBar({ onCheckForUpdates }: { onCheckForUpdates: () => void }) {
+  const { t } = useI18n();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -15,7 +17,7 @@ export function StatusBar({ onCheckForUpdates }: { onCheckForUpdates: () => void
       <button
         type="button"
         onClick={onCheckForUpdates}
-        title="Check for updates"
+        title={t("statusBar.checkForUpdates")}
         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
       >
         <RefreshCw size={12} />

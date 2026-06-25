@@ -2,6 +2,7 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { connectionEngineLabel } from "../../connectionEngines";
 import type { StoredConnectionDraft } from "../../databaraService";
+import { useI18n } from "../../i18n/I18nContext";
 import { readErrorMessage } from "./connectionForm";
 import {
   DialogActions,
@@ -21,6 +22,7 @@ export function PasswordConnectionDialog({
   onClose: () => void;
   onConnect: (connection: StoredConnectionDraft, password: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,9 @@ export function PasswordConnectionDialog({
         title={
           <>
             <KeyRound size={16} className="shrink-0 text-primary" />
-            <span className="truncate">Connect to {connection.database}</span>
+            <span className="truncate">
+              {t("dialogs.password.title", { database: connection.database })}
+            </span>
           </>
         }
       >
@@ -61,14 +65,14 @@ export function PasswordConnectionDialog({
               {connectionEngineLabel(connection.engine)} · {connection.user}@{connection.host}:
               {connection.port}
             </div>
-            <div>Enter the password for this session.</div>
+            <div>{t("dialogs.password.hint")}</div>
           </div>
           <Field
             autoFocus
             className="col-span-1"
-            label="Password"
+            label={t("dialogs.password.label")}
             onChange={setPassword}
-            placeholder="Enter password"
+            placeholder={t("dialogs.password.placeholder")}
             type="password"
             value={password}
           />
@@ -78,7 +82,7 @@ export function PasswordConnectionDialog({
         </DialogBody>
         <DialogActions>
           <button type="button" onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
@@ -86,7 +90,7 @@ export function PasswordConnectionDialog({
             className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Connect
+            {t("common.connect")}
           </button>
         </DialogActions>
       </form>

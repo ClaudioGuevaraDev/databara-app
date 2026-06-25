@@ -1,3 +1,4 @@
+import { translate } from "./i18n/translate";
 import type { ConnectionDraft, DatabaseEngine, SslMode } from "./types";
 
 export type ConnectionEngineConfig = {
@@ -6,11 +7,13 @@ export type ConnectionEngineConfig = {
   defaultPort: number;
   defaultSslMode: SslMode;
   sslModes: SslMode[];
+  // Example values shown as input placeholders. These are sample identifiers
+  // (hostnames, usernames, db names), not localizable UI copy. The password
+  // field's instruction placeholder is localized in the dialog itself.
   placeholders: {
     host: string;
     database: string;
     user: string;
-    password: string;
   };
 };
 
@@ -27,7 +30,6 @@ export const connectionEngineConfigs: Record<DatabaseEngine, ConnectionEngineCon
       host: "localhost",
       database: "databara_dev",
       user: "postgres",
-      password: "Enter password",
     },
   },
 };
@@ -48,6 +50,8 @@ export function connectionEngineLabel(engine: DatabaseEngine) {
 
 export function ensureSupportedConnectionEngine(draft: Pick<ConnectionDraft, "engine">) {
   if (draft.engine !== "postgresql") {
-    throw new Error(`${connectionEngineLabel(draft.engine)} connections are not supported yet.`);
+    throw new Error(
+      translate("validation.engineNotSupported", { engine: connectionEngineLabel(draft.engine) }),
+    );
   }
 }

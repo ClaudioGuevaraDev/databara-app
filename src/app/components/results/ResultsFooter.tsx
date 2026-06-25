@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 import { QUERY_PAGE_SIZES, type QueryPagination } from "../../types";
 import { IconButton } from "../ui";
 
@@ -13,6 +14,7 @@ export function ResultsFooter({
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }) {
+  const { t } = useI18n();
   const { page, pageSize, totalRows, pageSizeLocked } = pagination;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const firstRow = totalRows === 0 ? 0 : page * pageSize + 1;
@@ -26,21 +28,22 @@ export function ResultsFooter({
     <div className="chrome-panel flex h-9 shrink-0 items-center justify-between border-t border-border px-3 text-[12px] text-muted-foreground">
       <div className="flex items-center gap-2">
         <span>
-          Page <span className="text-foreground">{page + 1}</span> of {totalPages}
+          {t("results.pageWord")} <span className="text-foreground">{page + 1}</span>{" "}
+          {t("results.of")} {totalPages}
         </span>
         <span className="text-border">·</span>
         <span>
-          rows {firstRow.toLocaleString()}–{lastRow.toLocaleString()} of{" "}
-          <span className="text-foreground">{totalRows.toLocaleString()}</span>
+          {t("results.rowsWord")} {firstRow.toLocaleString()}–{lastRow.toLocaleString()}{" "}
+          {t("results.of")} <span className="text-foreground">{totalRows.toLocaleString()}</span>
         </span>
       </div>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5">
-          Rows
+          {t("results.rowsLabel")}
           <select
             value={pageSize}
             disabled={isRunning || pageSizeLocked}
-            title={pageSizeLocked ? "Page size set by the query's LIMIT" : undefined}
+            title={pageSizeLocked ? t("results.pageSizeLocked") : undefined}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
             className="h-7 rounded border border-border bg-background px-1.5 text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -52,14 +55,14 @@ export function ResultsFooter({
           </select>
         </label>
         <IconButton
-          title="Previous page"
+          title={t("results.previousPage")}
           disabled={isRunning || page <= 0}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft size={16} />
         </IconButton>
         <IconButton
-          title="Next page"
+          title={t("results.nextPage")}
           disabled={isRunning || page >= totalPages - 1}
           onClick={() => onPageChange(page + 1)}
         >

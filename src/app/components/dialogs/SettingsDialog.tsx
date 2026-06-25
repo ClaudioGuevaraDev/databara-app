@@ -17,7 +17,9 @@ import {
   type AppSettings,
 } from "../../databaraService";
 import { cn } from "../../../lib/utils";
-import type { NotificationPosition } from "../../types";
+import { useI18n } from "../../i18n/I18nContext";
+import type { TranslationKey } from "../../i18n/translate";
+import type { Language, NotificationPosition } from "../../types";
 import { useSettings } from "../../workspace/workspaceCore";
 import {
   DialogActions,
@@ -29,26 +31,32 @@ import {
   type SelectFieldOption,
 } from "../ui";
 
-const NOTIFICATION_POSITION_OPTIONS: SelectFieldOption<NotificationPosition>[] = [
-  { value: "top-left", label: "Top left" },
-  { value: "top-center", label: "Top center" },
-  { value: "top-right", label: "Top right" },
-  { value: "bottom-left", label: "Bottom left" },
-  { value: "bottom-center", label: "Bottom center" },
-  { value: "bottom-right", label: "Bottom right" },
+const NOTIFICATION_POSITION_VALUES: NotificationPosition[] = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
 ];
+
+const LANGUAGE_VALUES: Language[] = ["en"];
 
 type SettingsTab = "general" | "editor" | "connections";
 
-const TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: number }> }[] = [
-  { id: "general", label: "General", icon: SlidersHorizontal },
-  { id: "editor", label: "Editor", icon: Type },
-  { id: "connections", label: "Connections", icon: Database },
+const TABS: {
+  id: SettingsTab;
+  labelKey: TranslationKey;
+  icon: ComponentType<{ size?: number }>;
+}[] = [
+  { id: "general", labelKey: "settings.tabs.general", icon: SlidersHorizontal },
+  { id: "editor", labelKey: "settings.tabs.editor", icon: Type },
+  { id: "connections", labelKey: "settings.tabs.connections", icon: Database },
 ];
 
 // Which AppSettings keys each tab owns — used to reset only the active tab.
 const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
-  general: ["zoom", "notificationPosition", "sidebarWidth", "bottomPanelHeight"],
+  general: ["zoom", "notificationPosition", "language", "sidebarWidth", "bottomPanelHeight"],
   editor: ["editorFontSize"],
   connections: ["keepConnectionsActive"],
 };
@@ -56,12 +64,14 @@ const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
 const ALL_SETTINGS_KEYS = Object.keys(defaultAppSettings) as (keyof AppSettings)[];
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const {
     settings,
     setZoomLevel,
     setKeepConnectionsActive,
     setEditorFontSize,
     setNotificationPosition,
+    setLanguage,
     setSidebarWidth,
     setBottomPanelHeight,
     resetSettings,
@@ -71,9 +81,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
   const { size: editorFontSize } = settings.editorFontSize;
   const { position: notificationPosition } = settings.notificationPosition;
+  const { code: language } = settings.language;
   const { width: sidebarWidth } = settings.sidebarWidth;
   const { height: bottomPanelHeight } = settings.bottomPanelHeight;
   const [tab, setTab] = useState<SettingsTab>("general");
+
+  const notificationPositionOptions: SelectFieldOption<NotificationPosition>[] =
+    NOTIFICATION_POSITION_VALUES.map((value) => ({
+      value,
+      label: t(`settings.notificationPositions.${value}` as TranslationKey),
+    }));
+  const languageOptions: SelectFieldOption<Language>[] = LANGUAGE_VALUES.map((value) => ({
+    value,
+    label: t(`settings.languages.${value}` as TranslationKey),
+  }));
 
   const isDefault = (keys: (keyof AppSettings)[]) =>
     keys.every((key) => JSON.stringify(settings[key]) === JSON.stringify(defaultAppSettings[key]));
@@ -85,7 +106,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         title={
           <>
             <Settings size={16} className="shrink-0 text-primary" />
-            <span className="truncate">Settings</span>
+            <span className="truncate">{t("settings.title")}</span>
           </>
         }
       >
@@ -93,9 +114,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       </DialogHeader>
       <div className="flex">
         <nav className="w-44 shrink-0 border-r border-border p-2">
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {TABS.map(({ id, labelKey, icon: Icon }) => {
             const active = tab === id;
             const tabIsDefault = isDefault(TAB_RESET_KEYS[id]);
+            const label = t(labelKey);
             return (
               <div key={id} className="relative">
                 <button
@@ -119,8 +141,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       resetSettingsKeys(TAB_RESET_KEYS[id]);
                     }}
                     disabled={tabIsDefault}
-                    title={`Reset ${label} to defaults`}
-                    aria-label={`Reset ${label} to defaults`}
+                    title={t("settings.resetTab", { tab: label })}
+                    aria-label={t("settings.resetTab", { tab: label })}
                     className="group absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.14)] disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50 disabled:hover:bg-transparent"
                   >
                     <RotateCcw
@@ -138,15 +160,43 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {tab === "general" ? (
               <>
                 <div className="grid gap-0.5">
-                  <div className="text-[13px] font-semibold text-foreground">Zoom</div>
-                  <div className="text-muted-foreground">
-                    Scale the entire interface. 100% is normal.
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.language.title")}
                   </div>
+                  <div className="text-muted-foreground">{t("settings.language.description")}</div>
+                </div>
+                <SelectField
+                  label=""
+                  className="w-36 justify-self-end"
+                  value={language}
+                  onChange={setLanguage}
+                  options={languageOptions}
+                />
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.notifications.title")}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {t("settings.notifications.description")}
+                  </div>
+                </div>
+                <SelectField
+                  label=""
+                  className="w-36 justify-self-end"
+                  value={notificationPosition}
+                  onChange={setNotificationPosition}
+                  options={notificationPositionOptions}
+                />
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.zoom.title")}
+                  </div>
+                  <div className="text-muted-foreground">{t("settings.zoom.description")}</div>
                 </div>
                 <div className="flex items-center gap-2 justify-self-end">
                   <button
                     type="button"
-                    title="Zoom out"
+                    title={t("settings.zoom.out")}
                     disabled={level <= ZOOM_MIN}
                     onClick={() => setZoomLevel(level - ZOOM_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -158,7 +208,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </span>
                   <button
                     type="button"
-                    title="Zoom in"
+                    title={t("settings.zoom.in")}
                     disabled={level >= ZOOM_MAX}
                     onClick={() => setZoomLevel(level + ZOOM_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -167,24 +217,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </button>
                 </div>
                 <div className="grid gap-0.5">
-                  <div className="text-[13px] font-semibold text-foreground">Notifications</div>
-                  <div className="text-muted-foreground">Where on-screen toasts appear.</div>
-                </div>
-                <SelectField
-                  label=""
-                  className="w-36 justify-self-end"
-                  value={notificationPosition}
-                  onChange={setNotificationPosition}
-                  options={NOTIFICATION_POSITION_OPTIONS}
-                />
-                <div className="grid gap-0.5">
-                  <div className="text-[13px] font-semibold text-foreground">Sidebar width</div>
-                  <div className="text-muted-foreground">Width of the explorer sidebar.</div>
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.sidebar.title")}
+                  </div>
+                  <div className="text-muted-foreground">{t("settings.sidebar.description")}</div>
                 </div>
                 <div className="flex items-center gap-2 justify-self-end">
                   <button
                     type="button"
-                    title="Decrease sidebar width"
+                    title={t("settings.sidebar.decrease")}
                     disabled={sidebarWidth <= SIDEBAR_WIDTH_MIN}
                     onClick={() => setSidebarWidth(sidebarWidth - SIDEBAR_WIDTH_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -196,7 +237,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </span>
                   <button
                     type="button"
-                    title="Increase sidebar width"
+                    title={t("settings.sidebar.increase")}
                     disabled={sidebarWidth >= SIDEBAR_WIDTH_MAX}
                     onClick={() => setSidebarWidth(sidebarWidth + SIDEBAR_WIDTH_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -206,14 +247,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="grid gap-0.5">
                   <div className="text-[13px] font-semibold text-foreground">
-                    Bottom panel height
+                    {t("settings.bottomPanel.title")}
                   </div>
-                  <div className="text-muted-foreground">Height of the results panel.</div>
+                  <div className="text-muted-foreground">
+                    {t("settings.bottomPanel.description")}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 justify-self-end">
                   <button
                     type="button"
-                    title="Decrease bottom panel height"
+                    title={t("settings.bottomPanel.decrease")}
                     disabled={bottomPanelHeight <= BOTTOM_PANEL_HEIGHT_MIN}
                     onClick={() =>
                       setBottomPanelHeight(bottomPanelHeight - BOTTOM_PANEL_HEIGHT_STEP)
@@ -227,7 +270,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </span>
                   <button
                     type="button"
-                    title="Increase bottom panel height"
+                    title={t("settings.bottomPanel.increase")}
                     disabled={bottomPanelHeight >= BOTTOM_PANEL_HEIGHT_MAX}
                     onClick={() =>
                       setBottomPanelHeight(bottomPanelHeight + BOTTOM_PANEL_HEIGHT_STEP)
@@ -242,13 +285,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {tab === "editor" ? (
               <>
                 <div className="grid gap-0.5">
-                  <div className="text-[13px] font-semibold text-foreground">Font size</div>
-                  <div className="text-muted-foreground">Font size of the SQL editor.</div>
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.fontSize.title")}
+                  </div>
+                  <div className="text-muted-foreground">{t("settings.fontSize.description")}</div>
                 </div>
                 <div className="flex items-center gap-2 justify-self-end">
                   <button
                     type="button"
-                    title="Decrease font size"
+                    title={t("settings.fontSize.decrease")}
                     disabled={editorFontSize <= EDITOR_FONT_SIZE_MIN}
                     onClick={() => setEditorFontSize(editorFontSize - EDITOR_FONT_SIZE_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -260,7 +305,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   </span>
                   <button
                     type="button"
-                    title="Increase font size"
+                    title={t("settings.fontSize.increase")}
                     disabled={editorFontSize >= EDITOR_FONT_SIZE_MAX}
                     onClick={() => setEditorFontSize(editorFontSize + EDITOR_FONT_SIZE_STEP)}
                     className="control flex h-8 w-8 items-center justify-center rounded"
@@ -274,17 +319,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               <>
                 <div className="grid gap-0.5">
                   <div className="text-[13px] font-semibold text-foreground">
-                    Keep connections active
+                    {t("settings.keepConnections.title")}
                   </div>
                   <div className="text-muted-foreground">
-                    Reconnect saved connections on startup without asking for the password. The
-                    password is stored in your operating system's keychain.
+                    {t("settings.keepConnections.description")}
                   </div>
                 </div>
                 <div className="justify-self-end">
                   <Switch
                     checked={keepConnectionsActive}
-                    label="Keep connections active"
+                    label={t("settings.keepConnections.title")}
                     onChange={setKeepConnectionsActive}
                   />
                 </div>
@@ -304,10 +348,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             size={12}
             className="transition-transform duration-300 group-hover:-rotate-90 group-disabled:rotate-0"
           />
-          Reset all settings
+          {t("settings.resetAll")}
         </button>
         <button onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
-          Close
+          {t("common.close")}
         </button>
       </DialogActions>
     </DialogFrame>

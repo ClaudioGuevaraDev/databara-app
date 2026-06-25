@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseObjectDetails } from "../../types";
 import { EmptyPanel } from "../ui";
 
@@ -23,7 +24,8 @@ function MetaBadge({
 }
 
 export function ColumnsView({ details }: { details: DatabaseObjectDetails | null }) {
-  if (!details) return <EmptyPanel text="Select an object to inspect columns." />;
+  const { t } = useI18n();
+  if (!details) return <EmptyPanel text={t("results.emptyColumns")} />;
 
   return (
     <div className="h-full overflow-auto p-3">
@@ -43,10 +45,16 @@ export function ColumnsView({ details }: { details: DatabaseObjectDetails | null
           <div className="flex flex-wrap items-center gap-1.5">
             <MetaBadge>{column.dataType}</MetaBadge>
             <MetaBadge tone={column.primaryKey ? "primary" : "default"}>
-              {column.primaryKey ? "primary key" : column.nullable ? "nullable" : "not null"}
+              {column.primaryKey
+                ? t("traits.primaryKey")
+                : column.nullable
+                  ? t("traits.nullable")
+                  : t("traits.notNull")}
             </MetaBadge>
-            {!column.primaryKey && !column.nullable ? <MetaBadge>not null</MetaBadge> : null}
-            {column.indexed ? <MetaBadge tone="primary">indexed</MetaBadge> : null}
+            {!column.primaryKey && !column.nullable ? (
+              <MetaBadge>{t("traits.notNull")}</MetaBadge>
+            ) : null}
+            {column.indexed ? <MetaBadge tone="primary">{t("traits.indexed")}</MetaBadge> : null}
           </div>
         </div>
       ))}

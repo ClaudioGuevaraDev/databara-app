@@ -11,6 +11,7 @@ import type {
   DatabaseEngine,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  Language,
   NotificationPosition,
   SslMode,
 } from "./types";
@@ -62,7 +63,11 @@ export type AppSettings = {
   sidebarWidth: { width: number };
   // Height (in px) of the bottom results panel.
   bottomPanelHeight: { height: number };
+  // Language code for the interface.
+  language: { code: Language };
 };
+
+export const SUPPORTED_LANGUAGES: readonly Language[] = ["en"];
 
 export const NOTIFICATION_POSITIONS: readonly NotificationPosition[] = [
   "top-left",
@@ -103,6 +108,7 @@ export const defaultAppSettings: AppSettings = {
   notificationPosition: { position: "top-center" },
   sidebarWidth: { width: SIDEBAR_WIDTH_DEFAULT },
   bottomPanelHeight: { height: BOTTOM_PANEL_HEIGHT_DEFAULT },
+  language: { code: "en" },
 };
 
 export function clampZoomLevel(level: number): number {
@@ -158,6 +164,9 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     bottomPanelHeight && typeof bottomPanelHeight === "object"
       ? (bottomPanelHeight as { height?: unknown }).height
       : undefined;
+  const language = (raw as { language?: unknown }).language;
+  const code =
+    language && typeof language === "object" ? (language as { code?: unknown }).code : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
@@ -185,6 +194,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
       height: clampBottomPanelHeight(
         typeof height === "number" ? height : defaultAppSettings.bottomPanelHeight.height,
       ),
+    },
+    language: {
+      code: SUPPORTED_LANGUAGES.includes(code as Language)
+        ? (code as Language)
+        : defaultAppSettings.language.code,
     },
   };
 }

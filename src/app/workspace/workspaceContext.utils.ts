@@ -1,5 +1,6 @@
 import { connectionEngineLabel } from "../connectionEngines";
 import type { StoredConnectionDraft } from "../databaraService";
+import { translate } from "../i18n/translate";
 import type { ConnectionDraft, DatabaseTreeNode } from "../types";
 import { savedConnectionNodeId } from "./workspaceCore";
 
@@ -111,7 +112,7 @@ export function removeConnectionFromTree(
 export function readErrorMessage(error: unknown) {
   if (typeof error === "string") return error;
   if (error instanceof Error) return error.message;
-  return "Unexpected error";
+  return translate("validation.unexpectedError");
 }
 
 export function connectionDisplayName(
@@ -194,8 +195,9 @@ export function formatCommandMessage(
   rowsAffected: number | null,
   durationMs: number,
 ): string {
-  const tag = commandTag ?? "OK";
-  const affected = rowsAffected != null ? ` · ${rowsAffected} rows affected` : "";
+  const tag = commandTag ?? translate("results.ok");
+  const affected =
+    rowsAffected != null ? ` · ${translate("results.rowsAffected", { count: rowsAffected })}` : "";
   return `${tag}${affected} · ${durationMs} ms`;
 }
 

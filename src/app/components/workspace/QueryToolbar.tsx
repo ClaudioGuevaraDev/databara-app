@@ -1,5 +1,6 @@
 import { Loader2, Play, Save } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useI18n } from "../../i18n/I18nContext";
 
 export function QueryToolbar({
   canSave,
@@ -12,6 +13,7 @@ export function QueryToolbar({
   onRun: () => void;
   onSave: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="chrome-panel hairline flex h-10 shrink-0 items-center border-b border-border px-2">
       <div className="flex items-center gap-1">
@@ -21,12 +23,12 @@ export function QueryToolbar({
           className="flex h-7 items-center gap-1.5 rounded bg-primary px-2.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.14)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-          {isRunning ? "Running…" : "Run"}
+          {isRunning ? t("workspace.running") : t("workspace.run")}
         </button>
         <button
           onClick={onSave}
           disabled={!canSave}
-          title="Save SQL tab"
+          title={t("workspace.saveTab")}
           className={cn(
             "ml-1 flex h-7 items-center gap-1.5 rounded px-3 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45",
             canSave
@@ -35,7 +37,7 @@ export function QueryToolbar({
           )}
         >
           <Save size={14} />
-          Save
+          {t("common.save")}
         </button>
       </div>
     </div>

@@ -1,8 +1,10 @@
+import { useI18n } from "../../i18n/I18nContext";
 import type { QueryResult } from "../../types";
 import { EmptyPanel } from "../ui";
 
 export function DataGrid({ queryResult }: { queryResult: QueryResult | null }) {
-  if (!queryResult) return <EmptyPanel text="Run a query to inspect result rows." />;
+  const { t } = useI18n();
+  if (!queryResult) return <EmptyPanel text={t("results.emptyGrid")} />;
 
   return (
     <table className="min-w-full border-separate border-spacing-0 text-[12px]">

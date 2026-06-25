@@ -2,6 +2,7 @@ import { Braces, Columns3, Loader2, Table2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../../lib/utils";
 import { BOTTOM_PANEL_HEIGHT_MAX, BOTTOM_PANEL_HEIGHT_MIN } from "../../databaraService";
+import { useI18n } from "../../i18n/I18nContext";
 import type {
   DatabaseObjectDetails,
   QueryPagination,
@@ -38,21 +39,24 @@ export function ResultsPanel({
   queryResult: QueryResult | null;
   queryState: QueryState;
 }) {
+  const { t } = useI18n();
   const { settings, setBottomPanelHeight } = useSettings();
   // Live height while dragging; persisted only on release (see WorkspaceShell).
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const height = dragHeight ?? settings.bottomPanelHeight.height;
 
   const tabs = [
-    { id: "results" as const, icon: Table2, label: "Results" },
-    { id: "columns" as const, icon: Columns3, label: "Columns" },
-    { id: "schema" as const, icon: Braces, label: "Schema" },
+    { id: "results" as const, icon: Table2, label: t("results.tabs.results") },
+    { id: "columns" as const, icon: Columns3, label: t("results.tabs.columns") },
+    { id: "schema" as const, icon: Braces, label: t("results.tabs.schema") },
   ];
 
   const showStatusLine =
     activeTab === "results" && (queryState === "success" || queryState === "error");
   const statusMessage =
-    queryState === "error" ? (queryError ?? "Query failed") : (queryResult?.message ?? "Done");
+    queryState === "error"
+      ? (queryError ?? t("results.queryFailed"))
+      : (queryResult?.message ?? t("results.done"));
 
   return (
     <section
@@ -62,7 +66,7 @@ export function ResultsPanel({
       <ResizeHandle
         axis="y"
         inverted
-        ariaLabel="Resize results panel"
+        ariaLabel={t("results.resize")}
         value={height}
         min={BOTTOM_PANEL_HEIGHT_MIN}
         max={BOTTOM_PANEL_HEIGHT_MAX}
@@ -102,7 +106,7 @@ export function ResultsPanel({
         {queryState === "running" ? (
           <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
             <Loader2 size={16} className="animate-spin text-primary" />
-            Running query
+            {t("results.running")}
           </div>
         ) : activeTab === "columns" ? (
           <ColumnsView details={details} />
@@ -110,7 +114,7 @@ export function ResultsPanel({
           <SchemaView details={details} />
         ) : queryState === "error" ? (
           <pre className="h-full w-full overflow-auto whitespace-pre-wrap p-3 font-mono text-[12px] text-destructive">
-            {queryError ?? "Query failed"}
+            {queryError ?? t("results.queryFailed")}
           </pre>
         ) : queryResult && queryResult.columns.length > 0 ? (
           <DataGrid queryResult={queryResult} />

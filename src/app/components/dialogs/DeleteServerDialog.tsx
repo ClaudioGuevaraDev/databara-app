@@ -1,4 +1,5 @@
 import { ServerOff } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 import type { DeleteServerRequest } from "../../workspace/workspaceCore";
 import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
 
@@ -11,6 +12,7 @@ export function DeleteServerDialog({
   onCancel: () => void;
   onConfirm: (serverId: string) => void;
 }) {
+  const { t } = useI18n();
   const hostPort = `${request.host}:${request.port}`;
   const count = request.connections.length;
 
@@ -20,7 +22,7 @@ export function DeleteServerDialog({
         title={
           <>
             <ServerOff size={16} className="shrink-0 text-amber-400" />
-            <span className="truncate">Disconnect server</span>
+            <span className="truncate">{t("dialogs.deleteServer.title")}</span>
           </>
         }
       >
@@ -28,8 +30,9 @@ export function DeleteServerDialog({
       </DialogHeader>
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         <div>
-          Disconnect the server <span className="font-mono text-foreground">{hostPort}</span> and
-          all {count} {count === 1 ? "database" : "databases"} under it?
+          {t("dialogs.deleteServer.questionBefore")}{" "}
+          <span className="font-mono text-foreground">{hostPort}</span>{" "}
+          {t("dialogs.deleteServer.questionAfter", { count })}
         </div>
         {count > 0 ? (
           <ul className="grid max-h-40 gap-1 overflow-auto rounded border border-border bg-[hsl(var(--panel-soft))] p-2 font-mono text-foreground">
@@ -41,21 +44,18 @@ export function DeleteServerDialog({
             ))}
           </ul>
         ) : null}
-        <div>
-          This only removes them from your saved connections — the databases themselves are not
-          deleted.
-        </div>
+        <div>{t("dialogs.deleteServer.note")}</div>
       </DialogBody>
       <DialogActions>
         <button onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           onClick={() => onConfirm(request.serverId)}
           className="flex h-8 items-center gap-1.5 rounded bg-amber-400 px-3 text-[12px] font-semibold text-[hsl(var(--background))] hover:brightness-110"
         >
           <ServerOff size={14} />
-          Disconnect server
+          {t("dialogs.deleteServer.confirm")}
         </button>
       </DialogActions>
     </DialogFrame>

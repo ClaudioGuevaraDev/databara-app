@@ -1,11 +1,13 @@
 import { createContext, use } from "react";
 import type { AppSettings, StoredConnectionDraft } from "../databaraService";
+import { translate } from "../i18n/translate";
 import type {
   ColumnDefinition,
   ConnectionDraft,
   ConnectionProfile,
   DatabaseObjectDetails,
   DatabaseTreeNode,
+  Language,
   NotificationPosition,
   QueryPagination,
   QueryState,
@@ -116,6 +118,7 @@ export type WorkspaceActions = {
   setKeepConnectionsActive: (enabled: boolean) => void;
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
+  setLanguage: (code: Language) => void;
   setSidebarWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
   resetSettings: () => void;
@@ -177,6 +180,7 @@ export function useSettings() {
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
+    setLanguage: actions.setLanguage,
     setSidebarWidth: actions.setSidebarWidth,
     setBottomPanelHeight: actions.setBottomPanelHeight,
     resetSettings: actions.resetSettings,
@@ -315,15 +319,18 @@ export function savedConnectionNodeId(connection: StoredConnectionDraft) {
 
 export function formatColumn(column: ColumnDefinition) {
   const traits = [
-    column.primaryKey ? "primary key" : null,
-    column.nullable ? "nullable" : "not null",
-    column.indexed ? "indexed" : null,
+    column.primaryKey ? translate("traits.primaryKey") : null,
+    column.nullable ? translate("traits.nullable") : translate("traits.notNull"),
+    column.indexed ? translate("traits.indexed") : null,
   ].filter(Boolean);
 
   return `${column.dataType}${traits.length ? ` - ${traits.join(", ")}` : ""}`;
 }
 
 export function formatIndex(index: DatabaseObjectDetails["indexes"][number]) {
-  const traits = [index.primary ? "primary" : null, index.unique ? "unique" : null].filter(Boolean);
+  const traits = [
+    index.primary ? translate("traits.primary") : null,
+    index.unique ? translate("traits.unique") : null,
+  ].filter(Boolean);
   return `${index.columns.join(", ")}${traits.length ? ` ${traits.join(" ")}` : ""}`;
 }

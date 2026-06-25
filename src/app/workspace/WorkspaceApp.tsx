@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { I18nProvider } from "../i18n/I18nProvider";
 import { WorkspaceProvider } from "./workspaceContext";
 import { WorkspaceShell } from "./WorkspaceShell";
 
@@ -17,7 +18,9 @@ export function WorkspaceApp() {
 
   return (
     <WorkspaceProvider>
-      <WorkspaceShell />
+      <I18nProvider>
+        <WorkspaceShell />
+      </I18nProvider>
     </WorkspaceProvider>
   );
 }

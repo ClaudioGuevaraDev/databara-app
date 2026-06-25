@@ -27,6 +27,7 @@ import {
   type StoredConnectionDraft,
 } from "../databaraService";
 import { exportQueryResultCsv } from "../query/exportCsv";
+import { translate } from "../i18n/translate";
 import { buildObjectSchema } from "../components/results/objectSchema";
 import {
   type ConnectionDraft,
@@ -218,7 +219,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (updateInProgressRef.current) return;
 
       if (!("__TAURI_INTERNALS__" in window)) {
-        if (!silent) notify("Updates are only available in the desktop app", "warning");
+        if (!silent) notify(translate("toast.updatesDesktopOnly"), "warning");
         return;
       }
 
@@ -231,12 +232,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         try {
           update = await checkForUpdate();
         } catch (error) {
-          if (!silent) notify(`Couldn't check for updates: ${readErrorMessage(error)}`, "warning");
+          if (!silent)
+            notify(
+              translate("toast.updateCheckFailed", { error: readErrorMessage(error) }),
+              "warning",
+            );
           return;
         }
 
         if (!update) {
-          if (!silent) notify("You're on the latest version", "success");
+          if (!silent) notify(translate("toast.upToDate"), "success");
           return;
         }
 
@@ -439,7 +444,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!currentTabId) return;
     const committedTab = commitSqlTab(currentTabId);
     if (!committedTab) return;
-    notify(`${committedTab.label} saved`, "success");
+    notify(translate("toast.tabSaved", { label: committedTab.label }), "success");
   }, [commitSqlTab, notify]);
 
   const saveDirtySqlTabs = useCallback(async () => {
@@ -460,7 +465,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setActiveTabId(lastCommittedTabId);
     }
 
-    notify(`${dirtyTabs.length} tab${dirtyTabs.length === 1 ? "" : "s"} saved`, "success");
+    notify(translate("toast.tabsSaved", { count: dirtyTabs.length }), "success");
   }, [commitSqlTab, notify]);
 
   const loadConnectionSqlTabs = useCallback(
@@ -502,7 +507,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (keepConnectionsActiveRef.current) {
         void storeConnectionPassword(connectionKey(connectionDraft), draft.password);
       }
-      notify(`${result.connection.name} connected`, "success");
+      notify(translate("toast.connected", { name: result.connection.name }), "success");
     },
     [loadConnectionSqlTabs, notify],
   );
@@ -524,7 +529,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             await connectAndStoreConnection({ ...connection, password });
           } catch (error) {
             notify(
-              `Could not reconnect ${connection.database}: ${readErrorMessage(error)}`,
+              translate("toast.reconnectFailed", {
+                database: connection.database,
+                error: readErrorMessage(error),
+              }),
               "warning",
             );
           }
@@ -703,7 +711,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             rows: execution.rows.map((row) => row.map((cell) => cell ?? "NULL")),
             durationMs: execution.durationMs,
             rowCount: execution.rowCount,
-            message: `${totalRows} rows · ${pageSize}/page · ${execution.durationMs} ms`,
+            message: translate("results.runSummary", {
+              rows: totalRows,
+              pageSize,
+              durationMs: execution.durationMs,
+            }),
           },
         });
         return true;
@@ -721,7 +733,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (requiresConnection || !activeConnection) {
       setDialogInitialDraft(null);
       setConnectionDialogOpen(true);
-      notify("Create a connection before running queries", "warning");
+      notify(translate("toast.createConnectionBeforeRun"), "warning");
       return;
     }
 
@@ -730,7 +742,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // otherwise results would be stored under the dead temporary id.
     const committedTab = activeTabId ? commitSqlTab(activeTabId) : null;
     if (!committedTab) {
-      notify("Open a tab to run a query", "warning");
+      notify(translate("toast.openTabToRun"), "warning");
       return;
     }
 
@@ -739,14 +751,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     const sql = committedTab.sql.trim();
     if (!sql) {
-      notify("Write a query to run", "warning");
+      notify(translate("toast.writeQueryToRun"), "warning");
       return;
     }
 
     // Run against the connection that owns this tab, not the globally active one.
     const connection = connectionByKey(committedTab.connectionKey) ?? activeConnection;
     if (!connection) {
-      notify("This tab's connection is no longer available", "warning");
+      notify(translate("toast.tabConnectionUnavailable"), "warning");
       return;
     }
     const connectionId = connection.id;
@@ -769,7 +781,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const count = await runPostgresQuery(connectionId, buildCountSql(querySql));
         const totalRows = Number(count.rows[0]?.[0] ?? 0);
         const ok = await executePage(tabId, connectionId, querySql, pageSize, 0, totalRows, locked);
-        if (ok) notify(`${totalRows} rows · ${pageSize}/page`, "success");
+        if (ok) notify(translate("toast.runSummary", { rows: totalRows, pageSize }), "success");
       } else {
         // Non-read statements run as-is (no pagination). Returned rows (incl.
         // RETURNING) still show, plus the command result message.
@@ -874,14 +886,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const refreshAll = useCallback(async () => {
     if (!activeConnection) {
-      notify("Create a connection before refreshing", "warning");
+      notify(translate("toast.createConnectionBeforeRefresh"), "warning");
       return;
     }
 
     try {
       const tree = await listPostgresTree(activeConnection.id);
       setActiveExplorerTree((current) => mergeExplorerTree(current, tree));
-      notify("Workspace refreshed", "success");
+      notify(translate("toast.workspaceRefreshed"), "success");
     } catch (error) {
       notify(readErrorMessage(error), "warning");
     }
@@ -891,7 +903,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     async (targetConnectionKey?: string) => {
       const connection = connectionByKey(targetConnectionKey) ?? activeConnection;
       if (!connection) {
-        notify("Connect to a database before refreshing", "warning");
+        notify(translate("toast.connectBeforeRefresh"), "warning");
         return;
       }
 
@@ -904,7 +916,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setSelectedObject(details);
           setCompletionObject(details);
         }
-        notify(`${connection.database} refreshed`, "success");
+        notify(
+          translate("toast.connectionRefreshed", { database: connection.database }),
+          "success",
+        );
       } catch (error) {
         notify(readErrorMessage(error), "warning");
       }
@@ -915,19 +930,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const previewObject = useCallback(
     async (objectId = selectedObjectId) => {
       if (requiresConnection) {
-        notify("Create a connection before previewing objects", "warning");
+        notify(translate("toast.createConnectionBeforePreview"), "warning");
         return;
       }
 
       void objectId;
-      notify("Preview is not enabled until SQL execution is implemented", "warning");
+      notify(translate("toast.previewNotEnabled"), "warning");
     },
     [notify, requiresConnection, selectedObjectId],
   );
 
   const openSchemaTab = useCallback(async () => {
     if (requiresConnection) {
-      notify("Create a connection before opening the schema", "warning");
+      notify(translate("toast.createConnectionBeforeSchema"), "warning");
       return;
     }
 
@@ -937,29 +952,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const copyResult = useCallback(async () => {
     if (!queryResult) {
-      notify("Run a query before copying results", "warning");
+      notify(translate("toast.runBeforeCopyResults"), "warning");
       return;
     }
 
     await copyText(
       [queryResult.columns.join("\t"), ...queryResult.rows.map((row) => row.join("\t"))].join("\n"),
     );
-    notify("Results copied to clipboard", "success");
+    notify(translate("toast.resultsCopied"), "success");
   }, [notify, queryResult]);
 
   const copySchema = useCallback(async () => {
     if (!selectedObject) {
-      notify("Select an object before copying its schema", "warning");
+      notify(translate("toast.selectObjectBeforeCopySchema"), "warning");
       return;
     }
 
     await copyText(buildObjectSchema(selectedObject));
-    notify("Schema copied to clipboard", "success");
+    notify(translate("toast.schemaCopied"), "success");
   }, [notify, selectedObject]);
 
   const exportCsv = useCallback(() => {
     if (!queryResult) {
-      notify("Run a query before exporting CSV", "warning");
+      notify(translate("toast.runBeforeExportCsv"), "warning");
       return;
     }
 
@@ -970,13 +985,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     anchor.download = "databara-results.csv";
     anchor.click();
     URL.revokeObjectURL(url);
-    notify("CSV export started", "success");
+    notify(translate("toast.csvExportStarted"), "success");
   }, [notify, queryResult]);
 
   const copyObjectName = useCallback(async () => {
     if (!selectedObject) return;
     await copyText(`${selectedObject.schema}.${selectedObject.name}`);
-    notify("Object name copied", "success");
+    notify(translate("toast.objectNameCopied"), "success");
   }, [notify, selectedObject]);
 
   const saveConnection = useCallback(
@@ -1065,7 +1080,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         delete next[tabId];
         return next;
       });
-      notify(`Closed ${sqlTabs[closingTabIndex]!.label}`);
+      notify(translate("toast.tabClosed", { label: sqlTabs[closingTabIndex]!.label }));
     },
     [activeTabId, connectionByKey, notify, sqlTabs, syncExplorerSelectionWithTab],
   );
@@ -1149,7 +1164,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const confirmDeleteConnection = useCallback(
     (connection: StoredConnectionDraft) => {
       removeConnections([connection]);
-      notify(`${connection.database} disconnected`, "success");
+      notify(
+        translate("toast.connectionDisconnected", { database: connection.database }),
+        "success",
+      );
       setDeleteConnectionRequest(null);
     },
     [notify, removeConnections],
@@ -1222,7 +1240,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       removeConnections(serverConnections);
       setServerLabels(deleteServerLabel(serverId));
       notify(
-        `${serverLabels[serverId] ?? (first ? `${first.host}:${first.port}` : "Server")} disconnected`,
+        translate("toast.serverDisconnected", {
+          name:
+            serverLabels[serverId] ??
+            (first ? `${first.host}:${first.port}` : translate("toast.serverFallbackName")),
+        }),
         "success",
       );
       setDeleteServerRequest(null);
@@ -1340,6 +1362,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           notificationPosition: { position },
+        })),
+      setLanguage: (code) =>
+        setSettings((current) => ({
+          ...current,
+          language: { code },
         })),
       setSidebarWidth: (width) =>
         setSettings((current) => ({

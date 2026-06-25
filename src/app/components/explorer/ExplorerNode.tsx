@@ -10,6 +10,7 @@ import {
   Unlink,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseTreeNode } from "../../types";
 import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCore";
 import { connectionKey, findStoredConnectionForNode } from "./treeUtils";
@@ -24,6 +25,7 @@ export function ExplorerNode({
   node: DatabaseTreeNode;
   inheritedConnectionKey?: string;
 }) {
+  const { t } = useI18n();
   const explorer = useExplorer();
   const hasChildren = Boolean(node.children?.length);
   const selectable = node.kind === "table" || node.kind === "view";
@@ -99,7 +101,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Add database"
+              title={t("explorer.addDatabase")}
               onClick={(event) => {
                 event.stopPropagation();
                 void explorer.openAddDatabase(node.id);
@@ -124,7 +126,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Rename server"
+              title={t("explorer.renameServer")}
               onClick={(event) => {
                 event.stopPropagation();
                 explorer.openRenameServer(node.id);
@@ -142,7 +144,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Disconnect server"
+              title={t("explorer.disconnectServer")}
               onClick={(event) => {
                 event.stopPropagation();
                 explorer.openDeleteServer(node.id);
@@ -162,7 +164,7 @@ export function ExplorerNode({
           <span className="ml-auto flex shrink-0 items-center gap-0">
             <span className="flex h-5 w-5 items-center justify-center">
               <span
-                title={connectedDatabase ? "Connected" : "Saved connection"}
+                title={connectedDatabase ? t("explorer.connected") : t("explorer.savedConnection")}
                 className={cn(
                   "h-2.5 w-2.5 rounded-full border",
                   connectedDatabase
@@ -175,7 +177,7 @@ export function ExplorerNode({
               <span
                 role="button"
                 tabIndex={0}
-                title="Refresh tables"
+                title={t("explorer.refreshTables")}
                 onClick={(event) => {
                   event.stopPropagation();
                   void explorer.refreshConnection(nodeConnectionKey);
@@ -194,7 +196,7 @@ export function ExplorerNode({
             <span
               role="button"
               tabIndex={0}
-              title="Disconnect database"
+              title={t("explorer.disconnectDatabase")}
               onClick={(event) => {
                 event.stopPropagation();
                 explorer.deleteConnection(

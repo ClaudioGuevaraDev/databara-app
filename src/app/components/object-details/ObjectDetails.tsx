@@ -1,4 +1,5 @@
 import { Braces, Copy, FileCode2, RefreshCw, Table2 } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseObjectDetails } from "../../types";
 import { formatColumn, formatIndex } from "../../workspace/workspaceCore";
 import { DetailRow, EmptyPanel, MetricMini, SectionTitle, SmallAction } from "../ui";
@@ -16,16 +17,18 @@ export function ObjectDetails({
   onPreview: () => void;
   onRefresh: () => void;
 }) {
+  const { t } = useI18n();
   if (!details) {
     return (
       <aside className="chrome-panel flex min-h-0 flex-col border-l border-border">
-        <EmptyPanel text="Select an object to inspect details." />
+        <EmptyPanel text={t("objectDetails.empty")} />
       </aside>
     );
   }
 
   const objectLabel = `${details.schema}.${details.name}`;
-  const objectKindLabel = details.kind === "view" ? "View" : "Table";
+  const objectKindLabel =
+    details.kind === "view" ? t("objectDetails.kind.view") : t("objectDetails.kind.table");
 
   return (
     <aside className="chrome-panel flex min-h-0 flex-col border-l border-border">
@@ -47,31 +50,54 @@ export function ObjectDetails({
         </div>
       </div>
       <div className="grid grid-cols-3 gap-px border-b border-border bg-border text-center text-[11px]">
-        <MetricMini value={String(details.columns.length)} label="cols" />
-        <MetricMini value={String(details.indexes.length)} label="indexes" />
-        <MetricMini value={details.safeEdit ? "PK" : "RO"} label="safe edit" amber />
+        <MetricMini value={String(details.columns.length)} label={t("objectDetails.metric.cols")} />
+        <MetricMini
+          value={String(details.indexes.length)}
+          label={t("objectDetails.metric.indexes")}
+        />
+        <MetricMini
+          value={details.safeEdit ? t("objectDetails.metric.pk") : t("objectDetails.metric.ro")}
+          label={t("objectDetails.metric.safeEdit")}
+          amber
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-3">
-        <SectionTitle>Columns</SectionTitle>
+        <SectionTitle>{t("objectDetails.section.columns")}</SectionTitle>
         {details.columns.map((column) => (
           <DetailRow key={column.name} name={column.name} value={formatColumn(column)} />
         ))}
 
-        <SectionTitle className="mt-5">Indexes</SectionTitle>
+        <SectionTitle className="mt-5">{t("objectDetails.section.indexes")}</SectionTitle>
         {details.indexes.length > 0 ? (
           details.indexes.map((index) => (
             <DetailRow key={index.name} name={index.name} value={formatIndex(index)} />
           ))
         ) : (
-          <div className="text-[12px] text-muted-foreground">No indexes for this object</div>
+          <div className="text-[12px] text-muted-foreground">{t("objectDetails.noIndexes")}</div>
         )}
 
-        <SectionTitle className="mt-5">Actions</SectionTitle>
+        <SectionTitle className="mt-5">{t("objectDetails.section.actions")}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
-          <SmallAction icon={Table2} label="Preview" onClick={onPreview} />
-          <SmallAction icon={FileCode2} label="Schema" onClick={onOpenSchema} />
-          <SmallAction icon={RefreshCw} label="Refresh" onClick={onRefresh} />
-          <SmallAction icon={Copy} label="Copy name" onClick={onCopyName} />
+          <SmallAction
+            icon={Table2}
+            label={t("objectDetails.action.preview")}
+            onClick={onPreview}
+          />
+          <SmallAction
+            icon={FileCode2}
+            label={t("objectDetails.action.schema")}
+            onClick={onOpenSchema}
+          />
+          <SmallAction
+            icon={RefreshCw}
+            label={t("objectDetails.action.refresh")}
+            onClick={onRefresh}
+          />
+          <SmallAction
+            icon={Copy}
+            label={t("objectDetails.action.copyName")}
+            onClick={onCopyName}
+          />
         </div>
       </div>
     </aside>

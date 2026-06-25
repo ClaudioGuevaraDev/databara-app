@@ -1,4 +1,5 @@
 import { Database, Plus, Settings } from "lucide-react";
+import { useI18n } from "../../i18n/I18nContext";
 
 export function TopBar({
   onNewConnection,
@@ -7,6 +8,7 @@ export function TopBar({
   onNewConnection: () => void;
   onOpenSettings: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
       <div className="flex items-center gap-2">
@@ -17,7 +19,7 @@ export function TopBar({
           <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Databara
           </div>
-          <div className="text-[13px] text-foreground">Database workspace</div>
+          <div className="text-[13px] text-foreground">{t("topBar.tagline")}</div>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -27,16 +29,16 @@ export function TopBar({
           className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110"
         >
           <Plus size={14} />
-          Connection
+          {t("topBar.newConnection")}
         </button>
         <button
           type="button"
           onClick={onOpenSettings}
-          title="Settings"
+          title={t("topBar.settings")}
           className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
         >
           <Settings size={14} />
-          Settings
+          {t("topBar.settings")}
         </button>
       </div>
     </header>

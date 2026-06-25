@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, FileCode2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "../../../lib/utils";
+import { useI18n } from "../../i18n/I18nContext";
 import type { SqlTab } from "../../types";
 import { IconButton } from "../ui";
 
@@ -15,6 +16,7 @@ export function EditorTabs({
   onSelect: (tabId: string) => void;
   tabs: SqlTab[];
 }) {
+  const { t } = useI18n();
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -54,7 +56,7 @@ export function EditorTabs({
   return (
     <div className="chrome-panel hairline flex h-9 min-w-0 shrink-0 items-stretch gap-1 border-b border-border px-1">
       <IconButton
-        title="Scroll tabs left"
+        title={t("workspace.scrollTabsLeft")}
         onClick={() => scrollTabs("left")}
         disabled={!canScrollLeft}
       >
@@ -100,7 +102,7 @@ export function EditorTabs({
               </button>
               <button
                 type="button"
-                title={`Close ${tab.label}`}
+                title={t("workspace.closeTab", { label: tab.label })}
                 onClick={() => onClose(tab.id)}
                 className={cn(
                   "flex w-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
@@ -115,7 +117,7 @@ export function EditorTabs({
         </div>
       </div>
       <IconButton
-        title="Scroll tabs right"
+        title={t("workspace.scrollTabsRight")}
         onClick={() => scrollTabs("right")}
         disabled={!canScrollRight}
       >

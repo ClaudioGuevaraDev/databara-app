@@ -1,5 +1,6 @@
 import type { Monaco } from "@monaco-editor/react";
 import type * as monacoEditor from "monaco-editor";
+import { translate } from "../i18n/translate";
 import type { DatabaseEngine, DatabaseObjectDetails } from "../types";
 
 type CompletionRange = {
@@ -515,50 +516,50 @@ const postgresqlFunctions = [
 
 const postgresqlSnippets: SqlCompletionSnippet[] = [
   {
-    detail: "PostgreSQL select query",
+    detail: translate("editor.completion.snippet.select.detail"),
     insertText: "SELECT ${1:*}\nFROM ${2:table_name}\nLIMIT ${3:100};",
-    label: "SELECT statement",
+    label: translate("editor.completion.snippet.select.label"),
   },
   {
-    detail: "PostgreSQL where clause",
+    detail: translate("editor.completion.snippet.where.detail"),
     insertText: "WHERE ${1:column_name} = ${2:value}",
-    label: "WHERE clause",
+    label: translate("editor.completion.snippet.where.label"),
   },
   {
-    detail: "PostgreSQL order by clause",
+    detail: translate("editor.completion.snippet.orderBy.detail"),
     insertText: "ORDER BY ${1:column_name} ${2|ASC,DESC|}",
-    label: "ORDER BY clause",
+    label: translate("editor.completion.snippet.orderBy.label"),
   },
   {
-    detail: "PostgreSQL group by clause",
+    detail: translate("editor.completion.snippet.groupBy.detail"),
     insertText: "GROUP BY ${1:column_name}",
-    label: "GROUP BY clause",
+    label: translate("editor.completion.snippet.groupBy.label"),
   },
   {
-    detail: "PostgreSQL limit clause",
+    detail: translate("editor.completion.snippet.limit.detail"),
     insertText: "LIMIT ${1:100}",
-    label: "LIMIT clause",
+    label: translate("editor.completion.snippet.limit.label"),
   },
   {
-    detail: "PostgreSQL join",
+    detail: translate("editor.completion.snippet.join.detail"),
     insertText:
       "JOIN ${1:table_name} ON ${2:left_table}.${3:column_name} = ${1:table_name}.${3:column_name}",
-    label: "JOIN clause",
+    label: translate("editor.completion.snippet.join.label"),
   },
   {
-    detail: "PostgreSQL insert",
+    detail: translate("editor.completion.snippet.insert.detail"),
     insertText: "INSERT INTO ${1:table_name} (${2:columns})\nVALUES (${3:values});",
-    label: "INSERT statement",
+    label: translate("editor.completion.snippet.insert.label"),
   },
   {
-    detail: "PostgreSQL update",
+    detail: translate("editor.completion.snippet.update.detail"),
     insertText: "UPDATE ${1:table_name}\nSET ${2:column_name} = ${3:value}\nWHERE ${4:condition};",
-    label: "UPDATE statement",
+    label: translate("editor.completion.snippet.update.label"),
   },
   {
-    detail: "PostgreSQL delete",
+    detail: translate("editor.completion.snippet.delete.detail"),
     insertText: "DELETE FROM ${1:table_name}\nWHERE ${2:condition};",
-    label: "DELETE statement",
+    label: translate("editor.completion.snippet.delete.label"),
   },
 ];
 
@@ -641,21 +642,21 @@ function getStaticSuggestions(monaco: Monaco, engine: DatabaseEngine): Completio
       sortText: `2_${snippet.label}`,
     })),
     ...profile.keywords.map((keyword) => ({
-      detail: "SQL keyword",
+      detail: translate("editor.completion.keyword"),
       insertText: keyword,
       kind: monaco.languages.CompletionItemKind.Keyword,
       label: keyword,
       sortText: `3_${keyword}`,
     })),
     ...profile.types.map((type) => ({
-      detail: "SQL type",
+      detail: translate("editor.completion.type"),
       insertText: type,
       kind: monaco.languages.CompletionItemKind.TypeParameter,
       label: type,
       sortText: `4_${type}`,
     })),
     ...profile.functions.map((name) => ({
-      detail: "SQL function",
+      detail: translate("editor.completion.function"),
       insertText: `${name}($1)`,
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
       kind: monaco.languages.CompletionItemKind.Function,

@@ -101,6 +101,10 @@ export type Toast = {
   tone: ToastTone;
 };
 
+// Supported UI languages. Only English is offered today; the union grows as
+// more locales are added to the i18n catalog.
+export type Language = "en";
+
 export type NotificationPosition =
   | "top-left"
   | "top-center"

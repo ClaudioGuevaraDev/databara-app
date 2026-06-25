@@ -6,6 +6,7 @@ import {
   normalizeDatabaseEngine,
 } from "../../connectionEngines";
 import { testPostgresConnection, type StoredConnectionDraft } from "../../databaraService";
+import { useI18n } from "../../i18n/I18nContext";
 import type { ConnectionDraft, DatabaseEngine, SslMode } from "../../types";
 import {
   buildConnectionDraft,
@@ -32,6 +33,7 @@ export function ConnectionDialog({
   onClose: () => void;
   onSave: (draft: ConnectionDraft) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const defaultEngine = connectionEngines[0];
   const defaultDraft: ConnectionFormDraft = {
     database: "",
@@ -136,7 +138,7 @@ export function ConnectionDialog({
         title={
           <>
             <KeyRound size={16} className="text-primary" />
-            Database connection
+            {t("dialogs.connection.title")}
           </>
         }
       >
@@ -151,45 +153,45 @@ export function ConnectionDialog({
         <DialogBody className="grid grid-cols-2 gap-3">
           <SelectField<DatabaseEngine>
             className="col-span-2"
-            label="Engine"
+            label={t("dialogs.connection.engine")}
             onChange={updateEngine}
             options={engineOptions}
             value={draft.engine}
           />
           <Field
             autoFocus
-            label="Host"
+            label={t("dialogs.connection.host")}
             onChange={(value) => updateDraft("host", value)}
             placeholder={engineConfig.placeholders.host}
             value={draft.host}
           />
           <Field
-            label="Port"
+            label={t("dialogs.connection.port")}
             onChange={(value) => updateDraft("port", value)}
             placeholder={String(engineConfig.defaultPort)}
             value={draft.port}
           />
           <Field
-            label="Database"
+            label={t("dialogs.connection.database")}
             onChange={(value) => updateDraft("database", value)}
             placeholder={engineConfig.placeholders.database}
             value={draft.database}
           />
           <Field
-            label="User"
+            label={t("dialogs.connection.user")}
             onChange={(value) => updateDraft("user", value)}
             placeholder={engineConfig.placeholders.user}
             value={draft.user}
           />
           <Field
-            label="Password"
+            label={t("dialogs.connection.password")}
             onChange={(value) => updateDraft("password", value)}
-            placeholder={engineConfig.placeholders.password}
+            placeholder={t("dialogs.connection.passwordPlaceholder")}
             type="password"
             value={draft.password}
           />
           <SelectField<SslMode>
-            label="SSL mode"
+            label={t("dialogs.connection.sslMode")}
             onChange={(value) => updateDraft("sslMode", value)}
             options={sslModeOptions}
             value={draft.sslMode}
@@ -202,9 +204,7 @@ export function ConnectionDialog({
                 {formMessage.text}
               </span>
             ) : (
-              <span className="text-muted-foreground">
-                Password is used for this session only and is not saved.
-              </span>
+              <span className="text-muted-foreground">{t("dialogs.connection.passwordHint")}</span>
             )}
           </div>
         </DialogBody>
@@ -216,7 +216,7 @@ export function ConnectionDialog({
             className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
           >
             {testing ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
-            Test connection
+            {t("dialogs.connection.test")}
           </button>
           <button
             type="submit"
@@ -224,7 +224,7 @@ export function ConnectionDialog({
             className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Connect
+            {t("common.connect")}
           </button>
         </DialogActions>
       </form>

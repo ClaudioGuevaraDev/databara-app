@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n/I18nContext";
 import { ResultsDock } from "../results/ResultsDock";
 import { EmptyWorkspace } from "./EmptyWorkspace";
 import { TabsEditor } from "./TabsEditor";
@@ -9,6 +10,7 @@ export function MainWorkspace({
   requiresConnection: boolean;
   autoReconnecting: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <main className="flex min-h-0 min-w-0 flex-col">
       {requiresConnection ? (
@@ -16,7 +18,7 @@ export function MainWorkspace({
         // state so it doesn't flash before the dashboard appears.
         autoReconnecting ? (
           <div className="flex min-h-0 flex-1 items-center justify-center text-[12px] text-muted-foreground">
-            Reconnecting…
+            {t("workspace.reconnecting")}
           </div>
         ) : (
           <EmptyWorkspace />

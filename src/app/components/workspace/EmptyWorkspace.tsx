@@ -1,10 +1,12 @@
 import { Database, KeyRound, Plus } from "lucide-react";
 import { connectionEngineLabel } from "../../connectionEngines";
+import { useI18n } from "../../i18n/I18nContext";
 import { savedConnectionNodeId, useEmptyWorkspace } from "../../workspace/workspaceCore";
 import { NoConnectionEmptySvg } from "./NoConnectionEmptySvg";
 import { SavedConnectionEmptySvg } from "./SavedConnectionEmptySvg";
 
 export function EmptyWorkspace() {
+  const { t } = useI18n();
   const empty = useEmptyWorkspace();
 
   return (
@@ -14,11 +16,11 @@ export function EmptyWorkspace() {
         {empty.hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
         <div className="grid gap-2">
           <h2 className="text-[18px] font-semibold text-foreground">
-            {empty.hasStoredConnections ? "No active database connection" : "No connections yet"}
+            {empty.hasStoredConnections ? t("workspace.empty.noActive") : t("workspace.empty.none")}
           </h2>
           {empty.hasStoredConnections ? null : (
             <p className="max-w-[460px] text-[13px] leading-6 text-muted-foreground">
-              Add a database connection to inspect schemas, tables, views, columns, and indexes.
+              {t("workspace.empty.description")}
             </p>
           )}
         </div>
@@ -28,14 +30,14 @@ export function EmptyWorkspace() {
               <div className="max-w-[280px]">
                 <div className="flex items-center gap-2">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Saved connections
+                    {t("workspace.empty.savedConnections")}
                   </div>
                   <div className="rounded-full border border-primary/20 bg-[hsl(var(--primary)/0.1)] px-2.5 py-1 text-[11px] font-semibold text-primary">
                     {empty.storedConnections.length}
                   </div>
                 </div>
                 <div className="mt-1 text-[12px] text-muted-foreground">
-                  Choose a session to unlock the workspace.
+                  {t("workspace.empty.chooseSession")}
                 </div>
               </div>
               <button
@@ -44,7 +46,7 @@ export function EmptyWorkspace() {
                 className="flex h-8 items-center gap-1.5 self-start rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
               >
                 <Plus size={13} />
-                New Connection
+                {t("workspace.empty.newConnection")}
               </button>
             </div>
             <div className="max-h-[360px] overflow-y-auto p-2">
@@ -75,7 +77,7 @@ export function EmptyWorkspace() {
                         className="flex h-8 shrink-0 items-center gap-1.5 rounded border border-primary/25 bg-[hsl(var(--primary)/0.12)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.18)]"
                       >
                         <Database size={13} />
-                        Connect
+                        {t("workspace.empty.connect")}
                       </button>
                     </div>
                   );
@@ -89,7 +91,7 @@ export function EmptyWorkspace() {
             className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
           >
             <Plus size={15} />
-            Connection
+            {t("workspace.empty.connection")}
           </button>
         )}
       </div>
