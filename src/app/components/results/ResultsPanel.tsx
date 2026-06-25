@@ -1,5 +1,7 @@
 import { Braces, Columns3, Loader2, Table2 } from "lucide-react";
+import { useState } from "react";
 import { cn } from "../../../lib/utils";
+import { BOTTOM_PANEL_HEIGHT_MAX, BOTTOM_PANEL_HEIGHT_MIN } from "../../databaraService";
 import type {
   DatabaseObjectDetails,
   QueryPagination,
@@ -7,7 +9,8 @@ import type {
   QueryState,
   ResultPanelTab,
 } from "../../types";
-import { EmptyPanel } from "../ui";
+import { useSettings } from "../../workspace/workspaceCore";
+import { EmptyPanel, ResizeHandle } from "../ui";
 import { ColumnsView } from "./ColumnsView";
 import { DataGrid } from "./DataGrid";
 import { ResultsFooter } from "./ResultsFooter";
@@ -35,6 +38,11 @@ export function ResultsPanel({
   queryResult: QueryResult | null;
   queryState: QueryState;
 }) {
+  const { settings, setBottomPanelHeight } = useSettings();
+  // Live height while dragging; persisted only on release (see WorkspaceShell).
+  const [dragHeight, setDragHeight] = useState<number | null>(null);
+  const height = dragHeight ?? settings.bottomPanelHeight.height;
+
   const tabs = [
     { id: "results" as const, icon: Table2, label: "Results" },
     { id: "columns" as const, icon: Columns3, label: "Columns" },
@@ -47,7 +55,24 @@ export function ResultsPanel({
     queryState === "error" ? (queryError ?? "Query failed") : (queryResult?.message ?? "Done");
 
   return (
-    <section className="chrome-panel flex h-[360px] shrink-0 flex-col border-t border-border">
+    <section
+      className="chrome-panel relative flex shrink-0 flex-col border-t border-border"
+      style={{ height }}
+    >
+      <ResizeHandle
+        axis="y"
+        inverted
+        ariaLabel="Resize results panel"
+        value={height}
+        min={BOTTOM_PANEL_HEIGHT_MIN}
+        max={BOTTOM_PANEL_HEIGHT_MAX}
+        onResize={setDragHeight}
+        onCommit={(next) => {
+          setBottomPanelHeight(next);
+          setDragHeight(null);
+        }}
+        className="absolute inset-x-0 top-0 -translate-y-1/2"
+      />
       <div className="flex h-9 items-center border-b border-border">
         <div className="flex h-full items-center">
           {tabs.map((tab) => {

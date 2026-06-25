@@ -7,6 +7,7 @@ export { EmptyPanel } from "./EmptyPanel";
 export { Field } from "./Field";
 export { IconButton } from "./IconButton";
 export { MetricMini } from "./MetricMini";
+export { ResizeHandle } from "./ResizeHandle";
 export { SectionTitle } from "./SectionTitle";
 export { SelectField, type SelectFieldOption } from "./SelectField";
 export { SmallAction } from "./SmallAction";

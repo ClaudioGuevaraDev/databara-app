@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  clampBottomPanelHeight,
   clampEditorFontSize,
+  clampSidebarWidth,
   clampZoomLevel,
   closeMainWindowAfterUnsavedResolution,
   connectPostgres,
@@ -10,6 +12,7 @@ import {
   getConnectionPassword,
   getPostgresObjectDetails,
   listPostgresTree,
+  defaultAppSettings,
   loadAppSettings,
   loadServerLabels,
   loadStoredConnections,
@@ -1338,6 +1341,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           ...current,
           notificationPosition: { position },
         })),
+      setSidebarWidth: (width) =>
+        setSettings((current) => ({
+          ...current,
+          sidebarWidth: { width: clampSidebarWidth(width) },
+        })),
+      setBottomPanelHeight: (height) =>
+        setSettings((current) => ({
+          ...current,
+          bottomPanelHeight: { height: clampBottomPanelHeight(height) },
+        })),
+      resetSettings: () => setSettings(defaultAppSettings),
       startUpdateCheck,
       dismissUpdateDialog,
       openDownloadPage: () => void openDownloadPage(),

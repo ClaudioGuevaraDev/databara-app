@@ -58,6 +58,10 @@ export type AppSettings = {
   editorFontSize: { size: number };
   // On-screen corner/edge where toast notifications appear.
   notificationPosition: { position: NotificationPosition };
+  // Width (in px) of the explorer sidebar.
+  sidebarWidth: { width: number };
+  // Height (in px) of the bottom results panel.
+  bottomPanelHeight: { height: number };
 };
 
 export const NOTIFICATION_POSITIONS: readonly NotificationPosition[] = [
@@ -80,11 +84,25 @@ export const EDITOR_FONT_SIZE_MIN = 8;
 export const EDITOR_FONT_SIZE_MAX = 24;
 export const EDITOR_FONT_SIZE_STEP = 1;
 
+// Explorer sidebar width, in px.
+export const SIDEBAR_WIDTH_MIN = 200;
+export const SIDEBAR_WIDTH_MAX = 600;
+export const SIDEBAR_WIDTH_STEP = 1;
+export const SIDEBAR_WIDTH_DEFAULT = 320;
+
+// Bottom results panel height, in px.
+export const BOTTOM_PANEL_HEIGHT_MIN = 160;
+export const BOTTOM_PANEL_HEIGHT_MAX = 800;
+export const BOTTOM_PANEL_HEIGHT_STEP = 1;
+export const BOTTOM_PANEL_HEIGHT_DEFAULT = 360;
+
 export const defaultAppSettings: AppSettings = {
   zoom: { level: 100 },
   keepConnectionsActive: { enabled: false },
   editorFontSize: { size: 13 },
   notificationPosition: { position: "top-center" },
+  sidebarWidth: { width: SIDEBAR_WIDTH_DEFAULT },
+  bottomPanelHeight: { height: BOTTOM_PANEL_HEIGHT_DEFAULT },
 };
 
 export function clampZoomLevel(level: number): number {
@@ -97,6 +115,18 @@ export function clampEditorFontSize(size: number): number {
   if (!Number.isFinite(size)) return defaultAppSettings.editorFontSize.size;
   const snapped = Math.round(size);
   return Math.min(EDITOR_FONT_SIZE_MAX, Math.max(EDITOR_FONT_SIZE_MIN, snapped));
+}
+
+export function clampSidebarWidth(width: number): number {
+  if (!Number.isFinite(width)) return defaultAppSettings.sidebarWidth.width;
+  const snapped = Math.round(width);
+  return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, snapped));
+}
+
+export function clampBottomPanelHeight(height: number): number {
+  if (!Number.isFinite(height)) return defaultAppSettings.bottomPanelHeight.height;
+  const snapped = Math.round(height);
+  return Math.min(BOTTOM_PANEL_HEIGHT_MAX, Math.max(BOTTOM_PANEL_HEIGHT_MIN, snapped));
 }
 
 function normalizeAppSettings(raw: unknown): AppSettings {
@@ -118,6 +148,16 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     notificationPosition && typeof notificationPosition === "object"
       ? (notificationPosition as { position?: unknown }).position
       : undefined;
+  const sidebarWidth = (raw as { sidebarWidth?: unknown }).sidebarWidth;
+  const width =
+    sidebarWidth && typeof sidebarWidth === "object"
+      ? (sidebarWidth as { width?: unknown }).width
+      : undefined;
+  const bottomPanelHeight = (raw as { bottomPanelHeight?: unknown }).bottomPanelHeight;
+  const height =
+    bottomPanelHeight && typeof bottomPanelHeight === "object"
+      ? (bottomPanelHeight as { height?: unknown }).height
+      : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
@@ -135,6 +175,16 @@ function normalizeAppSettings(raw: unknown): AppSettings {
       position: NOTIFICATION_POSITIONS.includes(position as NotificationPosition)
         ? (position as NotificationPosition)
         : defaultAppSettings.notificationPosition.position,
+    },
+    sidebarWidth: {
+      width: clampSidebarWidth(
+        typeof width === "number" ? width : defaultAppSettings.sidebarWidth.width,
+      ),
+    },
+    bottomPanelHeight: {
+      height: clampBottomPanelHeight(
+        typeof height === "number" ? height : defaultAppSettings.bottomPanelHeight.height,
+      ),
     },
   };
 }

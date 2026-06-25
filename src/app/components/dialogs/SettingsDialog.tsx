@@ -1,9 +1,15 @@
-import { Database, Minus, Plus, Settings, SlidersHorizontal, Type } from "lucide-react";
+import { Database, Minus, Plus, RotateCcw, Settings, SlidersHorizontal, Type } from "lucide-react";
 import { useState, type ComponentType } from "react";
 import {
+  BOTTOM_PANEL_HEIGHT_MAX,
+  BOTTOM_PANEL_HEIGHT_MIN,
+  BOTTOM_PANEL_HEIGHT_STEP,
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
   EDITOR_FONT_SIZE_STEP,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_STEP,
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
@@ -45,11 +51,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     setKeepConnectionsActive,
     setEditorFontSize,
     setNotificationPosition,
+    setSidebarWidth,
+    setBottomPanelHeight,
+    resetSettings,
   } = useSettings();
   const { level } = settings.zoom;
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
   const { size: editorFontSize } = settings.editorFontSize;
   const { position: notificationPosition } = settings.notificationPosition;
+  const { width: sidebarWidth } = settings.sidebarWidth;
+  const { height: bottomPanelHeight } = settings.bottomPanelHeight;
   const [tab, setTab] = useState<SettingsTab>("general");
 
   return (
@@ -127,6 +138,66 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   onChange={setNotificationPosition}
                   options={NOTIFICATION_POSITION_OPTIONS}
                 />
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">Sidebar width</div>
+                  <div className="text-muted-foreground">Width of the explorer sidebar.</div>
+                </div>
+                <div className="flex items-center gap-2 justify-self-end">
+                  <button
+                    type="button"
+                    title="Decrease sidebar width"
+                    disabled={sidebarWidth <= SIDEBAR_WIDTH_MIN}
+                    onClick={() => setSidebarWidth(sidebarWidth - SIDEBAR_WIDTH_STEP)}
+                    className="control flex h-8 w-8 items-center justify-center rounded"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-12 text-center font-mono text-[13px] tabular-nums text-foreground">
+                    {sidebarWidth}
+                  </span>
+                  <button
+                    type="button"
+                    title="Increase sidebar width"
+                    disabled={sidebarWidth >= SIDEBAR_WIDTH_MAX}
+                    onClick={() => setSidebarWidth(sidebarWidth + SIDEBAR_WIDTH_STEP)}
+                    className="control flex h-8 w-8 items-center justify-center rounded"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    Bottom panel height
+                  </div>
+                  <div className="text-muted-foreground">Height of the results panel.</div>
+                </div>
+                <div className="flex items-center gap-2 justify-self-end">
+                  <button
+                    type="button"
+                    title="Decrease bottom panel height"
+                    disabled={bottomPanelHeight <= BOTTOM_PANEL_HEIGHT_MIN}
+                    onClick={() =>
+                      setBottomPanelHeight(bottomPanelHeight - BOTTOM_PANEL_HEIGHT_STEP)
+                    }
+                    className="control flex h-8 w-8 items-center justify-center rounded"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-12 text-center font-mono text-[13px] tabular-nums text-foreground">
+                    {bottomPanelHeight}
+                  </span>
+                  <button
+                    type="button"
+                    title="Increase bottom panel height"
+                    disabled={bottomPanelHeight >= BOTTOM_PANEL_HEIGHT_MAX}
+                    onClick={() =>
+                      setBottomPanelHeight(bottomPanelHeight + BOTTOM_PANEL_HEIGHT_STEP)
+                    }
+                    className="control flex h-8 w-8 items-center justify-center rounded"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
               </>
             ) : null}
             {tab === "editor" ? (
@@ -184,6 +255,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       <DialogActions>
+        <button
+          onClick={resetSettings}
+          className="mr-auto flex h-8 items-center gap-1.5 rounded border border-[hsl(var(--primary)/0.45)] px-3 text-[12px] font-medium text-[hsl(var(--primary))] transition-colors hover:border-[hsl(var(--primary)/0.7)] hover:bg-[hsl(var(--primary)/0.12)]"
+        >
+          <RotateCcw size={14} />
+          Reset to defaults
+        </button>
         <button onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
           Close
         </button>

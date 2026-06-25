@@ -116,6 +116,9 @@ export type WorkspaceActions = {
   setKeepConnectionsActive: (enabled: boolean) => void;
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
+  setSidebarWidth: (width: number) => void;
+  setBottomPanelHeight: (height: number) => void;
+  resetSettings: () => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
   setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
@@ -173,6 +176,9 @@ export function useSettings() {
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
+    setSidebarWidth: actions.setSidebarWidth,
+    setBottomPanelHeight: actions.setBottomPanelHeight,
+    resetSettings: actions.resetSettings,
     setZoomLevel: actions.setZoomLevel,
   };
 }
