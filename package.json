@@ -1,10 +1,10 @@
 {
   "name": "databara-app",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
