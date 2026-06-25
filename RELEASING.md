@@ -52,7 +52,7 @@ El bundle de macOS necesita `icon.icns` y el de Linux necesita PNGs; hoy el repo
 
 | SO      | Archivos                                                  |
 | ------- | --------------------------------------------------------- |
-| Windows | `-setup.exe` (NSIS) — sin MSI, ver nota abajo              |
+| Windows | `-setup.exe` (NSIS) — sin MSI, ver nota abajo             |
 | macOS   | `.dmg` / `.app` (binario universal Intel + Apple Silicon) |
 | Linux   | `.deb`, `.rpm`, `.AppImage`                               |
 

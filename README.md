@@ -31,24 +31,25 @@ Built with [Tauri](https://tauri.app), [React](https://react.dev) and [Rust](htt
 
 Grab the latest installer for your OS from the [**Releases page**](https://github.com/ClaudioGuevaraDev/databara-app/releases):
 
-| OS          | File                                |
-| ----------- | ----------------------------------- |
-| **Windows** | `Databara_x.y.z_x64-setup.exe` (or `.msi`) |
+| OS          | File                                                   |
+| ----------- | ------------------------------------------------------ |
+| **Windows** | `Databara_x.y.z_x64-setup.exe` (or `.msi`)             |
 | **macOS**   | `Databara_x.y.z_universal.dmg` (Intel + Apple Silicon) |
-| **Linux**   | `Databara_x.y.z_amd64.AppImage`, `.deb` or `.rpm` |
+| **Linux**   | `Databara_x.y.z_amd64.AppImage`, `.deb` or `.rpm`      |
 
 > [!NOTE]
 > The installers are currently **unsigned**. On first launch:
+>
 > - **macOS** → right-click the app → **Open** (or run `xattr -dr com.apple.quarantine /Applications/Databara.app`).
 > - **Windows** → SmartScreen → **More info → Run anyway**.
 
 ## 🛠️ Tech stack
 
-| Layer    | Technology                                                   |
-| -------- | ------------------------------------------------------------ |
-| Frontend | React 19 · TypeScript · Vite · Tailwind CSS · Monaco Editor  |
-| Backend  | Rust · Tauri v2 · `tokio-postgres` · `native-tls`            |
-| Tooling  | pnpm · ESLint · Prettier                                     |
+| Layer    | Technology                                                  |
+| -------- | ----------------------------------------------------------- |
+| Frontend | React 19 · TypeScript · Vite · Tailwind CSS · Monaco Editor |
+| Backend  | Rust · Tauri v2 · `tokio-postgres` · `native-tls`           |
+| Tooling  | pnpm · ESLint · Prettier                                    |
 
 ## 🚀 Development
 
