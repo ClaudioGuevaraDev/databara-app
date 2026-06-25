@@ -172,12 +172,6 @@ export function ConnectionDialog({
             value={draft.port}
           />
           <Field
-            label={t("dialogs.connection.database")}
-            onChange={(value) => updateDraft("database", value)}
-            placeholder={engineConfig.placeholders.database}
-            value={draft.database}
-          />
-          <Field
             label={t("dialogs.connection.user")}
             onChange={(value) => updateDraft("user", value)}
             placeholder={engineConfig.placeholders.user}
@@ -189,6 +183,12 @@ export function ConnectionDialog({
             placeholder={t("dialogs.connection.passwordPlaceholder")}
             type="password"
             value={draft.password}
+          />
+          <Field
+            label={t("dialogs.connection.database")}
+            onChange={(value) => updateDraft("database", value)}
+            placeholder={engineConfig.placeholders.database}
+            value={draft.database}
           />
           <SelectField<SslMode>
             label={t("dialogs.connection.sslMode")}
