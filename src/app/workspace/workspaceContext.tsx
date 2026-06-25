@@ -1352,6 +1352,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           bottomPanelHeight: { height: clampBottomPanelHeight(height) },
         })),
       resetSettings: () => setSettings(defaultAppSettings),
+      resetSettingsKeys: <K extends keyof AppSettings>(keys: K[]) =>
+        setSettings((current) => {
+          const next = { ...current };
+          for (const key of keys) next[key] = defaultAppSettings[key];
+          return next;
+        }),
       startUpdateCheck,
       dismissUpdateDialog,
       openDownloadPage: () => void openDownloadPage(),

@@ -119,6 +119,7 @@ export type WorkspaceActions = {
   setSidebarWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
   resetSettings: () => void;
+  resetSettingsKeys: (keys: (keyof AppSettings)[]) => void;
   setQueryPageSize: (pageSize: number) => Promise<void>;
   setZoomLevel: (level: number) => void;
   startUpdateCheck: (opts?: { silent?: boolean }) => Promise<void>;
@@ -179,6 +180,7 @@ export function useSettings() {
     setSidebarWidth: actions.setSidebarWidth,
     setBottomPanelHeight: actions.setBottomPanelHeight,
     resetSettings: actions.resetSettings,
+    resetSettingsKeys: actions.resetSettingsKeys,
     setZoomLevel: actions.setZoomLevel,
   };
 }

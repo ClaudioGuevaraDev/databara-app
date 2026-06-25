@@ -4,6 +4,7 @@ import {
   BOTTOM_PANEL_HEIGHT_MAX,
   BOTTOM_PANEL_HEIGHT_MIN,
   BOTTOM_PANEL_HEIGHT_STEP,
+  defaultAppSettings,
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
   EDITOR_FONT_SIZE_STEP,
@@ -13,6 +14,7 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
+  type AppSettings,
 } from "../../databaraService";
 import { cn } from "../../../lib/utils";
 import type { NotificationPosition } from "../../types";
@@ -44,6 +46,15 @@ const TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: numbe
   { id: "connections", label: "Connections", icon: Database },
 ];
 
+// Which AppSettings keys each tab owns — used to reset only the active tab.
+const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
+  general: ["zoom", "notificationPosition", "sidebarWidth", "bottomPanelHeight"],
+  editor: ["editorFontSize"],
+  connections: ["keepConnectionsActive"],
+};
+
+const ALL_SETTINGS_KEYS = Object.keys(defaultAppSettings) as (keyof AppSettings)[];
+
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const {
     settings,
@@ -54,6 +65,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     setSidebarWidth,
     setBottomPanelHeight,
     resetSettings,
+    resetSettingsKeys,
   } = useSettings();
   const { level } = settings.zoom;
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
@@ -62,6 +74,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { width: sidebarWidth } = settings.sidebarWidth;
   const { height: bottomPanelHeight } = settings.bottomPanelHeight;
   const [tab, setTab] = useState<SettingsTab>("general");
+
+  const isDefault = (keys: (keyof AppSettings)[]) =>
+    keys.every((key) => JSON.stringify(settings[key]) === JSON.stringify(defaultAppSettings[key]));
+  const allAreDefault = isDefault(ALL_SETTINGS_KEYS);
 
   return (
     <DialogFrame maxWidth="max-w-[640px]">
@@ -77,22 +93,45 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       </DialogHeader>
       <div className="flex">
         <nav className="w-44 shrink-0 border-r border-border p-2">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={cn(
-                "flex h-8 w-full items-center gap-2 rounded px-2.5 text-left text-[12.5px] transition-colors",
-                tab === id
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon size={14} />
-              <span className="truncate">{label}</span>
-            </button>
-          ))}
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const active = tab === id;
+            const tabIsDefault = isDefault(TAB_RESET_KEYS[id]);
+            return (
+              <div key={id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    "flex h-8 w-full items-center gap-2 rounded pl-2.5 pr-8 text-left text-[12.5px] transition-colors",
+                    active
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon size={14} />
+                  <span className="truncate">{label}</span>
+                </button>
+                {active ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      resetSettingsKeys(TAB_RESET_KEYS[id]);
+                    }}
+                    disabled={tabIsDefault}
+                    title={`Reset ${label} to defaults`}
+                    aria-label={`Reset ${label} to defaults`}
+                    className="group absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.14)] disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50 disabled:hover:bg-transparent"
+                  >
+                    <RotateCcw
+                      size={13}
+                      className="transition-transform duration-300 group-hover:-rotate-90 group-disabled:rotate-0"
+                    />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
         </nav>
         <div className="min-h-[220px] flex-1 p-4">
           <div className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-5 text-[12px]">
@@ -256,11 +295,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       </div>
       <DialogActions>
         <button
+          type="button"
           onClick={resetSettings}
-          className="mr-auto flex h-8 items-center gap-1.5 rounded border border-[hsl(var(--primary)/0.45)] px-3 text-[12px] font-medium text-[hsl(var(--primary))] transition-colors hover:border-[hsl(var(--primary)/0.7)] hover:bg-[hsl(var(--primary)/0.12)]"
+          disabled={allAreDefault}
+          className="group mr-auto flex items-center gap-1.5 rounded px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
-          <RotateCcw size={14} />
-          Reset to defaults
+          <RotateCcw
+            size={12}
+            className="transition-transform duration-300 group-hover:-rotate-90 group-disabled:rotate-0"
+          />
+          Reset all settings
         </button>
         <button onClick={onClose} className="control h-8 rounded px-3 text-[12px]">
           Close
