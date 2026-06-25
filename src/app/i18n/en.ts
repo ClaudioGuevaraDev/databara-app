@@ -278,7 +278,6 @@ export const en = {
     runBeforeExportCsv: "Run a query before exporting CSV",
     csvExportStarted: "CSV export started",
     objectNameCopied: "Object name copied",
-    tabClosed: "Closed {{label}}",
     connectionDisconnected: "{{database}} disconnected",
     serverDisconnected: "{{name}} disconnected",
     serverFallbackName: "Server",

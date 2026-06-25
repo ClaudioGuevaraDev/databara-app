@@ -1080,9 +1080,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         delete next[tabId];
         return next;
       });
-      notify(translate("toast.tabClosed", { label: sqlTabs[closingTabIndex]!.label }));
     },
-    [activeTabId, connectionByKey, notify, sqlTabs, syncExplorerSelectionWithTab],
+    [activeTabId, connectionByKey, sqlTabs, syncExplorerSelectionWithTab],
   );
 
   const closeWindowAfterResolution = useCallback(
