@@ -1,4 +1,4 @@
-import { Database, Minus, Plus, RotateCcw, Settings, SlidersHorizontal, Type } from "lucide-react";
+import { Database, Minus, Plus, Settings, SlidersHorizontal, Type, Undo2 } from "lucide-react";
 import { useState, type ComponentType } from "react";
 import {
   BOTTOM_PANEL_HEIGHT_MAX,
@@ -143,11 +143,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     disabled={tabIsDefault}
                     title={t("settings.resetTab", { tab: label })}
                     aria-label={t("settings.resetTab", { tab: label })}
-                    className="group absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.14)] disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50 disabled:hover:bg-transparent"
+                    className="group absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/0.14)] disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50 disabled:hover:bg-transparent"
                   >
-                    <RotateCcw
+                    <Undo2
                       size={13}
-                      className="transition-transform duration-300 group-hover:-rotate-90 group-disabled:rotate-0"
+                      className="transition-transform duration-200 group-hover:scale-110"
                     />
                   </button>
                 ) : null}
@@ -344,9 +344,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           disabled={allAreDefault}
           className="group mr-auto flex items-center gap-1.5 rounded px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
-          <RotateCcw
+          <Undo2
             size={12}
-            className="transition-transform duration-300 group-hover:-rotate-90 group-disabled:rotate-0"
+            className="transition-transform duration-200 group-hover:-translate-x-0.5 group-disabled:translate-x-0"
           />
           {t("settings.resetAll")}
         </button>
