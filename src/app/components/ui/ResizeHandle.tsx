@@ -72,9 +72,10 @@ export function ResizeHandle({
       onPointerUp={handlePointerUp}
       style={style}
       className={cn(
-        // Invisible hit area; the native resize cursor is the affordance.
+        // Invisible hit area; a white double-arrow custom cursor
+        // (`cursor-resize-x/y` in globals.css) is the affordance.
         "z-10 touch-none select-none bg-transparent",
-        axis === "x" ? "h-full w-1.5 cursor-col-resize" : "h-1.5 w-full cursor-row-resize",
+        axis === "x" ? "cursor-resize-x h-full w-1.5" : "cursor-resize-y h-1.5 w-full",
         className,
       )}
     />
