@@ -84,6 +84,7 @@ export type WorkspaceActions = {
   closeSettingsDialog: () => void;
   closeResults: () => void;
   closeSqlTab: (tabId: string) => void;
+  officializeSqlTab: (tabId: string) => void;
   closeUnsavedTabsDialog: () => void;
   closeWindowAfterResolution: (mode: "save" | "discard") => Promise<void>;
   confirmAddDatabase: (serverId: string, database: string, password?: string) => Promise<void>;
@@ -232,6 +233,7 @@ export function useSqlEditor() {
     selectedObject: state.selectedObject,
     sqlTabs: state.sqlTabs,
     closeSqlTab: actions.closeSqlTab,
+    officializeSqlTab: actions.officializeSqlTab,
     runQuery: actions.runQuery,
     saveActiveSqlTab: actions.saveActiveSqlTab,
     selectSqlTab: actions.selectSqlTab,

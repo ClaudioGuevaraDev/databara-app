@@ -439,6 +439,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return committedTab;
   }, []);
 
+  const officializeSqlTabAction = useCallback(
+    (tabId: string) => {
+      commitSqlTab(tabId);
+    },
+    [commitSqlTab],
+  );
+
   const saveActiveSqlTab = useCallback(async () => {
     const currentTabId = activeTabIdRef.current;
     if (!currentTabId) return;
@@ -1327,6 +1334,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openNewConnectionDialog,
       openSavedConnection,
       openSettingsDialog: () => setSettingsDialogOpen(true),
+      officializeSqlTab: officializeSqlTabAction,
       previewObject,
       refreshAll,
       refreshConnection,

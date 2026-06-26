@@ -8,11 +8,13 @@ import { IconButton } from "../ui";
 export function EditorTabs({
   activeTabId,
   onClose,
+  onOfficialize,
   onSelect,
   tabs,
 }: {
   activeTabId: string;
   onClose: (tabId: string) => void;
+  onOfficialize: (tabId: string) => void;
   onSelect: (tabId: string) => void;
   tabs: SqlTab[];
 }) {
@@ -83,6 +85,7 @@ export function EditorTabs({
               <button
                 type="button"
                 onClick={() => onSelect(tab.id)}
+                onDoubleClick={() => onOfficialize(tab.id)}
                 className={cn(
                   "flex min-w-0 flex-1 items-center gap-2 px-3 text-left",
                   tab.state === "temporary" && "skew-x-6",

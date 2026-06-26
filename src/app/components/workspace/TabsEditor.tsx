@@ -53,6 +53,7 @@ export function TabsEditor() {
       <EditorTabs
         activeTabId={editor.activeTabId}
         onClose={editor.closeSqlTab}
+        onOfficialize={editor.officializeSqlTab}
         onSelect={editor.selectSqlTab}
         tabs={editor.sqlTabs}
       />
