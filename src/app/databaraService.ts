@@ -412,19 +412,24 @@ export function saveStoredConnection(draft: ConnectionDraft): StoredConnectionDr
   };
 
   const savedConnections = loadStoredConnections();
-  const nextConnections = [
-    storedDraft,
-    ...savedConnections.filter(
-      (connection) =>
-        !(
-          connection.engine === storedDraft.engine &&
-          connection.host === storedDraft.host &&
-          connection.port === storedDraft.port &&
-          connection.database === storedDraft.database &&
-          connection.user === storedDraft.user
-        ),
-    ),
-  ];
+  const existingIndex = savedConnections.findIndex(
+    (connection) =>
+      connection.engine === storedDraft.engine &&
+      connection.host === storedDraft.host &&
+      connection.port === storedDraft.port &&
+      connection.database === storedDraft.database &&
+      connection.user === storedDraft.user,
+  );
+
+  // Preserve creation order: update an existing connection in place (keeps its
+  // position) and append brand-new ones at the end. The sidebar order must never
+  // shift on connect/reconnect/save.
+  const nextConnections =
+    existingIndex === -1
+      ? [...savedConnections, storedDraft]
+      : savedConnections.map((connection, index) =>
+          index === existingIndex ? storedDraft : connection,
+        );
 
   saveStoredConnections(nextConnections);
   return nextConnections;

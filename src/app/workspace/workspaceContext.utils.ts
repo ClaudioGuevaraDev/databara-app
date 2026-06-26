@@ -27,36 +27,73 @@ export function buildStoredConnectionTree(
   activeTree: DatabaseTreeNode[],
   serverLabels: Record<string, string> = {},
 ) {
-  const serverNodes = new Map<string, DatabaseTreeNode>();
+  // Active server nodes carry the backend's schema/table subtree; index them by
+  // id for data lookup only — ordering comes from `storedConnections`, never from
+  // a node label (which changes on rename) or from connection status.
+  const activeServers = new Map(activeTree.map((node) => [node.id, node]));
 
-  for (const node of activeTree) {
-    serverNodes.set(node.id, { ...node, label: serverLabels[node.id] ?? node.label });
-  }
+  // Order is the creation order of `storedConnections`: first appearance of each
+  // server, and order of appearance of each database within it.
+  const serverNodes = new Map<string, DatabaseTreeNode>();
+  const seenDatabases = new Map<string, Set<string>>();
 
   for (const connection of storedConnections) {
     const serverId = serverNodeId(connection);
-    const serverNode = serverNodes.get(serverId) ?? {
-      children: [],
-      id: serverId,
-      kind: "database" as const,
-      label: serverLabels[serverId] ?? `${connection.host}:${connection.port}`,
-      open: true,
-    };
-    const children = serverNode.children ?? [];
-    const hasDatabase = children.some((node) => node.label === connection.database);
+    const activeServer = activeServers.get(serverId);
 
-    if (!hasDatabase) {
-      children.push({
+    if (!serverNodes.has(serverId)) {
+      serverNodes.set(serverId, {
+        children: [],
+        id: serverId,
+        kind: "database",
+        label:
+          serverLabels[serverId] ?? activeServer?.label ?? `${connection.host}:${connection.port}`,
+        open: activeServer?.open ?? true,
+      });
+      seenDatabases.set(serverId, new Set());
+    }
+
+    const seen = seenDatabases.get(serverId)!;
+    if (seen.has(connection.database)) continue;
+    seen.add(connection.database);
+
+    // Reuse the live node (with its schema/table children) when connected;
+    // otherwise a clickable placeholder that connects on demand.
+    const activeDatabase = activeServer?.children?.find(
+      (child) => child.label === connection.database,
+    );
+    serverNodes.get(serverId)!.children!.push(
+      activeDatabase ?? {
         id: savedConnectionNodeId(connection),
         kind: "database",
         label: connection.database,
-      });
-    }
-
-    serverNodes.set(serverId, { ...serverNode, children });
+      },
+    );
   }
 
-  return [...serverNodes.values()].sort((first, second) => first.label.localeCompare(second.label));
+  // Defensive: surface any active server/database that isn't in storedConnections
+  // (shouldn't happen — connecting always saves) so nothing silently disappears.
+  for (const activeServer of activeTree) {
+    if (!serverNodes.has(activeServer.id)) {
+      serverNodes.set(activeServer.id, {
+        ...activeServer,
+        label: serverLabels[activeServer.id] ?? activeServer.label,
+      });
+      seenDatabases.set(
+        activeServer.id,
+        new Set((activeServer.children ?? []).map((c) => c.label)),
+      );
+      continue;
+    }
+    const seen = seenDatabases.get(activeServer.id)!;
+    for (const child of activeServer.children ?? []) {
+      if (seen.has(child.label)) continue;
+      seen.add(child.label);
+      serverNodes.get(activeServer.id)!.children!.push(child);
+    }
+  }
+
+  return [...serverNodes.values()];
 }
 
 export function mergeExplorerTree(
@@ -80,13 +117,11 @@ export function mergeExplorerTree(
 
     nextServers.set(incomingServer.id, {
       ...incomingServer,
-      children: [...databaseNodes.values()].sort((first, second) =>
-        first.label.localeCompare(second.label),
-      ),
+      children: [...databaseNodes.values()],
     });
   }
 
-  return [...nextServers.values()].sort((first, second) => first.label.localeCompare(second.label));
+  return [...nextServers.values()];
 }
 
 export function removeConnectionFromTree(
