@@ -1,5 +1,5 @@
 import { Database, Minus, Plus, Settings, SlidersHorizontal, Type, Undo2 } from "lucide-react";
-import { useState, type ComponentType } from "react";
+import { type ComponentType } from "react";
 import {
   BOTTOM_PANEL_HEIGHT_MAX,
   BOTTOM_PANEL_HEIGHT_MIN,
@@ -20,7 +20,7 @@ import { cn } from "../../../lib/utils";
 import { useI18n } from "../../i18n/I18nContext";
 import type { TranslationKey } from "../../i18n/translate";
 import type { Language, NotificationPosition } from "../../types";
-import { useSettings } from "../../workspace/workspaceCore";
+import { useSettings, type SettingsTab } from "../../workspace/workspaceCore";
 import {
   DialogActions,
   DialogCloseButton,
@@ -41,8 +41,6 @@ const NOTIFICATION_POSITION_VALUES: NotificationPosition[] = [
 ];
 
 const LANGUAGE_VALUES: Language[] = ["en"];
-
-type SettingsTab = "general" | "editor" | "connections";
 
 const TABS: {
   id: SettingsTab;
@@ -67,6 +65,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const {
     settings,
+    settingsTab: tab,
+    setSettingsTab: setTab,
     setZoomLevel,
     setKeepConnectionsActive,
     setActivateSiblingConnections,
@@ -88,7 +88,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { code: language } = settings.language;
   const { width: sidebarWidth } = settings.sidebarWidth;
   const { height: bottomPanelHeight } = settings.bottomPanelHeight;
-  const [tab, setTab] = useState<SettingsTab>("general");
 
   const notificationPositionOptions: SelectFieldOption<NotificationPosition>[] =
     NOTIFICATION_POSITION_VALUES.map((value) => ({

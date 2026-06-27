@@ -41,6 +41,8 @@ export type AddDatabaseRequest = {
   needsPassword: boolean;
 };
 
+export type SettingsTab = "general" | "editor" | "connections";
+
 export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;
   activeTab: SqlTab | null;
@@ -60,6 +62,7 @@ export type WorkspaceState = {
   };
   passwordConnection: StoredConnectionDraft | null;
   settings: AppSettings;
+  settingsTab: SettingsTab;
   queryError: string | null;
   queryPagination: QueryPagination | null;
   queryResult: QueryResult | null;
@@ -117,6 +120,7 @@ export type WorkspaceActions = {
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setKeepConnectionsActive: (enabled: boolean) => void;
+  setSettingsTab: (tab: SettingsTab) => void;
   setActivateSiblingConnections: (enabled: boolean) => void;
   setDiscoverServerDatabases: (enabled: boolean) => void;
   setEditorFontSize: (size: number) => void;
@@ -179,6 +183,8 @@ export function useSettings() {
   return {
     settings: state.settings,
     settingsDialogOpen: state.dialogs.settings,
+    settingsTab: state.settingsTab,
+    setSettingsTab: actions.setSettingsTab,
     closeSettingsDialog: actions.closeSettingsDialog,
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setActivateSiblingConnections: actions.setActivateSiblingConnections,

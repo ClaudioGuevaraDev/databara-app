@@ -53,6 +53,7 @@ import {
 import {
   savedConnectionNodeId,
   WorkspaceContext,
+  type SettingsTab,
   type AddDatabaseRequest,
   type DeleteServerRequest,
   type RenameServerRequest,
@@ -144,6 +145,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
   // True on startup while saved connections are being reconnected, so the UI can
   // hold off the "no connections" view instead of flashing it before reconnect.
@@ -1463,6 +1465,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openNewConnectionDialog,
       openSavedConnection,
       openSettingsDialog: () => setSettingsDialogOpen(true),
+      setSettingsTab,
       officializeSqlTab: officializeSqlTabAction,
       previewObject,
       refreshAll,
@@ -1566,6 +1569,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       },
       passwordConnection,
       settings,
+      settingsTab,
       queryError,
       queryPagination,
       queryResult,
