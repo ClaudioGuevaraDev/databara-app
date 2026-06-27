@@ -48,13 +48,11 @@ export function ExplorerNode({
   // connection to avoid two same-named objects acting as one.
   const selected =
     node.id === explorer.selectedObjectId && nodeConnectionKey === explorer.selectedConnectionKey;
-  // Servers and databases start expanded; schemas and below start collapsed.
-  // `toggledNodes` records the nodes the user flipped from that default, so
-  // toggling works both ways without re-seeding on refresh.
-  const defaultExpanded =
-    node.id.startsWith("server:") ||
-    node.id.startsWith("database:") ||
-    node.id.startsWith("saved-connection:");
+  // Servers start expanded; databases and everything below start collapsed.
+  // A database is expanded explicitly (its key seeded into `toggledNodes`) when
+  // it has open tabs or when the user connects it from a dialog. `toggledNodes`
+  // records flips from that default, so manual toggling works both ways.
+  const defaultExpanded = node.id.startsWith("server:");
   const nodeKey = `${nodeConnectionKey ?? ""}::${node.id}`;
   const userToggled = explorer.toggledNodes.has(nodeKey);
   const collapsed = defaultExpanded ? userToggled : !userToggled;

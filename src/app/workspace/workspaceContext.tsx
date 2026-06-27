@@ -500,6 +500,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return [...current, ...additions];
       });
 
+      // A database with open tabs is expanded in the sidebar (also on reconnect/
+      // startup, where this restores expansion for databases that have tabs).
+      if (savedTabs.tabs.length > 0) {
+        const expandKey = `${connectionKey(connection)}::${activeDatabaseNodeId(connection)}`;
+        setToggledNodes((current) => {
+          if (current.has(expandKey)) return current;
+          const next = new Set(current);
+          next.add(expandKey);
+          return next;
+        });
+      }
+
       const nextActiveTab = savedTabs.tabs.find((tab) => tab.id === savedTabs.activeTabId) ?? null;
       setCompletionObject(null);
       if (nextActiveTab) {
@@ -547,6 +559,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const connectAndStoreConnection = useCallback(
     async (draft: ConnectionDraft, options?: { skipOrchestration?: boolean }) => {
+      // A database the user connects from a dialog (connection form / password /
+      // add-database) is expanded in the sidebar. Startup reconnects pass
+      // skipOrchestration and background siblings go through connectCore directly,
+      // so neither force-expands. Seeded before connecting to avoid a closed→open flicker.
+      if (!options?.skipOrchestration) {
+        const expandKey = `${connectionKey(draft)}::${activeDatabaseNodeId(draft)}`;
+        setToggledNodes((current) => {
+          if (current.has(expandKey)) return current;
+          const next = new Set(current);
+          next.add(expandKey);
+          return next;
+        });
+      }
+
       const result = await connectCore(draft);
       const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
 
@@ -587,9 +613,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       // (2) Activate: connect the SAVED databases on this server (the ones List just
-      // saved, plus any saved earlier). Each is collapsed in the sidebar BEFORE
-      // connecting (no open→close flicker) and connected silently (no toast, no
-      // focus steal). Without "list" and without saved siblings, this connects nothing.
+      // saved, plus any saved earlier), silently (no toast, no focus steal). These
+      // stay collapsed in the sidebar by default. Without "list" and without saved
+      // siblings, this connects nothing.
       if (activate) {
         const siblings = loadStoredConnections().filter(
           (connection) =>
@@ -603,13 +629,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               ? draft.password
               : ((await getConnectionPassword(siblingKey)) ?? "");
           if (!password) continue;
-          const collapseKey = `${siblingKey}::${activeDatabaseNodeId(sibling)}`;
-          setToggledNodes((current) => {
-            if (current.has(collapseKey)) return current;
-            const next = new Set(current);
-            next.add(collapseKey);
-            return next;
-          });
           try {
             await connectCore({ ...sibling, password }, { silent: true });
           } catch {
