@@ -87,6 +87,16 @@ export const en = {
       description:
         "Reconnect saved connections on startup without asking for the password. The password is stored in your operating system's keychain.",
     },
+    activateSiblingConnections: {
+      title: "Activate other databases on connect",
+      description:
+        "When you connect to a database, also connect to the other saved databases on the same server, in the background.",
+    },
+    discoverServerDatabases: {
+      title: "List databases found on the server",
+      description:
+        "When you connect to a database, discover the other databases on the same server and list them in the sidebar, without connecting them.",
+    },
   },
   dialogs: {
     connection: {

@@ -117,6 +117,8 @@ export type WorkspaceActions = {
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setKeepConnectionsActive: (enabled: boolean) => void;
+  setActivateSiblingConnections: (enabled: boolean) => void;
+  setDiscoverServerDatabases: (enabled: boolean) => void;
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
   setLanguage: (code: Language) => void;
@@ -179,6 +181,8 @@ export function useSettings() {
     settingsDialogOpen: state.dialogs.settings,
     closeSettingsDialog: actions.closeSettingsDialog,
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
+    setActivateSiblingConnections: actions.setActivateSiblingConnections,
+    setDiscoverServerDatabases: actions.setDiscoverServerDatabases,
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
     setLanguage: actions.setLanguage,

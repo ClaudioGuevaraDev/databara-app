@@ -58,7 +58,7 @@ const TABS: {
 const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
   general: ["zoom", "notificationPosition", "language", "sidebarWidth", "bottomPanelHeight"],
   editor: ["editorFontSize"],
-  connections: ["keepConnectionsActive"],
+  connections: ["keepConnectionsActive", "activateSiblingConnections", "discoverServerDatabases"],
 };
 
 const ALL_SETTINGS_KEYS = Object.keys(defaultAppSettings) as (keyof AppSettings)[];
@@ -69,6 +69,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     settings,
     setZoomLevel,
     setKeepConnectionsActive,
+    setActivateSiblingConnections,
+    setDiscoverServerDatabases,
     setEditorFontSize,
     setNotificationPosition,
     setLanguage,
@@ -79,6 +81,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   } = useSettings();
   const { level } = settings.zoom;
   const keepConnectionsActive = settings.keepConnectionsActive.enabled;
+  const activateSiblingConnections = settings.activateSiblingConnections.enabled;
+  const discoverServerDatabases = settings.discoverServerDatabases.enabled;
   const { size: editorFontSize } = settings.editorFontSize;
   const { position: notificationPosition } = settings.notificationPosition;
   const { code: language } = settings.language;
@@ -330,6 +334,36 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     checked={keepConnectionsActive}
                     label={t("settings.keepConnections.title")}
                     onChange={setKeepConnectionsActive}
+                  />
+                </div>
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.activateSiblingConnections.title")}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {t("settings.activateSiblingConnections.description")}
+                  </div>
+                </div>
+                <div className="justify-self-end">
+                  <Switch
+                    checked={activateSiblingConnections}
+                    label={t("settings.activateSiblingConnections.title")}
+                    onChange={setActivateSiblingConnections}
+                  />
+                </div>
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.discoverServerDatabases.title")}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {t("settings.discoverServerDatabases.description")}
+                  </div>
+                </div>
+                <div className="justify-self-end">
+                  <Switch
+                    checked={discoverServerDatabases}
+                    label={t("settings.discoverServerDatabases.title")}
+                    onChange={setDiscoverServerDatabases}
                   />
                 </div>
               </>

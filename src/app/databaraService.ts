@@ -55,6 +55,12 @@ export type AppSettings = {
   // When enabled, connection passwords are stored in the OS keychain so
   // connections reconnect on startup without prompting.
   keepConnectionsActive: { enabled: boolean };
+  // When enabled, connecting to a database also connects (in the background) to
+  // the other already-saved databases on the same server.
+  activateSiblingConnections: { enabled: boolean };
+  // When enabled, connecting to a database discovers the other databases on the
+  // same server and lists them in the sidebar (without connecting them).
+  discoverServerDatabases: { enabled: boolean };
   // Font size (in px) of the Monaco SQL editor.
   editorFontSize: { size: number };
   // On-screen corner/edge where toast notifications appear.
@@ -104,6 +110,8 @@ export const BOTTOM_PANEL_HEIGHT_DEFAULT = 360;
 export const defaultAppSettings: AppSettings = {
   zoom: { level: 100 },
   keepConnectionsActive: { enabled: false },
+  activateSiblingConnections: { enabled: false },
+  discoverServerDatabases: { enabled: false },
   editorFontSize: { size: 13 },
   notificationPosition: { position: "top-center" },
   sidebarWidth: { width: SIDEBAR_WIDTH_DEFAULT },
@@ -135,15 +143,19 @@ export function clampBottomPanelHeight(height: number): number {
   return Math.min(BOTTOM_PANEL_HEIGHT_MAX, Math.max(BOTTOM_PANEL_HEIGHT_MIN, snapped));
 }
 
+// Reads a `{ enabled: boolean }` setting from raw localStorage, falling back to
+// the provided default when missing or malformed.
+function normalizeEnabledFlag(raw: unknown, key: string, fallback: boolean): { enabled: boolean } {
+  const entry = (raw as Record<string, unknown>)[key];
+  const enabled =
+    entry && typeof entry === "object" ? (entry as { enabled?: unknown }).enabled : undefined;
+  return { enabled: typeof enabled === "boolean" ? enabled : fallback };
+}
+
 function normalizeAppSettings(raw: unknown): AppSettings {
   if (!raw || typeof raw !== "object") return defaultAppSettings;
   const zoom = (raw as { zoom?: unknown }).zoom;
   const level = zoom && typeof zoom === "object" ? (zoom as { level?: unknown }).level : undefined;
-  const keepActive = (raw as { keepConnectionsActive?: unknown }).keepConnectionsActive;
-  const enabled =
-    keepActive && typeof keepActive === "object"
-      ? (keepActive as { enabled?: unknown }).enabled
-      : undefined;
   const editorFontSize = (raw as { editorFontSize?: unknown }).editorFontSize;
   const size =
     editorFontSize && typeof editorFontSize === "object"
@@ -171,10 +183,21 @@ function normalizeAppSettings(raw: unknown): AppSettings {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
     },
-    keepConnectionsActive: {
-      enabled:
-        typeof enabled === "boolean" ? enabled : defaultAppSettings.keepConnectionsActive.enabled,
-    },
+    keepConnectionsActive: normalizeEnabledFlag(
+      raw,
+      "keepConnectionsActive",
+      defaultAppSettings.keepConnectionsActive.enabled,
+    ),
+    activateSiblingConnections: normalizeEnabledFlag(
+      raw,
+      "activateSiblingConnections",
+      defaultAppSettings.activateSiblingConnections.enabled,
+    ),
+    discoverServerDatabases: normalizeEnabledFlag(
+      raw,
+      "discoverServerDatabases",
+      defaultAppSettings.discoverServerDatabases.enabled,
+    ),
     editorFontSize: {
       size: clampEditorFontSize(
         typeof size === "number" ? size : defaultAppSettings.editorFontSize.size,
@@ -337,6 +360,16 @@ export async function runPostgresQuery(
   sql: string,
 ): Promise<QueryExecutionResult> {
   return invoke<QueryExecutionResult>("run_postgres_query", { connectionId, sql });
+}
+
+// Lists the other (non-template, connectable) databases living on the same
+// server as the given live connection, excluding the one it is connected to.
+export async function fetchServerDatabaseNames(connectionId: string): Promise<string[]> {
+  const result = await runPostgresQuery(
+    connectionId,
+    "SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true AND datname <> current_database() ORDER BY datname",
+  );
+  return result.rows.map((row) => row[0]).filter((value): value is string => value !== null);
 }
 
 export async function setUnsavedSqlTabs(hasUnsaved: boolean): Promise<void> {

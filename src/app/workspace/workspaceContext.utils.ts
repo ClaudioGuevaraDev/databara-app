@@ -8,7 +8,7 @@ export function serverNodeId(connection: Pick<ConnectionDraft, "engine" | "host"
   return `server:${connection.engine}:${connection.host}:${connection.port}`;
 }
 
-function activeDatabaseNodeId(connection: StoredConnectionDraft) {
+export function activeDatabaseNodeId(connection: StoredConnectionDraft) {
   return `database:${connection.database}`;
 }
 

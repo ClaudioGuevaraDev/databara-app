@@ -9,6 +9,7 @@ import {
   deleteConnectionPassword,
   deleteServerLabel,
   deleteStoredConnection,
+  fetchServerDatabaseNames,
   getConnectionPassword,
   getPostgresObjectDetails,
   listPostgresTree,
@@ -58,6 +59,7 @@ import {
   type WorkspaceContextValue,
 } from "./workspaceCore";
 import {
+  activeDatabaseNodeId,
   buildCountSql,
   buildDefaultObjectSql,
   buildObjectTabLabel,
@@ -162,6 +164,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Read inside connectAndStoreConnection without making it depend on settings;
   // kept current by the settings effect below.
   const keepConnectionsActiveRef = useRef(settings.keepConnectionsActive.enabled);
+  const activateSiblingConnectionsRef = useRef(settings.activateSiblingConnections.enabled);
+  const discoverServerDatabasesRef = useRef(settings.discoverServerDatabases.enabled);
+  // Mirror of live connections, read during background orchestration to dedupe
+  // against already-connected databases without re-creating the connect callback.
+  const connectionsRef = useRef<ConnectionProfile[]>(connections);
 
   const activeConnection =
     connections.find((connection) => connection.id === activeConnectionId) ??
@@ -196,8 +203,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.zoom =
       settings.zoom.level === 100 ? "" : String(settings.zoom.level / 100);
     keepConnectionsActiveRef.current = settings.keepConnectionsActive.enabled;
+    activateSiblingConnectionsRef.current = settings.activateSiblingConnections.enabled;
+    discoverServerDatabasesRef.current = settings.discoverServerDatabases.enabled;
     saveAppSettings(settings);
   }, [settings]);
+
+  // Keep the live-connections mirror current for background orchestration.
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
 
   const connectionByKey = useCallback(
     (key: string | undefined) =>
@@ -496,27 +510,110 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [syncExplorerSelectionWithTab],
   );
 
-  const connectAndStoreConnection = useCallback(
-    async (draft: ConnectionDraft) => {
+  // Core connect: opens the connection, stores it, and updates UI state. Does no
+  // background orchestration, so it is safe to call for both principal and
+  // background (silent) connections without recursion.
+  const connectCore = useCallback(
+    async (draft: ConnectionDraft, options?: { silent?: boolean }) => {
       const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
       const result = await connectPostgres(connectionDraft);
       const nextStoredConnections = saveStoredConnection(connectionDraft);
       setStoredConnections(nextStoredConnections);
-      setConnections((current) => [
-        result.connection,
-        ...current.filter((item) => item.id !== result.connection.id),
-      ]);
-      setActiveConnectionId(result.connection.id);
+      setConnections((current) => {
+        const next = [
+          result.connection,
+          ...current.filter((item) => item.id !== result.connection.id),
+        ];
+        connectionsRef.current = next;
+        return next;
+      });
       setActiveExplorerTree((current) => mergeExplorerTree(current, result.tree));
-      loadConnectionSqlTabs(result.connection);
       // Persist the password so this connection can reconnect on startup, when
       // the "keep connections active" setting is on.
       if (keepConnectionsActiveRef.current) {
         void storeConnectionPassword(connectionKey(connectionDraft), draft.password);
       }
-      notify(translate("toast.connected", { name: result.connection.name }), "success");
+      // Background (silent) connections must not steal focus from the database the
+      // user actively connected to, so they skip activation, tab loading and toast.
+      if (!options?.silent) {
+        setActiveConnectionId(result.connection.id);
+        loadConnectionSqlTabs(result.connection);
+        notify(translate("toast.connected", { name: result.connection.name }), "success");
+      }
+      return result;
     },
     [loadConnectionSqlTabs, notify],
+  );
+
+  const connectAndStoreConnection = useCallback(
+    async (draft: ConnectionDraft, options?: { skipOrchestration?: boolean }) => {
+      const result = await connectCore(draft);
+      const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
+
+      // Background orchestration for the database the user actively connected to
+      // (the "principal"). Skipped for startup reconnects.
+      if (options?.skipOrchestration) return;
+
+      const serverId = serverNodeId(connectionDraft);
+      const principalKey = connectionKey(connectionDraft);
+      // Snapshot of saved siblings BEFORE discovery adds newly-found databases,
+      // so "activate" only touches what was already saved.
+      const siblings = loadStoredConnections().filter(
+        (connection) =>
+          serverNodeId(connection) === serverId && connectionKey(connection) !== principalKey,
+      );
+
+      // (2) Activate: connect the already-saved databases on this server. Each
+      // background-connected database is collapsed in the sidebar so only the
+      // principal (user-initiated) database stays expanded. The collapse is marked
+      // BEFORE connecting so the node never renders expanded (no open→close flicker).
+      if (activateSiblingConnectionsRef.current) {
+        for (const sibling of siblings) {
+          const siblingKey = connectionKey(sibling);
+          if (connectionsRef.current.some((item) => connectionKey(item) === siblingKey)) continue;
+          const password =
+            sibling.user === connectionDraft.user
+              ? draft.password
+              : ((await getConnectionPassword(siblingKey)) ?? "");
+          if (!password) continue;
+          const collapseKey = `${siblingKey}::${activeDatabaseNodeId(sibling)}`;
+          setToggledNodes((current) => {
+            if (current.has(collapseKey)) return current;
+            const next = new Set(current);
+            next.add(collapseKey);
+            return next;
+          });
+          try {
+            await connectCore({ ...sibling, password }, { silent: true });
+          } catch {
+            // No access / wrong password / server issue — skip silently.
+          }
+        }
+      }
+
+      // (3) Discover: list (without connecting) the other databases on the server.
+      if (discoverServerDatabasesRef.current) {
+        try {
+          const names = await fetchServerDatabaseNames(result.connection.id);
+          let nextStored = loadStoredConnections();
+          for (const database of names) {
+            const candidate: ConnectionDraft = { ...connectionDraft, database, password: "" };
+            const candidateKey = connectionKey(candidate);
+            if (nextStored.some((connection) => connectionKey(connection) === candidateKey)) {
+              continue;
+            }
+            nextStored = saveStoredConnection({
+              ...candidate,
+              name: connectionDisplayName(candidate),
+            });
+          }
+          setStoredConnections(nextStored);
+        } catch {
+          // Discovery is best-effort — ignore failures silently.
+        }
+      }
+    },
+    [connectCore],
   );
 
   // On startup, when "keep connections active" is on, reconnect each saved
@@ -533,7 +630,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           try {
             const password = await getConnectionPassword(connectionKey(connection));
             if (!password) continue;
-            await connectAndStoreConnection({ ...connection, password });
+            await connectAndStoreConnection(
+              { ...connection, password },
+              { skipOrchestration: true },
+            );
           } catch (error) {
             notify(
               translate("toast.reconnectFailed", {
@@ -1355,6 +1455,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           );
         }
       },
+      setActivateSiblingConnections: (enabled) =>
+        setSettings((current) => ({ ...current, activateSiblingConnections: { enabled } })),
+      setDiscoverServerDatabases: (enabled) =>
+        setSettings((current) => ({ ...current, discoverServerDatabases: { enabled } })),
       setZoomLevel: (level) =>
         setSettings((current) => ({
           ...current,
