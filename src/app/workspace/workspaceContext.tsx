@@ -169,6 +169,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Mirror of live connections, read during background orchestration to dedupe
   // against already-connected databases without re-creating the connect callback.
   const connectionsRef = useRef<ConnectionProfile[]>(connections);
+  // Plaintext passwords of live connections, kept in memory for the session so
+  // enabling "keep connections active" later can persist them to the keychain.
+  const livePasswordsRef = useRef<Map<string, string>>(new Map());
 
   const activeConnection =
     connections.find((connection) => connection.id === activeConnectionId) ??
@@ -540,8 +543,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return next;
       });
       setActiveExplorerTree((current) => mergeExplorerTree(current, result.tree));
-      // Persist the password so this connection can reconnect on startup, when
-      // the "keep connections active" setting is on.
+      // Cache the password in memory (for the session) so enabling "keep
+      // connections active" later can persist already-live connections, and
+      // persist it now to the keychain when the setting is already on.
+      livePasswordsRef.current.set(connectionKey(connectionDraft), draft.password);
       if (keepConnectionsActiveRef.current) {
         void storeConnectionPassword(connectionKey(connectionDraft), draft.password);
       }
@@ -1472,8 +1477,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setConnectionDialogOpen,
       setKeepConnectionsActive: (enabled) => {
         setSettings((current) => ({ ...current, keepConnectionsActive: { enabled } }));
-        // Turning it off removes every stored password from the keychain.
-        if (!enabled) {
+        if (enabled) {
+          // Persist passwords of currently-live connections so they reconnect on startup.
+          connections.forEach((connection) => {
+            const key = connectionKey(connection);
+            const password = livePasswordsRef.current.get(key);
+            if (password) void storeConnectionPassword(key, password);
+          });
+        } else {
+          // Turning it off removes every stored password from the keychain.
           storedConnections.forEach(
             (connection) => void deleteConnectionPassword(connectionKey(connection)),
           );
