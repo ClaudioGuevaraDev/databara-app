@@ -582,23 +582,38 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return [...current, ...additions];
       });
 
-      // A database with open tabs is expanded in the sidebar (also on reconnect/
-      // startup, where this restores expansion for databases that have tabs).
+      const nextActiveTab = savedTabs.tabs.find((tab) => tab.id === savedTabs.activeTabId) ?? null;
+
+      // Expand the sidebar nodes needed to reveal the restored tabs: the database
+      // (for any open tab) and the schema ancestor of the active object tab, so the
+      // active tab's object is visible and highlighted instead of hidden under a
+      // collapsed schema. Node ids/keys mirror ExplorerNode + the backend tree.
+      const connKey = connectionKey(connection);
+      const expandKeys: string[] = [];
       if (savedTabs.tabs.length > 0) {
-        const expandKey = `${connectionKey(connection)}::${activeDatabaseNodeId(connection)}`;
+        expandKeys.push(`${connKey}::${activeDatabaseNodeId(connection)}`);
+      }
+      const activeSchema = nextActiveTab?.objectId?.split(":")[1]?.split(".")[0];
+      if (activeSchema) expandKeys.push(`${connKey}::schema:${activeSchema}`);
+      if (expandKeys.length > 0) {
         setToggledNodes((current) => {
-          if (current.has(expandKey)) return current;
+          const missing = expandKeys.filter((key) => !current.has(key));
+          if (missing.length === 0) return current;
           const next = new Set(current);
-          next.add(expandKey);
+          missing.forEach((key) => next.add(key));
           return next;
         });
       }
 
-      const nextActiveTab = savedTabs.tabs.find((tab) => tab.id === savedTabs.activeTabId) ?? null;
       setCompletionObject(null);
       if (nextActiveTab) {
         setActiveTabId(nextActiveTab.id);
         syncExplorerSelectionWithTab(nextActiveTab);
+        // syncExplorerSelectionWithTab resolves the owning connection via the live
+        // `connections` list, which is still stale here during connect/auto-reconnect
+        // (this just-connected profile isn't in it yet). We know the owner directly,
+        // so set it explicitly to highlight the active object's tree node.
+        if (nextActiveTab.objectId) setSelectedObjectConnectionId(connection.id);
       }
     },
     [syncExplorerSelectionWithTab],
@@ -804,6 +819,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const label = buildObjectTabLabel(objectId);
 
     setSqlTabs((tabs) => {
+      // Clicking an object that's already open (official or preview) just focuses
+      // its tab instead of spawning a duplicate — and never clobbers its edits.
+      const existingObjectTab = tabs.find(
+        (currentTab) =>
+          currentTab.objectId === objectId && currentTab.connectionKey === tabConnectionKey,
+      );
+      if (existingObjectTab) {
+        setActiveTabId(existingObjectTab.id);
+        return tabs;
+      }
+
       const reusableTemporaryTab = tabs.find(
         (currentTab) =>
           currentTab.state === "temporary" &&
