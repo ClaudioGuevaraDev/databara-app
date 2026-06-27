@@ -11,6 +11,7 @@ import {
   DialogFrame,
   DialogHeader,
   Field,
+  FormAlert,
 } from "../ui";
 
 export function PasswordConnectionDialog({
@@ -76,9 +77,7 @@ export function PasswordConnectionDialog({
             type="password"
             value={password}
           />
-          <div className="min-h-5 text-[12px]">
-            {error ? <span className="text-destructive">{error}</span> : null}
-          </div>
+          {error ? <FormAlert tone="error">{error}</FormAlert> : null}
         </DialogBody>
         <DialogActions>
           <button type="button" onClick={onClose} className="control h-8 rounded px-3 text-[12px]">

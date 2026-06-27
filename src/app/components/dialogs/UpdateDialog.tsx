@@ -2,7 +2,14 @@ import { AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 import type { TranslationKey } from "../../i18n/translate";
 import type { UpdateProgress } from "../../types";
-import { DialogActions, DialogBody, DialogCloseButton, DialogFrame, DialogHeader } from "../ui";
+import {
+  DialogActions,
+  DialogBody,
+  DialogCloseButton,
+  DialogFrame,
+  DialogHeader,
+  FormAlert,
+} from "../ui";
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 MB";
@@ -50,7 +57,7 @@ export function UpdateDialog({
       <DialogBody className="grid gap-3 text-[12px] text-muted-foreground">
         {isError ? (
           <div className="grid gap-2">
-            <div className="text-destructive">{error ?? t("dialogs.update.errorFallback")}</div>
+            <FormAlert tone="error">{error ?? t("dialogs.update.errorFallback")}</FormAlert>
             <div>{t("dialogs.update.errorHelp")}</div>
           </div>
         ) : isUnavailable ? (

@@ -21,6 +21,7 @@ import {
   DialogFrame,
   DialogHeader,
   Field,
+  FormAlert,
   SelectField,
 } from "../ui";
 
@@ -196,15 +197,13 @@ export function ConnectionDialog({
             options={sslModeOptions}
             value={draft.sslMode}
           />
-          <div className="col-span-2 min-h-6 text-[12px]">
+          <div className="col-span-2">
             {formMessage ? (
-              <span
-                className={formMessage.tone === "success" ? "text-emerald-300" : "text-destructive"}
-              >
-                {formMessage.text}
-              </span>
+              <FormAlert tone={formMessage.tone}>{formMessage.text}</FormAlert>
             ) : (
-              <span className="text-muted-foreground">{t("dialogs.connection.passwordHint")}</span>
+              <p className="min-h-6 text-[12px] text-muted-foreground">
+                {t("dialogs.connection.passwordHint")}
+              </p>
             )}
           </div>
         </DialogBody>

@@ -10,6 +10,7 @@ import {
   DialogFrame,
   DialogHeader,
   Field,
+  FormAlert,
 } from "../ui";
 
 export function AddDatabaseDialog({
@@ -79,9 +80,7 @@ export function AddDatabaseDialog({
               placeholder={t("dialogs.addDatabase.passwordPlaceholder")}
             />
           ) : null}
-          <div className="min-h-5 text-[12px]">
-            {error ? <span className="text-destructive">{error}</span> : null}
-          </div>
+          {error ? <FormAlert tone="error">{error}</FormAlert> : null}
         </DialogBody>
         <DialogActions>
           <button type="button" onClick={onCancel} className="control h-8 rounded px-3 text-[12px]">

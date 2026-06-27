@@ -5,6 +5,7 @@ export { DialogFrame } from "./DialogFrame";
 export { DialogHeader } from "./DialogHeader";
 export { EmptyPanel } from "./EmptyPanel";
 export { Field } from "./Field";
+export { FormAlert } from "./FormAlert";
 export { IconButton } from "./IconButton";
 export { MetricMini } from "./MetricMini";
 export { ResizeHandle } from "./ResizeHandle";
