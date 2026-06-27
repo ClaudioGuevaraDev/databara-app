@@ -217,6 +217,11 @@ export const en = {
     emptyColumns: "Select an object to inspect columns.",
     emptySchema: "Select an object to inspect its schema.",
     emptyGrid: "Run a query to inspect result rows.",
+    viewMode: "Result view",
+    viewTable: "Table",
+    viewJson: "JSON",
+    columnsCount: "columns",
+    ms: "ms",
     runSummary: "{{rows}} rows · {{pageSize}}/page · {{durationMs}} ms",
     rowsAffected: {
       one: "{{count}} row affected",

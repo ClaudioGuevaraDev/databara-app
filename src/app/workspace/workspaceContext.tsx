@@ -41,6 +41,7 @@ import {
   type QueryState,
   type QueryResult,
   type ResultPanelTab,
+  type ResultViewMode,
   type SqlTab,
   type Toast,
   type ToastTone,
@@ -150,6 +151,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeTabId, setActiveTabId] = useState("");
   const [resultsByTab, setResultsByTab] = useState<Record<string, TabResult>>({});
   const [resultTab, setResultTab] = useState<ResultPanelTab>("results");
+  const [resultViewMode, setResultViewMode] = useState<ResultViewMode>("table");
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -1561,6 +1563,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       saveConnection,
       selectObject,
       selectResultTab: setResultTab,
+      selectResultViewMode: setResultViewMode,
       selectSqlTab,
       setConnectionDialogOpen,
       setKeepConnectionsActive: (enabled) => {
@@ -1660,6 +1663,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       queryResult,
       queryState,
       resultTab,
+      resultViewMode,
       toast,
       resultsOpen,
       selectedObject,

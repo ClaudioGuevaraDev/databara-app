@@ -13,6 +13,7 @@ import type {
   QueryState,
   QueryResult,
   ResultPanelTab,
+  ResultViewMode,
   SqlTab,
   Toast,
   UpdateProgress,
@@ -68,6 +69,7 @@ export type WorkspaceState = {
   queryResult: QueryResult | null;
   queryState: QueryState;
   resultTab: ResultPanelTab;
+  resultViewMode: ResultViewMode;
   toast: Toast | null;
   resultsOpen: boolean;
   selectedObject: DatabaseObjectDetails | null;
@@ -117,6 +119,7 @@ export type WorkspaceActions = {
   saveConnection: (draft: ConnectionDraft) => Promise<void>;
   selectObject: (objectId: string, connectionKey?: string) => void;
   selectResultTab: (tab: ResultPanelTab) => void;
+  selectResultViewMode: (mode: ResultViewMode) => void;
   selectSqlTab: (tabId: string) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setKeepConnectionsActive: (enabled: boolean) => void;
@@ -260,6 +263,7 @@ export function useResults() {
     queryResult: state.queryResult,
     queryState: state.queryState,
     resultTab: state.resultTab,
+    resultViewMode: state.resultViewMode,
     resultsOpen: state.resultsOpen,
     closeResults: actions.closeResults,
     copySchema: actions.copySchema,
@@ -267,6 +271,7 @@ export function useResults() {
     exportCsv: actions.exportCsv,
     goToQueryPage: actions.goToQueryPage,
     selectResultTab: actions.selectResultTab,
+    selectResultViewMode: actions.selectResultViewMode,
     setQueryPageSize: actions.setQueryPageSize,
   };
 }

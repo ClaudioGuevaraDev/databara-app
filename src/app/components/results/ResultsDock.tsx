@@ -17,6 +17,8 @@ export function ResultsDock() {
       onPageChange={results.goToQueryPage}
       onPageSizeChange={results.setQueryPageSize}
       onTabChange={results.selectResultTab}
+      onViewModeChange={results.selectResultViewMode}
+      viewMode={results.resultViewMode}
     />
   );
 }

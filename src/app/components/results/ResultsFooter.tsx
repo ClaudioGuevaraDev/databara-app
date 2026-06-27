@@ -5,11 +5,13 @@ import { IconButton } from "../ui";
 
 export function ResultsFooter({
   pagination,
+  durationMs,
   isRunning,
   onPageChange,
   onPageSizeChange,
 }: {
   pagination: QueryPagination;
+  durationMs: number;
   isRunning: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
@@ -27,17 +29,22 @@ export function ResultsFooter({
   return (
     <div className="chrome-panel flex h-9 shrink-0 items-center justify-between border-t border-border px-3 text-[12px] text-muted-foreground">
       <div className="flex items-center gap-2">
-        <span>
-          {t("results.pageWord")} <span className="text-foreground">{page + 1}</span>{" "}
-          {t("results.of")} {totalPages}
+        <span className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+          <span className="tabular-nums text-foreground">{totalRows.toLocaleString()}</span>{" "}
+          {t("results.rowsWord")}
         </span>
         <span className="text-border">·</span>
+        <span className="tabular-nums">
+          {durationMs} {t("results.ms")}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
         <span>
           {t("results.rowsWord")} {firstRow.toLocaleString()}–{lastRow.toLocaleString()}{" "}
           {t("results.of")} <span className="text-foreground">{totalRows.toLocaleString()}</span>
         </span>
-      </div>
-      <div className="flex items-center gap-2">
+        <span className="text-border">·</span>
         <label className="flex items-center gap-1.5">
           {t("results.rowsLabel")}
           <select
@@ -61,6 +68,10 @@ export function ResultsFooter({
         >
           <ChevronLeft size={16} />
         </IconButton>
+        <span className="tabular-nums">
+          {t("results.pageWord")} <span className="text-foreground">{page + 1}</span>{" "}
+          {t("results.of")} {totalPages}
+        </span>
         <IconButton
           title={t("results.nextPage")}
           disabled={isRunning || page >= totalPages - 1}

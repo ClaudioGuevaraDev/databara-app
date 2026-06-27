@@ -9,13 +9,16 @@ import type {
   QueryResult,
   QueryState,
   ResultPanelTab,
+  ResultViewMode,
 } from "../../types";
 import { useSettings } from "../../workspace/workspaceCore";
 import { EmptyPanel, ResizeHandle } from "../ui";
 import { ColumnsView } from "./ColumnsView";
 import { DataGrid } from "./DataGrid";
+import { JsonView } from "./JsonView";
 import { ResultsFooter } from "./ResultsFooter";
 import { ResultsStatusLine } from "./ResultsStatusLine";
+import { ResultsViewBar } from "./ResultsViewBar";
 import { SchemaView } from "./SchemaView";
 
 export function ResultsPanel({
@@ -24,20 +27,24 @@ export function ResultsPanel({
   onPageChange,
   onPageSizeChange,
   onTabChange,
+  onViewModeChange,
   queryError,
   queryPagination,
   queryResult,
   queryState,
+  viewMode,
 }: {
   activeTab: ResultPanelTab;
   details: DatabaseObjectDetails | null;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onTabChange: (tab: ResultPanelTab) => void;
+  onViewModeChange: (mode: ResultViewMode) => void;
   queryError: string | null;
   queryPagination: QueryPagination | null;
   queryResult: QueryResult | null;
   queryState: QueryState;
+  viewMode: ResultViewMode;
 }) {
   const { t } = useI18n();
   const { settings, setBottomPanelHeight } = useSettings();
@@ -51,8 +58,20 @@ export function ResultsPanel({
     { id: "schema" as const, icon: Braces, label: t("results.tabs.schema") },
   ];
 
+  const hasGrid = Boolean(queryResult && queryResult.columns.length > 0);
+
+  // The dedicated view bar carries the Table/JSON switch (Results) or a context label
+  // plus copy actions (Columns/Schema). Hidden while running/erroring or with nothing
+  // to act on, so it never shows over a blank panel.
+  const showViewBar =
+    queryState !== "running" &&
+    (activeTab === "results" ? hasGrid && queryState !== "error" : Boolean(details));
+
+  // The footer already reports row/page counts, so the status line is only useful
+  // for command messages (no pagination) and errors — not redundant read summaries.
   const showStatusLine =
-    activeTab === "results" && (queryState === "success" || queryState === "error");
+    activeTab === "results" &&
+    (queryState === "error" || (queryState === "success" && !queryPagination));
   const statusMessage =
     queryState === "error"
       ? (queryError ?? t("results.queryFailed"))
@@ -81,24 +100,33 @@ export function ResultsPanel({
         <div className="flex h-full items-center">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={cn(
-                  "flex h-full items-center gap-1.5 border-r border-border px-3 text-[12px]",
-                  activeTab === tab.id
-                    ? "bg-background text-foreground"
+                  "relative flex h-full items-center gap-1.5 border-r border-border px-3 text-[12px]",
+                  active
+                    ? "bg-background text-foreground before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary before:shadow-[0_0_12px_hsl(var(--primary)/0.6)] before:content-['']"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon size={14} className={cn(activeTab === tab.id && "text-primary")} />
+                <Icon size={14} className={cn(active && "text-primary")} />
                 {tab.label}
               </button>
             );
           })}
         </div>
       </div>
+      {showViewBar ? (
+        <ResultsViewBar
+          activeTab={activeTab}
+          details={details}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+        />
+      ) : null}
       {showStatusLine ? (
         <ResultsStatusLine queryState={queryState} message={statusMessage} />
       ) : null}
@@ -116,8 +144,12 @@ export function ResultsPanel({
           <pre className="h-full w-full overflow-auto whitespace-pre-wrap p-3 font-mono text-[12px] text-destructive">
             {queryError ?? t("results.queryFailed")}
           </pre>
-        ) : queryResult && queryResult.columns.length > 0 ? (
-          <DataGrid queryResult={queryResult} />
+        ) : hasGrid ? (
+          viewMode === "json" ? (
+            <JsonView queryResult={queryResult} />
+          ) : (
+            <DataGrid queryResult={queryResult} />
+          )
         ) : queryResult ? (
           <EmptyPanel text={queryResult.message} />
         ) : (
@@ -127,6 +159,7 @@ export function ResultsPanel({
       {activeTab === "results" && queryPagination ? (
         <ResultsFooter
           pagination={queryPagination}
+          durationMs={queryResult?.durationMs ?? 0}
           isRunning={queryState === "running"}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
