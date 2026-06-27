@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Databara</title>
+    <style>
+      :root {
+        --background: 218 27% 6%;
+        --foreground: 210 22% 91%;
+        --muted-foreground: 216 11% 63%;
+        --primary: 184 88% 44%;
+        --panel-raised: 218 22% 10%;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background:
+          radial-gradient(
+            130% 100% at 50% 38%,
+            hsl(var(--panel-raised)),
+            hsl(var(--background)) 70%
+          ),
+          hsl(var(--background));
+        color: hsl(var(--foreground));
+        user-select: none;
+        cursor: default;
+        overflow: hidden;
+      }
+
+      /* Soft ambient pulse behind the whole composition. */
+      body::before {
+        content: "";
+        position: fixed;
+        left: 50%;
+        top: 42%;
+        width: 320px;
+        height: 320px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(closest-side, hsl(var(--primary) / 0.16), transparent 70%);
+        filter: blur(8px);
+        animation: ambient 3s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      /* ---- The loader: logo fills with real progress, rings keep spinning ---- */
+      .loader {
+        position: relative;
+        width: 190px;
+        height: 190px;
+        display: grid;
+        place-items: center;
+      }
+
+      /* Comet ring: a bright arc with a fading tail, sweeping clockwise. */
+      .ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        -webkit-mask: radial-gradient(
+          farthest-side,
+          transparent calc(100% - 3px),
+          #000 calc(100% - 3px)
+        );
+        mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+      }
+
+      .ring-outer {
+        background: conic-gradient(
+          from 0deg,
+          transparent 0deg 55deg,
+          hsl(var(--primary) / 0.85) 330deg,
+          hsl(var(--primary)) 360deg
+        );
+        filter: drop-shadow(0 0 7px hsl(var(--primary) / 0.55));
+        animation: spin 1.6s linear infinite;
+      }
+
+      /* Inner ring: thinner, dimmer, counter-rotating for depth. */
+      .ring-inner {
+        inset: 20px;
+        -webkit-mask: radial-gradient(
+          farthest-side,
+          transparent calc(100% - 2px),
+          #000 calc(100% - 2px)
+        );
+        mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+        background: conic-gradient(
+          from 200deg,
+          transparent 0deg 180deg,
+          hsl(var(--foreground) / 0.35) 320deg,
+          hsl(var(--foreground) / 0.55) 360deg
+        );
+        animation: spin-reverse 2.6s linear infinite;
+      }
+
+      /* A glowing bead riding the outer ring. */
+      .orbit {
+        position: absolute;
+        inset: 0;
+        animation: spin 1.6s linear infinite;
+      }
+
+      .orbit::after {
+        content: "";
+        position: absolute;
+        top: -3px;
+        left: 50%;
+        width: 7px;
+        height: 7px;
+        margin-left: -3.5px;
+        border-radius: 50%;
+        background: hsl(var(--primary));
+        box-shadow:
+          0 0 6px hsl(var(--primary)),
+          0 0 14px hsl(var(--primary) / 0.7);
+      }
+
+      .logo {
+        position: relative;
+        width: 98px;
+        height: 98px;
+        animation: breathe 2.6s ease-in-out infinite;
+      }
+
+      .logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        -webkit-user-drag: none;
+        animation: glow 2.6s ease-in-out infinite;
+      }
+
+      .percent {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: hsl(var(--muted-foreground));
+        font-variant-numeric: tabular-nums;
+      }
+
+      .percent .value {
+        color: hsl(var(--foreground));
+      }
+
+      .percent .sign {
+        color: hsl(var(--primary));
+        margin-left: 1px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes spin-reverse {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes glow {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.3));
+        }
+        50% {
+          filter: drop-shadow(0 0 16px hsl(var(--primary) / 0.6));
+        }
+      }
+
+      @keyframes ambient {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: translate(-50%, -50%) scale(0.95);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.05);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        body::before,
+        .ring-outer,
+        .ring-inner,
+        .orbit,
+        .logo,
+        .logo img {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader">
+      <div class="ring-outer ring"></div>
+      <div class="ring-inner ring"></div>
+      <div class="orbit"></div>
+      <div class="logo">
+        <img src="/databara-logo.png" alt="Databara" />
+      </div>
+    </div>
+    <div class="percent"><span class="value">0</span><span class="sign">%</span></div>
+    <script type="module" src="/src/splash/main.ts"></script>
+  </body>
+</html>

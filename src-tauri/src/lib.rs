@@ -455,6 +455,22 @@ fn updates_supported() -> bool {
     }
 }
 
+/// Finish the startup sequence: close the splash window and reveal the main
+/// window. The main window starts hidden (`visible: false` in tauri.conf.json)
+/// so the frontend can do its slow startup work (reconnecting saved databases,
+/// checking for updates) behind the splash, then call this once it is ready —
+/// so the main window appears already fully populated.
+#[tauri::command]
+fn complete_startup(app: tauri::AppHandle) {
+    if let Some(splash) = app.get_webview_window("splash") {
+        let _ = splash.close();
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+}
+
 fn session(
     state: &State<'_, Mutex<AppState>>,
     connection_id: &str,
@@ -822,7 +838,8 @@ pub fn run() {
             run_postgres_query,
             set_unsaved_sql_tabs,
             close_main_window_after_unsaved_resolution,
-            updates_supported
+            updates_supported,
+            complete_startup
         ])
         .run(tauri::generate_context!())
         .expect("error while running Databara");

@@ -5,6 +5,8 @@ import {
   clampSidebarWidth,
   clampZoomLevel,
   closeMainWindowAfterUnsavedResolution,
+  completeStartup,
+  emitStartupProgress,
   connectPostgres,
   deleteConnectionPassword,
   deleteServerLabel,
@@ -108,6 +110,12 @@ const emptyTabResult: TabResult = {
 
 const defaultRowLimit = 50;
 
+// Splash window timing: keep it visible at least this long so it doesn't flash
+// by on fast startups, and never hold the user there longer than the timeout if
+// some startup step hangs.
+const SPLASH_MIN_DISPLAY_MS = 600;
+const SPLASH_TIMEOUT_MS = 10000;
+
 function getTabSelectionState(tab: SqlTab | null) {
   return {
     clearObjectDetails: !tab?.objectId,
@@ -155,9 +163,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
+  // True once the startup update check has resolved (no update / error). Used to
+  // decide when the main window is ready to be revealed behind the splash.
+  const [updateCheckDone, setUpdateCheckDone] = useState(false);
+  // True after the splash has shown for its minimum display time, so it doesn't
+  // flash by on fast/first-run startups.
+  const [splashMinElapsed, setSplashMinElapsed] = useState(false);
+  // How many saved connections have been processed by the startup reconnect loop
+  // (counts attempts, success or not) — drives the splash progress percentage.
+  const [reconnectedCount, setReconnectedCount] = useState(0);
   const updateInProgressRef = useRef(false);
   const didCheckUpdateRef = useRef(false);
   const didAutoReconnectRef = useRef(false);
+  // Fires the splash → main window handoff exactly once.
+  const startupRevealedRef = useRef(false);
   const hasUnsavedTabsRef = useRef(false);
   const runningTabsRef = useRef<Set<string>>(new Set());
   const toastCounterRef = useRef(0);
@@ -335,8 +354,64 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (didCheckUpdateRef.current) return;
     didCheckUpdateRef.current = true;
-    void startUpdateCheck({ silent: true });
+    // When an update is found, this promise stays pending until the download +
+    // install completes (then the app relaunches), so `updateDialogOpen` is what
+    // triggers the reveal in that case — not this. When there's no update it
+    // resolves quickly and lets the main window come up.
+    void startUpdateCheck({ silent: true }).finally(() => setUpdateCheckDone(true));
   }, [startUpdateCheck]);
+
+  // Splash → main window handoff. The main window starts hidden; we reveal it
+  // (and close the splash) once startup work is done, so it appears already
+  // populated instead of painting connections in one by one.
+  const revealMainWindow = useCallback(() => {
+    if (startupRevealedRef.current) return;
+    startupRevealedRef.current = true;
+    // Push the bar to 100% and give the splash a beat to render it before the
+    // hand-off closes it.
+    void emitStartupProgress(100);
+    window.setTimeout(() => void completeStartup(), 220);
+  }, []);
+
+  // Emit real startup progress to the splash: the update check counts as one unit
+  // plus one per saved connection the reconnect loop processes.
+  useEffect(() => {
+    const target = settings.keepConnectionsActive.enabled ? storedConnections.length : 0;
+    const total = target + 1;
+    const completed = (updateCheckDone ? 1 : 0) + Math.min(reconnectedCount, target);
+    void emitStartupProgress((completed / total) * 100);
+  }, [
+    reconnectedCount,
+    settings.keepConnectionsActive.enabled,
+    storedConnections.length,
+    updateCheckDone,
+  ]);
+
+  // Reveal immediately when the update dialog opens (an update was found or the
+  // install can't self-update) so the user sees that modal without delay.
+  useEffect(() => {
+    if (updateDialogOpen) revealMainWindow();
+  }, [updateDialogOpen, revealMainWindow]);
+
+  // Keep the splash visible for a brief minimum so it doesn't flash by.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashMinElapsed(true), SPLASH_MIN_DISPLAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Reveal once the update check has settled and saved connections have finished
+  // reconnecting (`!autoReconnecting`), after the minimum splash time.
+  useEffect(() => {
+    if (!updateCheckDone || autoReconnecting || !splashMinElapsed) return;
+    revealMainWindow();
+  }, [autoReconnecting, revealMainWindow, splashMinElapsed, updateCheckDone]);
+
+  // Safety net: never leave the user stuck on the splash if some startup step
+  // hangs (e.g. a connection that never resolves).
+  useEffect(() => {
+    const timer = window.setTimeout(revealMainWindow, SPLASH_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [revealMainWindow]);
 
   const patchTabResult = useCallback((tabId: string, patch: Partial<TabResult>) => {
     setResultsByTab((previous) => ({
@@ -660,11 +735,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         for (const connection of storedConnections) {
           try {
             const password = await getConnectionPassword(connectionKey(connection));
-            if (!password) continue;
-            await connectAndStoreConnection(
-              { ...connection, password },
-              { skipOrchestration: true },
-            );
+            if (password) {
+              await connectAndStoreConnection(
+                { ...connection, password },
+                { skipOrchestration: true },
+              );
+            }
           } catch (error) {
             notify(
               translate("toast.reconnectFailed", {
@@ -673,6 +749,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               }),
               "warning",
             );
+          } finally {
+            setReconnectedCount((count) => count + 1);
           }
         }
       } finally {

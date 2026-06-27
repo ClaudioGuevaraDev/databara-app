@@ -39,7 +39,7 @@ There is **no test framework**. The validation gate for any change is: `pnpm run
 
 All communication with the Rust backend funnels through **`src/app/databaraService.ts`** — the only file that calls Tauri's `invoke`. Components and the workspace context never invoke commands directly. This service also normalizes types crossing the boundary: the backend reports `engine: "PostgreSQL"`, which is normalized to the frontend's `"postgresql"` `DatabaseEngine`, and server tree-node IDs are rewritten to embed the engine.
 
-The Rust side exposes exactly eight commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `list_postgres_tree`, `get_postgres_object_details`, `run_postgres_query`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`, `updates_supported`.
+The Rust side exposes these commands (registered in `src-tauri/src/lib.rs` via `generate_handler!`): `test_postgres_connection`, `connect_postgres`, `store_connection_password`, `get_connection_password`, `delete_connection_password`, `list_postgres_tree`, `get_postgres_object_details`, `run_postgres_query`, `set_unsaved_sql_tabs`, `close_main_window_after_unsaved_resolution`, `updates_supported`, `complete_startup`.
 
 ### Rust backend (`src-tauri/src/lib.rs`, single file)
 
@@ -75,6 +75,10 @@ Despite "postgres" naming throughout, the code is structured for future engines:
 ### Unsaved-tabs-on-close flow
 
 Closing the window with dirty tabs is intercepted in Rust (`on_window_event` → `prevent_close`), which dispatches a `databara-unsaved-tabs-close-requested` DOM event. The frontend listens for it (and Tauri's `onCloseRequested`) to show `UnsavedTabsDialog`; resolving calls `close_main_window_after_unsaved_resolution`, which sets the close-override flag and closes the window.
+
+### Startup / splash window
+
+There are two windows declared in `tauri.conf.json`: `main` (the app, started with `"visible": false`) and `splash` (`splash.html` + `src/splash/main.ts`, a self-contained loading screen where the Databara logo doubles as the loader — it fills bottom-up with the real startup percentage while rings spin around it). On launch the splash shows while the hidden main window does its slow startup work (auto-reconnecting saved connections, checking for updates). The main window emits real progress (`emitStartupProgress` → `databara://startup-progress` event); the splash listens and eases its meter toward it (its own capability `src-tauri/capabilities/splash.json` grants `core:event:default`). When that work settles — or an update is found, or a safety timeout fires — `WorkspaceProvider` calls `completeStartup()` (→ `complete_startup` command), which closes the splash and shows/focuses the main window, so it appears already populated instead of painting in connections one by one. The splash is a second Vite entry point (`vite.config.ts` `rollupOptions.input`); its logo lives at `public/databara-logo.png`.
 
 ### Component layout
 

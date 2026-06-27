@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import {
   defaultDatabaseEngine,
   ensureSupportedConnectionEngine,
@@ -378,6 +379,25 @@ export async function setUnsavedSqlTabs(hasUnsaved: boolean): Promise<void> {
 
 export async function closeMainWindowAfterUnsavedResolution(): Promise<void> {
   return invoke<void>("close_main_window_after_unsaved_resolution");
+}
+
+// Closes the splash window and reveals the (initially hidden) main window. Called
+// once the frontend has finished its startup work. No-op outside the desktop app
+// (e.g. `pnpm run dev` in a browser, where there is no splash/main window).
+export async function completeStartup(): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  return invoke<void>("complete_startup");
+}
+
+// Event the splash window listens on to render real startup progress (0–100).
+export const STARTUP_PROGRESS_EVENT = "databara://startup-progress";
+
+// Broadcasts the current startup progress percentage to the splash window.
+// No-op outside the desktop app.
+export async function emitStartupProgress(percent: number): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  return emit(STARTUP_PROGRESS_EVENT, { percent: clamped });
 }
 
 export function loadStoredConnections(): StoredConnectionDraft[] {

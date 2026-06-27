@@ -1,3 +1,4 @@
+import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -16,5 +17,11 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        splash: resolve(__dirname, "splash.html"),
+      },
+    },
   },
 });
