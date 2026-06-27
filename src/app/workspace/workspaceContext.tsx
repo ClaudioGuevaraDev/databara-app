@@ -606,7 +606,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // background orchestration, so it is safe to call for both principal and
   // background (silent) connections without recursion.
   const connectCore = useCallback(
-    async (draft: ConnectionDraft, options?: { silent?: boolean }) => {
+    async (draft: ConnectionDraft, options?: { silent?: boolean; announce?: boolean }) => {
       const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
       const result = await connectPostgres(connectionDraft);
       const nextStoredConnections = saveStoredConnection(connectionDraft);
@@ -632,7 +632,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!options?.silent) {
         setActiveConnectionId(result.connection.id);
         loadConnectionSqlTabs(result.connection);
-        notify(translate("toast.connected", { name: result.connection.name }), "success");
+        // Startup auto-reconnect activates + loads tabs but stays quiet: it passes
+        // announce:false so it doesn't spam a success toast per saved connection.
+        if (options?.announce !== false) {
+          notify(translate("toast.connected", { name: result.connection.name }), "success");
+        }
       }
       return result;
     },
@@ -640,7 +644,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const connectAndStoreConnection = useCallback(
-    async (draft: ConnectionDraft, options?: { skipOrchestration?: boolean }) => {
+    async (
+      draft: ConnectionDraft,
+      options?: { skipOrchestration?: boolean; announce?: boolean },
+    ) => {
       // A database the user connects from a dialog (connection form / password /
       // add-database) is expanded in the sidebar. Startup reconnects pass
       // skipOrchestration and background siblings go through connectCore directly,
@@ -655,7 +662,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      const result = await connectCore(draft);
+      const result = await connectCore(draft, { announce: options?.announce });
       const connectionDraft = { ...draft, name: connectionDisplayName(draft) };
 
       // Background orchestration for the database the user actively connected to
@@ -738,7 +745,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             if (password) {
               await connectAndStoreConnection(
                 { ...connection, password },
-                { skipOrchestration: true },
+                { skipOrchestration: true, announce: false },
               );
             }
           } catch (error) {
