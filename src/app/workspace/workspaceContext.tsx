@@ -554,20 +554,47 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // (the "principal"). Skipped for startup reconnects.
       if (options?.skipOrchestration) return;
 
+      const activate = activateSiblingConnectionsRef.current;
+      const discover = discoverServerDatabasesRef.current;
+      if (!activate && !discover) return;
+
       const serverId = serverNodeId(connectionDraft);
       const principalKey = connectionKey(connectionDraft);
-      // Snapshot of saved siblings BEFORE discovery adds newly-found databases,
-      // so "activate" only touches what was already saved.
-      const siblings = loadStoredConnections().filter(
-        (connection) =>
-          serverNodeId(connection) === serverId && connectionKey(connection) !== principalKey,
-      );
 
-      // (2) Activate: connect the already-saved databases on this server. Each
-      // background-connected database is collapsed in the sidebar so only the
-      // principal (user-initiated) database stays expanded. The collapse is marked
-      // BEFORE connecting so the node never renders expanded (no open→close flicker).
-      if (activateSiblingConnectionsRef.current) {
+      // (3) List: discover and SAVE the other databases on this server (without
+      // connecting). Runs before "activate" so the saved set it reads is complete.
+      if (discover) {
+        try {
+          const names = await fetchServerDatabaseNames(result.connection.id);
+          let nextStored = loadStoredConnections();
+          let changed = false;
+          for (const database of names) {
+            const candidate: ConnectionDraft = { ...connectionDraft, database, password: "" };
+            const candidateKey = connectionKey(candidate);
+            if (nextStored.some((connection) => connectionKey(connection) === candidateKey)) {
+              continue;
+            }
+            nextStored = saveStoredConnection({
+              ...candidate,
+              name: connectionDisplayName(candidate),
+            });
+            changed = true;
+          }
+          if (changed) setStoredConnections(nextStored);
+        } catch {
+          // Discovery is best-effort — ignore failures silently.
+        }
+      }
+
+      // (2) Activate: connect the SAVED databases on this server (the ones List just
+      // saved, plus any saved earlier). Each is collapsed in the sidebar BEFORE
+      // connecting (no open→close flicker) and connected silently (no toast, no
+      // focus steal). Without "list" and without saved siblings, this connects nothing.
+      if (activate) {
+        const siblings = loadStoredConnections().filter(
+          (connection) =>
+            serverNodeId(connection) === serverId && connectionKey(connection) !== principalKey,
+        );
         for (const sibling of siblings) {
           const siblingKey = connectionKey(sibling);
           if (connectionsRef.current.some((item) => connectionKey(item) === siblingKey)) continue;
@@ -588,28 +615,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           } catch {
             // No access / wrong password / server issue — skip silently.
           }
-        }
-      }
-
-      // (3) Discover: list (without connecting) the other databases on the server.
-      if (discoverServerDatabasesRef.current) {
-        try {
-          const names = await fetchServerDatabaseNames(result.connection.id);
-          let nextStored = loadStoredConnections();
-          for (const database of names) {
-            const candidate: ConnectionDraft = { ...connectionDraft, database, password: "" };
-            const candidateKey = connectionKey(candidate);
-            if (nextStored.some((connection) => connectionKey(connection) === candidateKey)) {
-              continue;
-            }
-            nextStored = saveStoredConnection({
-              ...candidate,
-              name: connectionDisplayName(candidate),
-            });
-          }
-          setStoredConnections(nextStored);
-        } catch {
-          // Discovery is best-effort — ignore failures silently.
         }
       }
     },
