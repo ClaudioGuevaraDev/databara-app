@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Circle,
   Database,
+  Download,
   Pencil,
   Plus,
   RefreshCw,
@@ -189,6 +190,33 @@ export function ExplorerNode({
                 className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground"
               >
                 <RefreshCw size={12} />
+              </span>
+            ) : null}
+            {connectedDatabase ? (
+              <span
+                role="button"
+                tabIndex={0}
+                title={t("explorer.downloadBackup")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  explorer.openDownloadBackup(nodeConnectionKey);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  explorer.openDownloadBackup(nodeConnectionKey);
+                }}
+                className="mr-1 flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground"
+              >
+                <span className="relative flex items-center justify-center">
+                  <Database size={12} />
+                  <Download
+                    size={8}
+                    strokeWidth={3}
+                    className="absolute -bottom-1 -right-1.5 rounded-full bg-[hsl(var(--background))]"
+                  />
+                </span>
               </span>
             ) : null}
             <span

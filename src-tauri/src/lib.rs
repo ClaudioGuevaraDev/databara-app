@@ -6,7 +6,7 @@ use std::{
 
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use thiserror::Error;
 use tokio::time::timeout;
 use tokio_postgres::{
@@ -933,6 +933,321 @@ fn write_text_file(path: String, content: String) -> Result<(), AppError> {
     std::fs::write(&path, content).map_err(|e| AppError::Connection(e.to_string()))
 }
 
+/// Event the backup dialog listens on to render live progress (0–100) while the
+/// `.sql` dump is being written.
+const BACKUP_PROGRESS_EVENT: &str = "databara://backup-progress";
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupProgress {
+    percent: u8,
+    table: String,
+}
+
+fn emit_backup_progress(app: &tauri::AppHandle, percent: u8, table: &str) {
+    let _ = app.emit(
+        BACKUP_PROGRESS_EVENT,
+        BackupProgress {
+            percent,
+            table: table.to_string(),
+        },
+    );
+}
+
+/// Wraps an identifier in double quotes, escaping any embedded quote, so schema
+/// and object names with special characters round-trip safely in the dump.
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+/// Numeric/boolean-free types whose canonical text form is a valid SQL literal as-is.
+fn is_numeric_type(column_type: &Type) -> bool {
+    matches!(
+        *column_type,
+        Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::NUMERIC | Type::OID
+    )
+}
+
+/// Renders a cell's canonical text form as a SQL literal for an INSERT: NULL stays
+/// NULL, numeric types are emitted raw, and everything else is single-quoted with
+/// `'` doubled. PostgreSQL casts the quoted text to the destination column type on
+/// restore (bool `t`/`f`, dates, json, uuid, `{…}` arrays, `\x…` bytea, etc.).
+fn sql_literal(value: Option<&str>, column_type: &Type) -> String {
+    match value {
+        None => "NULL".to_string(),
+        Some(text) if is_numeric_type(column_type) => text.to_string(),
+        Some(text) => format!("'{}'", text.replace('\'', "''")),
+    }
+}
+
+struct BackupTable {
+    schema: String,
+    name: String,
+    oid: u32,
+    estimated_rows: i64,
+}
+
+/// Streams a full schema + data `.sql` dump of the connected database to a file in
+/// `directory` named `file_name` (a `.sql` extension is appended if missing), emitting
+/// `BACKUP_PROGRESS_EVENT` as it goes. The dump is ordered so it restores cleanly:
+/// schemas, sequences, tables, data, then constraints and indexes (constraints come
+/// after data so foreign keys don't depend on insertion order). Returns the final path.
+#[tauri::command]
+async fn backup_database(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    connection_id: String,
+    directory: String,
+    file_name: String,
+) -> Result<String, AppError> {
+    use std::io::Write;
+
+    let (client, profile) = session(&state, &connection_id)?;
+
+    let mut file_name = file_name.trim().to_string();
+    if file_name.is_empty() {
+        file_name = format!("{}_backup.sql", profile.database);
+    }
+    if !file_name.to_ascii_lowercase().ends_with(".sql") {
+        file_name.push_str(".sql");
+    }
+    let path = std::path::Path::new(&directory).join(&file_name);
+
+    let file = std::fs::File::create(&path).map_err(|e| AppError::Connection(e.to_string()))?;
+    let mut writer = std::io::BufWriter::new(file);
+    macro_rules! w {
+        ($($arg:tt)*) => {
+            write!(writer, $($arg)*).map_err(|e| AppError::Connection(e.to_string()))?
+        };
+    }
+
+    emit_backup_progress(&app, 0, "");
+
+    w!("-- Databara backup of database \"{}\"\n", profile.database);
+    w!("SET client_encoding = 'UTF8';\n\n");
+
+    // 1. Schemas (skip `public`, which always exists).
+    let schemas = client
+        .query(
+            "select nspname from pg_catalog.pg_namespace \
+             where nspname not like 'pg_%' and nspname <> 'information_schema' \
+             order by nspname",
+            &[],
+        )
+        .await?;
+    for row in &schemas {
+        let schema: String = row.get(0);
+        if schema != "public" {
+            w!("CREATE SCHEMA IF NOT EXISTS {};\n", quote_ident(&schema));
+        }
+    }
+    w!("\n");
+
+    // 2. Sequences, with their current value (so serial columns continue correctly).
+    let sequences = client
+        .query(
+            "select n.nspname as schema, c.relname as name \
+             from pg_catalog.pg_class c \
+             join pg_catalog.pg_namespace n on n.oid = c.relnamespace \
+             where c.relkind = 'S' and n.nspname not like 'pg_%' and n.nspname <> 'information_schema' \
+             order by n.nspname, c.relname",
+            &[],
+        )
+        .await?;
+    for row in &sequences {
+        let schema: String = row.get("schema");
+        let name: String = row.get("name");
+        let qualified = format!("{}.{}", quote_ident(&schema), quote_ident(&name));
+        w!("CREATE SEQUENCE IF NOT EXISTS {};\n", qualified);
+        let value_row = client
+            .query_one(&format!("select last_value, is_called from {}", qualified), &[])
+            .await?;
+        let last_value: i64 = value_row.get("last_value");
+        let is_called: bool = value_row.get("is_called");
+        let regclass = qualified.replace('\'', "''");
+        w!(
+            "SELECT pg_catalog.setval('{}', {}, {});\n",
+            regclass,
+            last_value,
+            is_called
+        );
+    }
+    if !sequences.is_empty() {
+        w!("\n");
+    }
+
+    // Collect base tables once; reused for DDL, data, constraints and indexes.
+    let table_rows = client
+        .query(
+            "select n.nspname as schema, c.relname as name, c.oid as oid, \
+                    greatest(coalesce(c.reltuples::bigint, 0), 0) as est \
+             from pg_catalog.pg_class c \
+             join pg_catalog.pg_namespace n on n.oid = c.relnamespace \
+             where c.relkind = 'r' and n.nspname not like 'pg_%' and n.nspname <> 'information_schema' \
+             order by n.nspname, c.relname",
+            &[],
+        )
+        .await?;
+    let tables: Vec<BackupTable> = table_rows
+        .iter()
+        .map(|row| BackupTable {
+            schema: row.get("schema"),
+            name: row.get("name"),
+            oid: row.get("oid"),
+            estimated_rows: row.get("est"),
+        })
+        .collect();
+    let total_rows: i64 = tables.iter().map(|t| t.estimated_rows).sum::<i64>().max(1);
+
+    // 3. Table definitions.
+    for table in &tables {
+        let columns = client
+            .query(
+                "select a.attname as name, \
+                        pg_catalog.format_type(a.atttypid, a.atttypmod) as type, \
+                        a.attnotnull as notnull, \
+                        pg_catalog.pg_get_expr(d.adbin, d.adrelid) as default \
+                 from pg_catalog.pg_attribute a \
+                 left join pg_catalog.pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum \
+                 where a.attrelid = $1 and a.attnum > 0 and not a.attisdropped \
+                 order by a.attnum",
+                &[&table.oid],
+            )
+            .await?;
+        let qualified = format!("{}.{}", quote_ident(&table.schema), quote_ident(&table.name));
+        let defs: Vec<String> = columns
+            .iter()
+            .map(|col| {
+                let name: String = col.get("name");
+                let data_type: String = col.get("type");
+                let not_null: bool = col.get("notnull");
+                let default: Option<String> = col.get("default");
+                let mut line = format!("  {} {}", quote_ident(&name), data_type);
+                if let Some(default) = default {
+                    line.push_str(&format!(" DEFAULT {}", default));
+                }
+                if not_null {
+                    line.push_str(" NOT NULL");
+                }
+                line
+            })
+            .collect();
+        w!("CREATE TABLE {} (\n{}\n);\n\n", qualified, defs.join(",\n"));
+    }
+
+    // 4. Data, row by row, with progress tracked against the estimated total.
+    let mut processed: i64 = 0;
+    for table in &tables {
+        let qualified = format!("{}.{}", quote_ident(&table.schema), quote_ident(&table.name));
+        let select_sql = format!("select * from {}", qualified);
+        let statement = client.prepare(&select_sql).await?;
+        let column_types: Vec<Type> = statement
+            .columns()
+            .iter()
+            .map(|column| column.type_().clone())
+            .collect();
+        let column_list = statement
+            .columns()
+            .iter()
+            .map(|column| quote_ident(column.name()))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let percent = (5 + (processed * 90 / total_rows)).min(95) as u8;
+        emit_backup_progress(&app, percent, &table.name);
+
+        let messages = client.simple_query(&select_sql).await?;
+        let mut wrote_header = false;
+        let mut rows_in_table: i64 = 0;
+        for message in messages {
+            if let SimpleQueryMessage::Row(row) = message {
+                if !wrote_header {
+                    w!("-- Data for {}\n", qualified);
+                    wrote_header = true;
+                }
+                let values: Vec<String> = (0..row.len())
+                    .map(|index| sql_literal(row.get(index), &column_types[index]))
+                    .collect();
+                w!(
+                    "INSERT INTO {} ({}) VALUES ({});\n",
+                    qualified,
+                    column_list,
+                    values.join(", ")
+                );
+                processed += 1;
+                rows_in_table += 1;
+                if rows_in_table % 1000 == 0 {
+                    let percent = (5 + (processed * 90 / total_rows)).min(95) as u8;
+                    emit_backup_progress(&app, percent, &table.name);
+                }
+            }
+        }
+        if wrote_header {
+            w!("\n");
+        }
+    }
+
+    // 5. Constraints (after data so foreign keys don't depend on insertion order).
+    let mut wrote_constraints_header = false;
+    for table in &tables {
+        let constraints = client
+            .query(
+                "select conname, pg_catalog.pg_get_constraintdef(oid) as def \
+                 from pg_catalog.pg_constraint where conrelid = $1 \
+                 order by contype desc, conname",
+                &[&table.oid],
+            )
+            .await?;
+        let qualified = format!("{}.{}", quote_ident(&table.schema), quote_ident(&table.name));
+        for row in &constraints {
+            if !wrote_constraints_header {
+                w!("-- Constraints\n");
+                wrote_constraints_header = true;
+            }
+            let conname: String = row.get("conname");
+            let def: String = row.get("def");
+            w!(
+                "ALTER TABLE {} ADD CONSTRAINT {} {};\n",
+                qualified,
+                quote_ident(&conname),
+                def
+            );
+        }
+    }
+    if wrote_constraints_header {
+        w!("\n");
+    }
+
+    // 6. Indexes that aren't backing a primary key or a constraint.
+    let mut wrote_indexes_header = false;
+    for table in &tables {
+        let indexes = client
+            .query(
+                "select pg_catalog.pg_get_indexdef(i.indexrelid) as def \
+                 from pg_catalog.pg_index i \
+                 where i.indrelid = $1 and not i.indisprimary \
+                   and not exists (select 1 from pg_catalog.pg_constraint c where c.conindid = i.indexrelid)",
+                &[&table.oid],
+            )
+            .await?;
+        for row in &indexes {
+            if !wrote_indexes_header {
+                w!("-- Indexes\n");
+                wrote_indexes_header = true;
+            }
+            let def: String = row.get("def");
+            w!("{};\n", def);
+        }
+    }
+
+    writer
+        .flush()
+        .map_err(|e| AppError::Connection(e.to_string()))?;
+    emit_backup_progress(&app, 100, "");
+
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -979,7 +1294,8 @@ pub fn run() {
             close_main_window_after_unsaved_resolution,
             updates_supported,
             complete_startup,
-            write_text_file
+            write_text_file,
+            backup_database
         ])
         .run(tauri::generate_context!())
         .expect("error while running Databara");

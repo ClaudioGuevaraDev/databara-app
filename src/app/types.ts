@@ -99,6 +99,11 @@ export type UpdateProgress = {
   error?: string;
 };
 
+export type BackupProgress = {
+  percent: number;
+  table: string;
+};
+
 export type ToastTone = "default" | "success" | "warning";
 
 export type Toast = {

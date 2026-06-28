@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import { emit } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
+import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   defaultDatabaseEngine,
   ensureSupportedConnectionEngine,
   normalizeDatabaseEngine,
 } from "./connectionEngines";
 import type {
+  BackupProgress,
   ColumnTypeCategory,
   ConnectionDraft,
   ConnectionProfile,
@@ -390,6 +391,37 @@ export async function pickSavePath(
 // Rust write_text_file command.
 export async function writeTextFile(path: string, content: string): Promise<void> {
   return invoke<void>("write_text_file", { path, content });
+}
+
+// Opens the native folder picker so the user chooses where a backup lands.
+// Returns the chosen absolute directory, or null if the dialog was cancelled.
+export async function pickDirectory(): Promise<string | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  const directory = await open({ directory: true });
+  return typeof directory === "string" ? directory : null;
+}
+
+// Streams a full schema + data `.sql` dump of the connected database to
+// `directory`/`fileName` (the Rust side appends `.sql` if missing) and returns the
+// final path. Progress is reported separately via listenBackupProgress.
+export async function backupDatabase(
+  connectionId: string,
+  directory: string,
+  fileName: string,
+): Promise<string> {
+  return invoke<string>("backup_database", { connectionId, directory, fileName });
+}
+
+// Event the backup dialog listens on to render live progress (0–100).
+export const BACKUP_PROGRESS_EVENT = "databara://backup-progress";
+
+// Subscribes to backup progress events; returns an unlisten function. No-op
+// (returns a noop unlisten) outside the desktop app.
+export async function listenBackupProgress(
+  onProgress: (progress: BackupProgress) => void,
+): Promise<UnlistenFn> {
+  if (!("__TAURI_INTERNALS__" in window)) return () => {};
+  return listen<BackupProgress>(BACKUP_PROGRESS_EVENT, (event) => onProgress(event.payload));
 }
 
 // Lists the other (non-template, connectable) databases living on the same

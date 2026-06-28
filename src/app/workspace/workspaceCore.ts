@@ -44,6 +44,12 @@ export type AddDatabaseRequest = {
   needsPassword: boolean;
 };
 
+export type BackupRequest = {
+  connectionKey: string;
+  databaseName: string;
+  defaultFileName: string;
+};
+
 export type SettingsTab = "general" | "editor" | "connections";
 
 export type WorkspaceState = {
@@ -54,6 +60,7 @@ export type WorkspaceState = {
   completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
   addDatabaseRequest: AddDatabaseRequest | null;
+  backupRequest: BackupRequest | null;
   deleteConnectionRequest: StoredConnectionDraft | null;
   deleteServerRequest: DeleteServerRequest | null;
   renameServerRequest: RenameServerRequest | null;
@@ -105,6 +112,10 @@ export type WorkspaceActions = {
   copyResult: () => Promise<void>;
   deleteConnection: (nodeId: string) => void;
   openAddDatabase: (serverId: string) => void;
+  openDownloadBackup: (connectionKey?: string) => void;
+  closeBackupDialog: () => void;
+  chooseBackupDirectory: () => Promise<string | null>;
+  runBackup: (directory: string, fileName: string) => Promise<void>;
   openDeleteServer: (serverId: string) => void;
   openRenameServer: (serverId: string) => void;
   downloadResults: (format: ResultExportFormat, scope: ResultExportScope) => Promise<void>;
@@ -229,6 +240,7 @@ export function useExplorer() {
     confirmObjectTab: actions.confirmObjectTab,
     deleteConnection: actions.deleteConnection,
     openAddDatabase: actions.openAddDatabase,
+    openDownloadBackup: actions.openDownloadBackup,
     openDeleteServer: actions.openDeleteServer,
     openRenameServer: actions.openRenameServer,
     openSavedConnection: actions.openSavedConnection,
@@ -329,6 +341,16 @@ export function useDialogs() {
     connectStoredConnection: actions.connectStoredConnection,
     saveConnection: actions.saveConnection,
     setConnectionDialogOpen: actions.setConnectionDialogOpen,
+  };
+}
+
+export function useBackup() {
+  const { actions, state } = useWorkspace();
+  return {
+    backupRequest: state.backupRequest,
+    closeBackupDialog: actions.closeBackupDialog,
+    chooseBackupDirectory: actions.chooseBackupDirectory,
+    runBackup: actions.runBackup,
   };
 }
 

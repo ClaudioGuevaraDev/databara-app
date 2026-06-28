@@ -20,6 +20,8 @@ import {
   loadServerLabels,
   loadStoredConnections,
   saveServerLabel,
+  backupDatabase,
+  pickDirectory,
   pickSavePath,
   runPostgresQuery,
   saveAppSettings,
@@ -63,6 +65,7 @@ import {
   WorkspaceContext,
   type SettingsTab,
   type AddDatabaseRequest,
+  type BackupRequest,
   type DeleteServerRequest,
   type RenameServerRequest,
   type WorkspaceContextValue,
@@ -143,6 +146,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [renameServerRequest, setRenameServerRequest] = useState<RenameServerRequest | null>(null);
   const [deleteServerRequest, setDeleteServerRequest] = useState<DeleteServerRequest | null>(null);
   const [addDatabaseRequest, setAddDatabaseRequest] = useState<AddDatabaseRequest | null>(null);
+  const [backupRequest, setBackupRequest] = useState<BackupRequest | null>(null);
   const [serverLabels, setServerLabels] = useState<Record<string, string>>(loadServerLabels);
   const [connections, setConnections] = useState<ConnectionProfile[]>([]);
   const [activeConnectionId, setActiveConnectionId] = useState("");
@@ -1263,9 +1267,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       const content =
-        format === "csv"
-          ? exportQueryResultCsv(exportResult)
-          : exportQueryResultJson(exportResult);
+        format === "csv" ? exportQueryResultCsv(exportResult) : exportQueryResultJson(exportResult);
 
       try {
         const path = await pickSavePath(`databara-results.${format}`, format);
@@ -1581,6 +1583,46 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [connectAndStoreConnection, serverConnectionsFor],
   );
 
+  const openDownloadBackup = useCallback(
+    (targetConnectionKey?: string) => {
+      const connection = connectionByKey(targetConnectionKey) ?? activeConnection;
+      if (!connection) {
+        notify(translate("toast.connectBeforeRefresh"), "warning");
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      setBackupRequest({
+        connectionKey: connectionKey(connection),
+        databaseName: connection.database,
+        defaultFileName: `${connection.database}_backup_${today}.sql`,
+      });
+    },
+    [activeConnection, connectionByKey, notify],
+  );
+
+  const closeBackupDialog = useCallback(() => setBackupRequest(null), []);
+
+  const chooseBackupDirectory = useCallback(() => pickDirectory(), []);
+
+  const runBackup = useCallback(
+    async (directory: string, fileName: string) => {
+      const connection = connectionByKey(backupRequest?.connectionKey);
+      if (!connection) {
+        notify(translate("toast.connectBeforeRefresh"), "warning");
+        throw new Error(translate("toast.connectBeforeRefresh"));
+      }
+      try {
+        await backupDatabase(connection.id, directory, fileName);
+        notify(translate("toast.backupSaved"), "success");
+        setBackupRequest(null);
+      } catch (error) {
+        notify(readErrorMessage(error) || translate("toast.backupFailed"), "warning");
+        throw error;
+      }
+    },
+    [backupRequest, connectionByKey, notify],
+  );
+
   const toggleNode = useCallback((nodeId: string) => {
     setToggledNodes((current) => {
       const next = new Set(current);
@@ -1613,6 +1655,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       copyResult,
       deleteConnection,
       openAddDatabase,
+      openDownloadBackup,
+      closeBackupDialog,
+      chooseBackupDirectory,
+      runBackup,
       openDeleteServer,
       openRenameServer,
       downloadResults,
@@ -1715,6 +1761,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       completionObject,
       connections,
       addDatabaseRequest,
+      backupRequest,
       deleteConnectionRequest,
       deleteServerRequest,
       renameServerRequest,

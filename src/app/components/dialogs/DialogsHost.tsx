@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useDialogs, useSettings, useUpdater } from "../../workspace/workspaceCore";
+import { useBackup, useDialogs, useSettings, useUpdater } from "../../workspace/workspaceCore";
 import { AddDatabaseDialog } from "./AddDatabaseDialog";
 import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { DeleteServerDialog } from "./DeleteServerDialog";
+import { DownloadBackupDialog } from "./DownloadBackupDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
 import { RenameServerDialog } from "./RenameServerDialog";
 import { SettingsDialog } from "./SettingsDialog";
@@ -12,6 +13,7 @@ import { UpdateDialog } from "./UpdateDialog";
 
 export function DialogsHost() {
   const dialogs = useDialogs();
+  const { backupRequest, closeBackupDialog, chooseBackupDirectory, runBackup } = useBackup();
   const { settingsDialogOpen, closeSettingsDialog } = useSettings();
   const { updateDialogOpen, updateProgress, dismissUpdateDialog, openDownloadPage } = useUpdater();
   const {
@@ -61,6 +63,11 @@ export function DialogsHost() {
         return;
       }
 
+      if (backupRequest) {
+        closeBackupDialog();
+        return;
+      }
+
       if (deleteConnectionRequest) {
         closeDeleteConnectionDialog();
         return;
@@ -88,6 +95,7 @@ export function DialogsHost() {
         !deleteServerRequest &&
         !renameServerRequest &&
         !addDatabaseRequest &&
+        !backupRequest &&
         !deleteConnectionRequest &&
         !passwordConnection &&
         !settingsDialogOpen &&
@@ -104,6 +112,8 @@ export function DialogsHost() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     addDatabaseRequest,
+    backupRequest,
+    closeBackupDialog,
     closeAddDatabaseDialog,
     closeDeleteConnectionDialog,
     closeDeleteServerDialog,
@@ -170,6 +180,14 @@ export function DialogsHost() {
           onCancel={closeUnsavedTabsDialog}
           onDiscard={() => void closeWindowAfterResolution("discard")}
           onSave={() => void closeWindowAfterResolution("save")}
+        />
+      ) : null}
+      {backupRequest ? (
+        <DownloadBackupDialog
+          request={backupRequest}
+          onClose={closeBackupDialog}
+          onChooseDirectory={chooseBackupDirectory}
+          onDownload={runBackup}
         />
       ) : null}
       {settingsDialogOpen ? <SettingsDialog onClose={closeSettingsDialog} /> : null}
