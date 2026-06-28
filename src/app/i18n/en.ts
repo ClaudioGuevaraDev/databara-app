@@ -220,7 +220,6 @@ export const en = {
     viewMode: "Result view",
     viewTable: "Table",
     viewJson: "JSON",
-    columnsCount: "columns",
     ms: "ms",
     runSummary: "{{rows}} rows · {{pageSize}}/page · {{durationMs}} ms",
     rowsAffected: {

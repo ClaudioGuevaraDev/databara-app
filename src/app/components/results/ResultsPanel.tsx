@@ -60,12 +60,11 @@ export function ResultsPanel({
 
   const hasGrid = Boolean(queryResult && queryResult.columns.length > 0);
 
-  // The dedicated view bar carries the Table/JSON switch (Results) or a context label
-  // plus copy actions (Columns/Schema). Hidden while running/erroring or with nothing
-  // to act on, so it never shows over a blank panel.
+  // The dedicated view bar carries the Table/JSON switch and only exists for the Results
+  // tab. Hidden while running/erroring or with nothing to act on, so it never shows over a
+  // blank panel. Columns/Schema render their content directly under the tab strip.
   const showViewBar =
-    queryState !== "running" &&
-    (activeTab === "results" ? hasGrid && queryState !== "error" : Boolean(details));
+    activeTab === "results" && queryState !== "running" && hasGrid && queryState !== "error";
 
   // The footer already reports row/page counts, so the status line is only useful
   // for command messages (no pagination) and errors — not redundant read summaries.
@@ -120,12 +119,7 @@ export function ResultsPanel({
         </div>
       </div>
       {showViewBar ? (
-        <ResultsViewBar
-          activeTab={activeTab}
-          details={details}
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-        />
+        <ResultsViewBar viewMode={viewMode} onViewModeChange={onViewModeChange} />
       ) : null}
       {showStatusLine ? (
         <ResultsStatusLine queryState={queryState} message={statusMessage} />
