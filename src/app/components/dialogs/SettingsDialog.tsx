@@ -375,7 +375,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={resetSettings}
           disabled={allAreDefault}
-          className="group mr-auto flex items-center gap-1.5 rounded px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+          className="group -ml-2 mr-auto flex h-8 items-center gap-1.5 rounded pl-2.5 pr-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
           <Undo2
             size={12}
