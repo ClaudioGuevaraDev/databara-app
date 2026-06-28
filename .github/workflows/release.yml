@@ -3,15 +3,55 @@ name: Release
 # Builds installers for macOS, Linux and Windows and publishes them to a
 # GitHub Release. Triggered by pushing a version tag, e.g.:
 #   git tag v0.10.1 && git push origin v0.10.1
+#
+# The release is created ONCE up front (create-release) so every matrix build
+# uploads its assets to the same draft via a shared releaseId, then a final job
+# flips the draft to published. Letting each matrix job create its own release
+# (the old single-job layout) races on GitHub's API and scatters the per-OS
+# bundles across duplicate drafts — which is how the Linux .AppImage/.deb/.rpm
+# went missing from a release while macOS and Windows showed up.
 on:
   push:
     tags:
       - "v*"
 
 jobs:
-  publish-tauri:
+  # 1. Create the draft release once and hand its id to the build matrix.
+  create-release:
     permissions:
-      contents: write # required to create the GitHub Release and upload assets
+      contents: write # required to create the GitHub Release
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: context.ref.replace('refs/tags/', ''),
+              name: context.ref.replace('refs/tags/', ''),
+              body: 'Descarga el instalador para tu sistema operativo en los assets de abajo.',
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  # 2. Build every platform and upload bundles into the shared draft.
+  build-tauri:
+    needs: create-release
+    permissions:
+      contents: write # required to upload assets to the release
     strategy:
       fail-fast: false
       matrix:
@@ -71,7 +111,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and publish
+      - name: Build and upload
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,9 +133,24 @@ jobs:
           #   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "${{ github.ref_name }}"
-          releaseBody: "Descarga el instalador para tu sistema operativo en los assets de abajo."
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+  # 3. All bundles uploaded — flip the draft to a published release.
+  publish-release:
+    needs: [create-release, build-tauri]
+    permissions:
+      contents: write # required to update the GitHub Release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Publish release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              draft: false,
+              prerelease: false,
+            });
