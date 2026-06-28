@@ -94,6 +94,7 @@ export function EditorTabs({
                 <FileCode2
                   size={14}
                   className={cn(
+                    "shrink-0",
                     activeTabId === tab.id && "text-primary",
                     tab.state === "temporary" && "opacity-75",
                   )}
