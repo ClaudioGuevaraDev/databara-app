@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Check, Copy } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseObjectDetails } from "../../types";
 import { EmptyPanel } from "../ui";
@@ -127,18 +128,39 @@ function tokenToneClass(tone: SqlTokenTone) {
   }
 }
 
-export function SchemaView({ details }: { details: DatabaseObjectDetails | null }) {
+export function SchemaView({
+  details,
+  onCopy,
+}: {
+  details: DatabaseObjectDetails | null;
+  onCopy: () => void;
+}) {
   const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
   if (!details) return <EmptyPanel text={t("results.emptySchema")} />;
 
   const schemaSql = buildObjectSchema(details);
   const badgeSurfaceClass = "bg-[hsl(var(--panel-soft)/0.74)]";
 
+  const handleCopy = () => {
+    onCopy();
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="h-full overflow-auto bg-[hsl(var(--panel-soft)/0.2)] p-3">
       <div
-        className={`min-h-full rounded-md border border-border/70 ${badgeSurfaceClass} shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(220_35%_6%/0.18)]`}
+        className={`relative min-h-full rounded-md border border-border/70 ${badgeSurfaceClass} shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(220_35%_6%/0.18)]`}
       >
+        <button
+          type="button"
+          onClick={handleCopy}
+          title={t("results.copySchema")}
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
         <pre className="min-h-full overflow-auto p-3 font-mono text-[12px] leading-6">
           <code>{renderSql(schemaSql)}</code>
         </pre>

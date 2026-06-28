@@ -220,6 +220,7 @@ export const en = {
     viewMode: "Result view",
     viewTable: "Table",
     viewJson: "JSON",
+    copySchema: "Copy schema",
     download: "Download",
     downloadFormat: "Format",
     downloadScope: "Rows",

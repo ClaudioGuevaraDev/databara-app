@@ -26,6 +26,7 @@ import { SchemaView } from "./SchemaView";
 export function ResultsPanel({
   activeTab,
   details,
+  onCopySchema,
   onDownload,
   onPageChange,
   onPageSizeChange,
@@ -39,6 +40,7 @@ export function ResultsPanel({
 }: {
   activeTab: ResultPanelTab;
   details: DatabaseObjectDetails | null;
+  onCopySchema: () => void;
   onDownload: (format: ResultExportFormat, scope: ResultExportScope) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
@@ -141,7 +143,7 @@ export function ResultsPanel({
         ) : activeTab === "columns" ? (
           <ColumnsView details={details} />
         ) : activeTab === "schema" ? (
-          <SchemaView details={details} />
+          <SchemaView details={details} onCopy={onCopySchema} />
         ) : queryState === "error" ? (
           <pre className="h-full w-full overflow-auto whitespace-pre-wrap p-3 font-mono text-[12px] text-destructive">
             {queryError ?? t("results.queryFailed")}
