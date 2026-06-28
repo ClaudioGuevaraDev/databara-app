@@ -67,11 +67,14 @@ export type SqlTab = {
   connectionKey?: string;
 };
 
+export type ColumnTypeCategory = "number" | "boolean" | "json" | "string";
+
 export type QueryResult = {
   id: string;
   sql: string;
   columns: string[];
-  rows: string[][];
+  columnTypes: ColumnTypeCategory[];
+  rows: (string | null)[][];
   durationMs: number;
   rowCount: number;
   message: string;

@@ -959,7 +959,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             id: crypto.randomUUID(),
             sql: pageSql,
             columns: execution.columns,
-            rows: execution.rows.map((row) => row.map((cell) => cell ?? "NULL")),
+            columnTypes: execution.columnTypes,
+            rows: execution.rows,
             durationMs: execution.durationMs,
             rowCount: execution.rowCount,
             message: translate("results.runSummary", {
@@ -1052,7 +1053,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             id: crypto.randomUUID(),
             sql: baseSql,
             columns: execution.columns,
-            rows: execution.rows.map((row) => row.map((cell) => cell ?? "NULL")),
+            columnTypes: execution.columnTypes,
+            rows: execution.rows,
             durationMs: execution.durationMs,
             rowCount: execution.rowCount,
             message,
@@ -1208,7 +1210,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     await copyText(
-      [queryResult.columns.join("\t"), ...queryResult.rows.map((row) => row.join("\t"))].join("\n"),
+      [
+        queryResult.columns.join("\t"),
+        ...queryResult.rows.map((row) => row.map((cell) => cell ?? "NULL").join("\t")),
+      ].join("\n"),
     );
     notify(translate("toast.resultsCopied"), "success");
   }, [notify, queryResult]);

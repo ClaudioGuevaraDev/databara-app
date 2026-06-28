@@ -9,7 +9,11 @@ use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 use thiserror::Error;
 use tokio::time::timeout;
-use tokio_postgres::{config::SslMode, types::Type, Client, Config, NoTls, SimpleQueryMessage};
+use tokio_postgres::{
+    config::SslMode,
+    types::{Kind, Type},
+    Client, Config, NoTls, SimpleQueryMessage,
+};
 
 // Service name under which connection passwords are stored in the OS keychain
 // (Windows Credential Manager / macOS Keychain / Linux Secret Service). Entries
@@ -191,6 +195,7 @@ struct IndexDefinition {
 #[serde(rename_all = "camelCase")]
 struct QueryExecution {
     columns: Vec<String>,
+    column_types: Vec<String>,
     rows: Vec<Vec<Option<String>>>,
     row_count: usize,
     duration_ms: u128,
@@ -369,8 +374,14 @@ async fn run_postgres_query(
         .next()
         .map(|word| word.to_ascii_uppercase());
 
+    let column_categories = column_types
+        .iter()
+        .map(|column_type| json_category(column_type).to_string())
+        .collect();
+
     Ok(QueryExecution {
         columns,
+        column_types: column_categories,
         row_count: converted.len(),
         rows: converted,
         duration_ms,
@@ -379,12 +390,41 @@ async fn run_postgres_query(
     })
 }
 
+/// Maps a PostgreSQL type to a coarse JSON category the frontend uses to render
+/// values with their natural JSON type in the JSON results view. Arrays are
+/// converted to JSON text by `format_cell`, so they're reported as "json" too;
+/// types without a native JSON representation (timestamps, money, …) are "string".
+fn json_category(column_type: &Type) -> &'static str {
+    if let Kind::Array(_) = column_type.kind() {
+        return "json";
+    }
+    match *column_type {
+        Type::INT2
+        | Type::INT4
+        | Type::INT8
+        | Type::FLOAT4
+        | Type::FLOAT8
+        | Type::NUMERIC
+        | Type::OID => "number",
+        Type::BOOL => "boolean",
+        Type::JSON | Type::JSONB => "json",
+        _ => "string",
+    }
+}
+
 /// Normalizes the canonical text Postgres returns for a cell, returning `None` for
-/// SQL NULL. Most types pass through unchanged; a few common ones are reshaped to
-/// match Databara's prior display (bool as `true`/`false`, timestamptz in UTC,
-/// json/jsonb re-serialized via serde).
+/// SQL NULL. Most types pass through unchanged; a few are reshaped: bool as
+/// `true`/`false`, timestamptz in UTC, json/jsonb re-serialized via serde, and
+/// arrays converted from Postgres' `{…}` literal into a JSON array so the JSON
+/// view can render them as real nested arrays.
 fn format_cell(value: Option<&str>, column_type: Option<&Type>) -> Option<String> {
     let value = value?;
+
+    if let Some(column_type) = column_type {
+        if let Kind::Array(element_type) = column_type.kind() {
+            return Some(postgres_array_to_json(value, element_type).to_string());
+        }
+    }
 
     match column_type {
         Some(&Type::BOOL) => Some(match value {
@@ -403,6 +443,100 @@ fn format_cell(value: Option<&str>, column_type: Option<&Type>) -> Option<String
                 .unwrap_or_else(|_| value.to_string()),
         ),
         _ => Some(value.to_string()),
+    }
+}
+
+/// Parses a PostgreSQL array literal (e.g. `{1,2,3}`, `{red,"a,b",NULL}`, nested
+/// `{{1,2},{3,4}}`, or `jsonb[]` with quoted/escaped elements) into a JSON value,
+/// converting each leaf element according to its element type. Falls back to the
+/// raw string as a JSON string if the input isn't a `{…}` literal.
+fn postgres_array_to_json(text: &str, element_type: &Type) -> serde_json::Value {
+    let chars: Vec<char> = text.chars().collect();
+    let mut pos = 0;
+    if chars.first() != Some(&'{') {
+        return serde_json::Value::String(text.to_string());
+    }
+    parse_array_value(&chars, &mut pos, element_type)
+}
+
+/// Parses a `{…}` group starting at `*pos` (which must point at `{`), recursing
+/// into nested arrays and advancing `*pos` past the closing `}`.
+fn parse_array_value(chars: &[char], pos: &mut usize, element_type: &Type) -> serde_json::Value {
+    let mut items: Vec<serde_json::Value> = Vec::new();
+    *pos += 1; // consume '{'
+    while *pos < chars.len() {
+        match chars[*pos] {
+            '}' => {
+                *pos += 1;
+                break;
+            }
+            ',' => *pos += 1,
+            '{' => items.push(parse_array_value(chars, pos, element_type)),
+            '"' => {
+                let element = parse_quoted_element(chars, pos);
+                items.push(array_element_to_json(&element, element_type));
+            }
+            _ => {
+                let start = *pos;
+                while *pos < chars.len() && chars[*pos] != ',' && chars[*pos] != '}' {
+                    *pos += 1;
+                }
+                let element: String = chars[start..*pos].iter().collect();
+                let element = element.trim();
+                if element.eq_ignore_ascii_case("NULL") {
+                    items.push(serde_json::Value::Null);
+                } else {
+                    items.push(array_element_to_json(element, element_type));
+                }
+            }
+        }
+    }
+    serde_json::Value::Array(items)
+}
+
+/// Reads a double-quoted array element starting at `*pos` (pointing at the opening
+/// quote), un-escaping `\\` and `\"`, and advances `*pos` past the closing quote.
+fn parse_quoted_element(chars: &[char], pos: &mut usize) -> String {
+    let mut out = String::new();
+    *pos += 1; // consume opening quote
+    while *pos < chars.len() {
+        match chars[*pos] {
+            '\\' if *pos + 1 < chars.len() => {
+                out.push(chars[*pos + 1]);
+                *pos += 2;
+            }
+            '"' => {
+                *pos += 1;
+                break;
+            }
+            other => {
+                out.push(other);
+                *pos += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Converts a single (already un-quoted/un-escaped) array element to a JSON value
+/// based on the array's element type, mirroring `json_category`'s coarse buckets.
+fn array_element_to_json(element: &str, element_type: &Type) -> serde_json::Value {
+    match *element_type {
+        Type::BOOL => serde_json::Value::Bool(element == "t" || element == "true"),
+        Type::INT2 | Type::INT4 | Type::INT8 | Type::FLOAT4 | Type::FLOAT8 | Type::NUMERIC
+        | Type::OID => {
+            if let Ok(int_value) = element.parse::<i64>() {
+                serde_json::Value::from(int_value)
+            } else if let Some(num) = element.parse::<f64>().ok().and_then(serde_json::Number::from_f64)
+            {
+                serde_json::Value::Number(num)
+            } else {
+                serde_json::Value::String(element.to_string())
+            }
+        }
+        Type::JSON | Type::JSONB => serde_json::from_str(element)
+            .unwrap_or_else(|_| serde_json::Value::String(element.to_string())),
+        _ => serde_json::Value::String(element.to_string()),
     }
 }
 

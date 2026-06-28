@@ -6,6 +6,7 @@ import {
   normalizeDatabaseEngine,
 } from "./connectionEngines";
 import type {
+  ColumnTypeCategory,
   ConnectionDraft,
   ConnectionProfile,
   ConnectionTestResult,
@@ -349,6 +350,7 @@ export async function getPostgresObjectDetails(
 
 export type QueryExecutionResult = {
   columns: string[];
+  columnTypes: ColumnTypeCategory[];
   rows: (string | null)[][];
   rowCount: number;
   durationMs: number;
