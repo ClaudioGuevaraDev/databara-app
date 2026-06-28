@@ -8,6 +8,8 @@ import type {
   QueryPagination,
   QueryResult,
   QueryState,
+  ResultExportFormat,
+  ResultExportScope,
   ResultPanelTab,
   ResultViewMode,
 } from "../../types";
@@ -24,6 +26,7 @@ import { SchemaView } from "./SchemaView";
 export function ResultsPanel({
   activeTab,
   details,
+  onDownload,
   onPageChange,
   onPageSizeChange,
   onTabChange,
@@ -36,6 +39,7 @@ export function ResultsPanel({
 }: {
   activeTab: ResultPanelTab;
   details: DatabaseObjectDetails | null;
+  onDownload: (format: ResultExportFormat, scope: ResultExportScope) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onTabChange: (tab: ResultPanelTab) => void;
@@ -119,7 +123,11 @@ export function ResultsPanel({
         </div>
       </div>
       {showViewBar ? (
-        <ResultsViewBar viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        <ResultsViewBar
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          onDownload={onDownload}
+        />
       ) : null}
       {showStatusLine ? (
         <ResultsStatusLine queryState={queryState} message={statusMessage} />

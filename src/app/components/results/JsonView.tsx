@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useI18n } from "../../i18n/I18nContext";
-import type { ColumnTypeCategory, QueryResult } from "../../types";
+import { coerceCell } from "../../query/coerceCell";
+import type { QueryResult } from "../../types";
 import { EmptyPanel } from "../ui";
 
 type JsonTone = "key" | "string" | "number" | "boolean" | "null" | "punct";
@@ -66,31 +67,6 @@ function renderJson(json: string) {
   }
 
   return nodes;
-}
-
-// Converts a textual cell into its natural JSON value based on the column's type
-// category, so the JSON view shows numbers/booleans/json/null unquoted instead of
-// stringifying everything.
-function coerceCell(value: string | null, category: ColumnTypeCategory): unknown {
-  if (value === null) return null;
-  switch (category) {
-    case "number": {
-      const parsed = Number(value);
-      // Only numberize when it round-trips exactly — preserves big int8/numeric
-      // precision and leaves NaN/Infinity/"1.50" as strings.
-      return Number.isFinite(parsed) && String(parsed) === value ? parsed : value;
-    }
-    case "boolean":
-      return value === "true";
-    case "json":
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    default:
-      return value;
-  }
 }
 
 export function JsonView({ queryResult }: { queryResult: QueryResult | null }) {

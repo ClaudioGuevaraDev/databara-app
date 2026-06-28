@@ -925,12 +925,21 @@ fn sanitize_id(value: &str) -> String {
     sanitized.trim_matches('-').to_string()
 }
 
+/// Writes UTF-8 text to a user-chosen path. The frontend picks the path via the
+/// native save dialog (tauri-plugin-dialog) and passes it here so result exports
+/// land wherever the user wants, using std::fs directly (no fs-plugin scope needed).
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), AppError> {
+    std::fs::write(&path, content).map_err(|e| AppError::Connection(e.to_string()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(AppState::default()))
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -969,7 +978,8 @@ pub fn run() {
             set_unsaved_sql_tabs,
             close_main_window_after_unsaved_resolution,
             updates_supported,
-            complete_startup
+            complete_startup,
+            write_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running Databara");

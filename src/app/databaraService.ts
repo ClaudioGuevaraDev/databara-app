@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
+import { save } from "@tauri-apps/plugin-dialog";
 import {
   defaultDatabaseEngine,
   ensureSupportedConnectionEngine,
@@ -363,6 +364,32 @@ export async function runPostgresQuery(
   sql: string,
 ): Promise<QueryExecutionResult> {
   return invoke<QueryExecutionResult>("run_postgres_query", { connectionId, sql });
+}
+
+// Opens the native "Save As" dialog so the user picks where the export lands.
+// Returns the chosen absolute path, or null if the dialog was cancelled. The
+// extension filter is keyed off the export format.
+export async function pickSavePath(
+  defaultName: string,
+  format: "csv" | "json",
+): Promise<string | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  const path = await save({
+    defaultPath: defaultName,
+    filters: [
+      {
+        name: format === "csv" ? "CSV" : "JSON",
+        extensions: [format],
+      },
+    ],
+  });
+  return path ?? null;
+}
+
+// Writes UTF-8 text to an absolute path (chosen via pickSavePath) through the
+// Rust write_text_file command.
+export async function writeTextFile(path: string, content: string): Promise<void> {
+  return invoke<void>("write_text_file", { path, content });
 }
 
 // Lists the other (non-template, connectable) databases living on the same

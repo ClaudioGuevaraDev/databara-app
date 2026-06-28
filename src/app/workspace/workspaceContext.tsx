@@ -20,16 +20,19 @@ import {
   loadServerLabels,
   loadStoredConnections,
   saveServerLabel,
+  pickSavePath,
   runPostgresQuery,
   saveAppSettings,
   saveStoredConnection,
   setUnsavedSqlTabs,
   storeConnectionPassword,
   updatesSupported,
+  writeTextFile,
   type AppSettings,
   type StoredConnectionDraft,
 } from "../databaraService";
 import { exportQueryResultCsv } from "../query/exportCsv";
+import { exportQueryResultJson } from "../query/exportJson";
 import { translate } from "../i18n/translate";
 import { buildObjectSchema } from "../components/results/objectSchema";
 import {
@@ -40,6 +43,8 @@ import {
   type QueryPagination,
   type QueryState,
   type QueryResult,
+  type ResultExportFormat,
+  type ResultExportScope,
   type ResultPanelTab,
   type ResultViewMode,
   type SqlTab,
@@ -1228,21 +1233,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     notify(translate("toast.schemaCopied"), "success");
   }, [notify, selectedObject]);
 
-  const exportCsv = useCallback(() => {
-    if (!queryResult) {
-      notify(translate("toast.runBeforeExportCsv"), "warning");
-      return;
-    }
+  const downloadResults = useCallback(
+    async (format: ResultExportFormat, scope: ResultExportScope) => {
+      if (!queryResult) {
+        notify(translate("toast.runBeforeDownload"), "warning");
+        return;
+      }
 
-    const blob = new Blob([exportQueryResultCsv(queryResult)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "databara-results.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
-    notify(translate("toast.csvExportStarted"), "success");
-  }, [notify, queryResult]);
+      // "All pages" re-runs the (LIMIT-stripped) base query to pull every row;
+      // "current page" — and any non-paginated result — exports what's loaded.
+      let exportResult = queryResult;
+      if (scope === "all" && activeTabResult?.pagination) {
+        try {
+          const execution = await runPostgresQuery(
+            activeTabResult.connectionId,
+            activeTabResult.baseSql,
+          );
+          exportResult = {
+            ...queryResult,
+            rows: execution.rows,
+            columns: execution.columns,
+            columnTypes: execution.columnTypes,
+            rowCount: execution.rowCount,
+          };
+        } catch (error) {
+          notify(readErrorMessage(error), "warning");
+          return;
+        }
+      }
+
+      const content =
+        format === "csv"
+          ? exportQueryResultCsv(exportResult)
+          : exportQueryResultJson(exportResult);
+
+      try {
+        const path = await pickSavePath(`databara-results.${format}`, format);
+        if (!path) {
+          notify(translate("toast.downloadCancelled"), "default");
+          return;
+        }
+        await writeTextFile(path, content);
+        notify(translate("toast.downloadSaved"), "success");
+      } catch (error) {
+        notify(readErrorMessage(error) || translate("toast.downloadFailed"), "warning");
+      }
+    },
+    [activeTabResult, notify, queryResult],
+  );
 
   const copyObjectName = useCallback(async () => {
     if (!selectedObject) return;
@@ -1577,7 +1615,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openAddDatabase,
       openDeleteServer,
       openRenameServer,
-      exportCsv,
+      downloadResults,
       goToQueryPage,
       openSchemaTab,
       openNewConnectionDialog,

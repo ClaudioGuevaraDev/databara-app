@@ -1,14 +1,17 @@
 import { FileJson, Table2 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useI18n } from "../../i18n/I18nContext";
-import type { ResultViewMode } from "../../types";
+import type { ResultExportFormat, ResultExportScope, ResultViewMode } from "../../types";
+import { DownloadMenu } from "./DownloadMenu";
 
 // The bar sitting between the tabs and the content on the Results tab. It holds the
-// Table/JSON view switch.
+// Table/JSON view switch and the download menu.
 export function ResultsViewBar({
+  onDownload,
   onViewModeChange,
   viewMode,
 }: {
+  onDownload: (format: ResultExportFormat, scope: ResultExportScope) => void;
   onViewModeChange: (mode: ResultViewMode) => void;
   viewMode: ResultViewMode;
 }) {
@@ -20,7 +23,7 @@ export function ResultsViewBar({
   ];
 
   return (
-    <div className="flex h-9 items-center border-b border-border bg-[hsl(var(--panel-soft)/0.45)] px-2 [background-image:linear-gradient(90deg,hsl(var(--primary)/0.05),transparent_40%)]">
+    <div className="flex h-9 items-center justify-between border-b border-border bg-[hsl(var(--panel-soft)/0.45)] px-2 [background-image:linear-gradient(90deg,hsl(var(--primary)/0.05),transparent_40%)]">
       <div className="flex items-center">
         <div
           role="tablist"
@@ -55,6 +58,7 @@ export function ResultsViewBar({
           })}
         </div>
       </div>
+      <DownloadMenu defaultFormat={viewMode === "json" ? "json" : "csv"} onDownload={onDownload} />
     </div>
   );
 }

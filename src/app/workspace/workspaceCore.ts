@@ -12,6 +12,8 @@ import type {
   QueryPagination,
   QueryState,
   QueryResult,
+  ResultExportFormat,
+  ResultExportScope,
   ResultPanelTab,
   ResultViewMode,
   SqlTab,
@@ -105,7 +107,7 @@ export type WorkspaceActions = {
   openAddDatabase: (serverId: string) => void;
   openDeleteServer: (serverId: string) => void;
   openRenameServer: (serverId: string) => void;
-  exportCsv: () => void;
+  downloadResults: (format: ResultExportFormat, scope: ResultExportScope) => Promise<void>;
   goToQueryPage: (page: number) => Promise<void>;
   openSchemaTab: () => Promise<void>;
   openNewConnectionDialog: () => void;
@@ -268,7 +270,7 @@ export function useResults() {
     closeResults: actions.closeResults,
     copySchema: actions.copySchema,
     copyResult: actions.copyResult,
-    exportCsv: actions.exportCsv,
+    downloadResults: actions.downloadResults,
     goToQueryPage: actions.goToQueryPage,
     selectResultTab: actions.selectResultTab,
     selectResultViewMode: actions.selectResultViewMode,

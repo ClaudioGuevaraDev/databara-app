@@ -3,6 +3,8 @@ export type DatabaseEngine = "postgresql";
 export type DatabaseObjectKind = "database" | "schema" | "table" | "view";
 export type ResultPanelTab = "results" | "columns" | "schema";
 export type ResultViewMode = "table" | "json";
+export type ResultExportFormat = "csv" | "json";
+export type ResultExportScope = "page" | "all";
 export type QueryState = "idle" | "running" | "success" | "error" | "cancelled";
 export type SslMode = "Prefer" | "Require" | "Disable";
 

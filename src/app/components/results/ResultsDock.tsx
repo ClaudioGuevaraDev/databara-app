@@ -14,6 +14,7 @@ export function ResultsDock() {
       queryPagination={results.queryPagination}
       queryResult={results.queryResult}
       queryState={results.queryState}
+      onDownload={results.downloadResults}
       onPageChange={results.goToQueryPage}
       onPageSizeChange={results.setQueryPageSize}
       onTabChange={results.selectResultTab}
