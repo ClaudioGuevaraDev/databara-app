@@ -13,9 +13,9 @@ const positionStyles: Record<NotificationPosition, string> = {
   "top-left": "top-1 left-2",
   "top-center": "top-1 left-1/2 -translate-x-1/2",
   "top-right": "top-1 right-2",
-  "bottom-left": "bottom-6 left-2",
-  "bottom-center": "bottom-6 left-1/2 -translate-x-1/2",
-  "bottom-right": "bottom-6 right-2",
+  "bottom-left": "bottom-7 left-2",
+  "bottom-center": "bottom-7 left-1/2 -translate-x-1/2",
+  "bottom-right": "bottom-7 right-2",
 };
 
 export function Toaster() {
