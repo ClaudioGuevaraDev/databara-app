@@ -4,8 +4,8 @@ import {
   Circle,
   Database,
   Download,
+  Link,
   Pencil,
-  Plus,
   RefreshCw,
   ServerOff,
   Unlink,
@@ -115,10 +115,10 @@ export function ExplorerNode({
             >
               <span className="relative flex items-center justify-center">
                 <Database size={12} />
-                <Plus
+                <Link
                   size={8}
                   strokeWidth={3}
-                  className="absolute -bottom-1 -right-1.5 rounded-full bg-[hsl(var(--background))]"
+                  className="absolute -bottom-1 -right-1 rounded-full bg-[hsl(var(--background))]"
                 />
               </span>
             </span>
@@ -214,7 +214,7 @@ export function ExplorerNode({
                   <Download
                     size={8}
                     strokeWidth={3}
-                    className="absolute -bottom-1 -right-1.5 rounded-full bg-[hsl(var(--background))]"
+                    className="absolute -bottom-1 -right-2 rounded-full bg-[hsl(var(--background))]"
                   />
                 </span>
               </span>

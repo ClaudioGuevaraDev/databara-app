@@ -22,7 +22,7 @@ export const en = {
   explorer: {
     title: "Explorer",
     newConnection: "New connection",
-    addDatabase: "Add database",
+    addDatabase: "Connect to database",
     renameServer: "Rename server",
     disconnectServer: "Disconnect server",
     connected: "Connected",
@@ -120,8 +120,8 @@ export const en = {
       placeholder: "Enter password",
     },
     addDatabase: {
-      title: "Add database",
-      hint: "Connect to another database on this server.",
+      title: "Connect to database",
+      hint: "Connect to an existing database on this server.",
       nameLabel: "Database name",
       namePlaceholder: "e.g. analytics",
       passwordLabel: "Password",

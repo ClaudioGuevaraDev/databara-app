@@ -92,7 +92,7 @@ export function AddDatabaseDialog({
             className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            {t("common.add")}
+            {t("common.connect")}
           </button>
         </DialogActions>
       </form>
