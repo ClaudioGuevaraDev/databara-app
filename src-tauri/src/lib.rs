@@ -4,17 +4,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use futures_util::{pin_mut, TryStreamExt};
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 use thiserror::Error;
 use tokio::time::timeout;
-use tokio_postgres::{
-    config::SslMode,
-    types::{ToSql, Type},
-    Client, Config, NoTls, Row,
-};
+use tokio_postgres::{config::SslMode, types::Type, Client, Config, NoTls, SimpleQueryMessage};
 
 // Service name under which connection passwords are stored in the OS keychain
 // (Windows Credential Manager / macOS Keychain / Linux Secret Service). Entries
@@ -327,28 +322,46 @@ async fn run_postgres_query(
 ) -> Result<QueryExecution, AppError> {
     let (client, _) = session(&state, &connection_id)?;
 
-    // Prepare first so we can read column metadata even when the result is empty.
+    // Prepare first so we can read column metadata (names + types) even when the
+    // result is empty. Preparing also rejects multi-statement SQL, keeping the
+    // single-result QueryExecution shape valid.
     let statement = client.prepare(&sql).await?;
     let columns: Vec<String> = statement
         .columns()
         .iter()
         .map(|column| column.name().to_string())
         .collect();
+    let column_types: Vec<Type> = statement
+        .columns()
+        .iter()
+        .map(|column| column.type_().clone())
+        .collect();
 
-    // query_raw exposes the command tag and affected-row count once the stream is
-    // exhausted, which `query` does not — needed to report DML/DDL results.
-    let params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    // Execute via the simple query protocol so every value comes back in Postgres'
+    // canonical text form. Unlike binary decoding (query_raw on a prepared
+    // statement), this handles every type — money, interval, cidr, macaddr, inet,
+    // bytea, arrays, ranges, enums, etc. — without per-type decoders.
     let start = Instant::now();
-    let stream = client.query_raw(&statement, params).await?;
-    pin_mut!(stream);
+    let messages = client.simple_query(&sql).await?;
+    let duration_ms = start.elapsed().as_millis();
 
     let mut converted: Vec<Vec<Option<String>>> = Vec::new();
-    while let Some(row) = stream.try_next().await? {
-        converted.push((0..row.len()).map(|index| cell_to_string(&row, index)).collect());
+    let mut rows_affected: Option<u64> = None;
+    for message in messages {
+        match message {
+            SimpleQueryMessage::Row(row) => {
+                converted.push(
+                    (0..row.len())
+                        .map(|index| format_cell(row.get(index), column_types.get(index)))
+                        .collect(),
+                );
+            }
+            SimpleQueryMessage::CommandComplete(count) => rows_affected = Some(count),
+            // SimpleQueryMessage is #[non_exhaustive], so a catch-all is required.
+            _ => {}
+        }
     }
 
-    let duration_ms = start.elapsed().as_millis();
-    let rows_affected = stream.rows_affected();
     // tokio-postgres 0.7 doesn't expose the command tag here, so derive the verb
     // from the SQL itself (e.g. "DELETE", "INSERT", "CREATE").
     let command_tag = sql
@@ -366,47 +379,30 @@ async fn run_postgres_query(
     })
 }
 
-/// Converts a single result cell into a displayable string, returning `None` for
-/// SQL NULL. Covers the common PostgreSQL types; anything unrecognized falls back
-/// to a best-effort text read so the conversion never panics.
-fn cell_to_string(row: &Row, index: usize) -> Option<String> {
-    let column_type = row.columns()[index].type_();
+/// Normalizes the canonical text Postgres returns for a cell, returning `None` for
+/// SQL NULL. Most types pass through unchanged; a few common ones are reshaped to
+/// match Databara's prior display (bool as `true`/`false`, timestamptz in UTC,
+/// json/jsonb re-serialized via serde).
+fn format_cell(value: Option<&str>, column_type: Option<&Type>) -> Option<String> {
+    let value = value?;
 
-    match *column_type {
-        Type::BOOL => row.get::<_, Option<bool>>(index).map(|value| value.to_string()),
-        Type::INT2 => row.get::<_, Option<i16>>(index).map(|value| value.to_string()),
-        Type::INT4 => row.get::<_, Option<i32>>(index).map(|value| value.to_string()),
-        Type::INT8 => row.get::<_, Option<i64>>(index).map(|value| value.to_string()),
-        Type::FLOAT4 => row.get::<_, Option<f32>>(index).map(|value| value.to_string()),
-        Type::FLOAT8 => row.get::<_, Option<f64>>(index).map(|value| value.to_string()),
-        Type::NUMERIC => row
-            .get::<_, Option<rust_decimal::Decimal>>(index)
-            .map(|value| value.to_string()),
-        Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::CHAR | Type::NAME | Type::UNKNOWN => {
-            row.get::<_, Option<String>>(index)
-        }
-        Type::UUID => row
-            .get::<_, Option<uuid::Uuid>>(index)
-            .map(|value| value.to_string()),
-        Type::TIMESTAMP => row
-            .get::<_, Option<chrono::NaiveDateTime>>(index)
-            .map(|value| value.to_string()),
-        Type::TIMESTAMPTZ => row
-            .get::<_, Option<chrono::DateTime<chrono::Utc>>>(index)
-            .map(|value| value.to_string()),
-        Type::DATE => row
-            .get::<_, Option<chrono::NaiveDate>>(index)
-            .map(|value| value.to_string()),
-        Type::TIME => row
-            .get::<_, Option<chrono::NaiveTime>>(index)
-            .map(|value| value.to_string()),
-        Type::JSON | Type::JSONB => row
-            .get::<_, Option<serde_json::Value>>(index)
-            .map(|value| value.to_string()),
-        _ => match row.try_get::<_, Option<String>>(index) {
-            Ok(value) => value,
-            Err(_) => Some(format!("<unsupported: {}>", column_type.name())),
-        },
+    match column_type {
+        Some(&Type::BOOL) => Some(match value {
+            "t" => "true".to_string(),
+            "f" => "false".to_string(),
+            other => other.to_string(),
+        }),
+        Some(&Type::TIMESTAMPTZ) => Some(
+            chrono::DateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S%.f%#z")
+                .map(|dt| dt.with_timezone(&chrono::Utc).to_string())
+                .unwrap_or_else(|_| value.to_string()),
+        ),
+        Some(&Type::JSON) | Some(&Type::JSONB) => Some(
+            serde_json::from_str::<serde_json::Value>(value)
+                .map(|parsed| parsed.to_string())
+                .unwrap_or_else(|_| value.to_string()),
+        ),
+        _ => Some(value.to_string()),
     }
 }
 
