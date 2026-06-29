@@ -18,6 +18,7 @@ import type {
   ResultViewMode,
   SqlTab,
   Toast,
+  ToastTone,
   UpdateProgress,
 } from "../types";
 
@@ -141,6 +142,7 @@ export type WorkspaceActions = {
   setDiscoverServerDatabases: (enabled: boolean) => void;
   setExportIncludesPasswords: (enabled: boolean) => void;
   exportConfiguration: (includePasswords: boolean) => Promise<ConfigurationExport>;
+  notify: (text: string, tone?: ToastTone) => void;
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
   setLanguage: (code: Language) => void;
@@ -209,6 +211,7 @@ export function useSettings() {
     setDiscoverServerDatabases: actions.setDiscoverServerDatabases,
     setExportIncludesPasswords: actions.setExportIncludesPasswords,
     exportConfiguration: actions.exportConfiguration,
+    notify: actions.notify,
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
     setLanguage: actions.setLanguage,

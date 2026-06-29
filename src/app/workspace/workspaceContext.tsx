@@ -1709,6 +1709,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           includePasswords,
           livePasswords: Object.fromEntries(livePasswordsRef.current),
         }),
+      notify,
       setZoomLevel: (level) =>
         setSettings((current) => ({
           ...current,

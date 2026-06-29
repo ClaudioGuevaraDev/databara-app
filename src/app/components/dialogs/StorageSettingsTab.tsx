@@ -14,11 +14,11 @@ import { cn, formatBytes } from "../../../lib/utils";
 import { readErrorMessage } from "./connectionForm";
 import { FormAlert, Switch } from "../ui";
 
-type ExportPhase = "idle" | "exporting" | "done" | "error";
+type ExportPhase = "idle" | "exporting" | "error";
 
 export function StorageSettingsTab() {
   const { t } = useI18n();
-  const { settings, setExportIncludesPasswords, exportConfiguration } = useSettings();
+  const { settings, setExportIncludesPasswords, exportConfiguration, notify } = useSettings();
   const includePasswords = settings.exportIncludesPasswords.enabled;
 
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
@@ -70,7 +70,8 @@ export function StorageSettingsTab() {
       }
       const data = await exportConfiguration(includePasswords);
       await writeTextFile(path, JSON.stringify(data, null, 2));
-      setPhase("done");
+      setPhase("idle");
+      notify(t("settings.storage.exported"), "success");
     } catch (exportError) {
       setError(readErrorMessage(exportError));
       setPhase("error");
@@ -212,20 +213,15 @@ export function StorageSettingsTab() {
           </div>
         )}
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void runExport()}
-            disabled={exporting}
-            className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            {t("settings.storage.export")}
-          </button>
-          {phase === "done" ? (
-            <span className="text-[11px] text-emerald-400">{t("settings.storage.exported")}</span>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          onClick={() => void runExport()}
+          disabled={exporting}
+          className="flex h-8 items-center gap-1.5 justify-self-start rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          {t("settings.storage.export")}
+        </button>
 
         {error ? <FormAlert tone="error">{error}</FormAlert> : null}
       </section>
