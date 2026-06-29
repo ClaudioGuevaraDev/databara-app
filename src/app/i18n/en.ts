@@ -49,7 +49,7 @@ export const en = {
     },
     notifications: {
       title: "Notifications",
-      description: "Where on-screen toasts appear.",
+      description: "Where on-screen toasts appear",
     },
     notificationPositions: {
       "top-left": "Top left",
@@ -61,26 +61,26 @@ export const en = {
     },
     language: {
       title: "Language",
-      description: "Interface language.",
+      description: "Interface language",
     },
     languages: {
       en: "English",
     },
     sidebar: {
       title: "Sidebar width",
-      description: "Width of the explorer sidebar.",
+      description: "Width of the explorer sidebar",
       decrease: "Decrease sidebar width",
       increase: "Increase sidebar width",
     },
     bottomPanel: {
       title: "Bottom panel height",
-      description: "Height of the results panel.",
+      description: "Height of the results panel",
       decrease: "Decrease bottom panel height",
       increase: "Increase bottom panel height",
     },
     fontSize: {
       title: "Font size",
-      description: "Font size of the SQL editor.",
+      description: "Font size of the SQL editor",
       decrease: "Decrease font size",
       increase: "Increase font size",
     },
@@ -92,17 +92,17 @@ export const en = {
     activateSiblingConnections: {
       title: "Activate other databases on connect",
       description:
-        "When you connect to a database, also connect to the other saved databases on the same server, in the background.",
+        "When you connect to a database, also connect to the other saved databases on the same server, in the background",
     },
     discoverServerDatabases: {
       title: "List databases found on the server",
       description:
-        "When you connect to a database, discover the other databases on the same server and list them in the sidebar, without connecting them.",
+        "When you connect to a database, discover the other databases on the same server and list them in the sidebar, without connecting them",
     },
     storage: {
       usageTitle: "Browser storage",
       usageLabel: "{{used}} of {{total}} used",
-      usageUnavailable: "Storage usage is not available in this environment.",
+      usageUnavailable: "Storage usage is not available in this environment",
       viewDetails: "View details",
       hideDetails: "Hide details",
       categories: {
@@ -112,14 +112,14 @@ export const en = {
         sqlTabs: "SQL tabs",
         other: "Other",
       },
-      empty: "No app data stored yet.",
+      empty: "No app data stored yet",
       total: "Total",
       export: "Export configuration",
-      exported: "Configuration exported.",
-      passwordsExcludedNote: "Passwords are not included in the file.",
+      exported: "Configuration exported",
+      passwordsExcludedNote: "Passwords are not included in the file",
       includePasswords: {
         title: "Include passwords in the download",
-        description: "Adds connection passwords, in plaintext, to the exported file.",
+        description: "Adds connection passwords, in plaintext, to the exported file",
         warning:
           "The exported file will contain your connection passwords in plaintext. Anyone with the file can read them — keep it private and do not share it.",
         confirm: "Enable anyway",
@@ -138,19 +138,19 @@ export const en = {
       user: "User",
       password: "Password",
       sslMode: "SSL mode",
-      passwordHint: "Password is used for this session only and is not saved.",
+      passwordHint: "Password is used for this session only and is not saved",
       passwordPlaceholder: "Enter password",
       test: "Test connection",
     },
     password: {
       title: "Connect to {{database}}",
-      hint: "Enter the password for this session.",
+      hint: "Enter the password for this session",
       label: "Password",
       placeholder: "Enter password",
     },
     addDatabase: {
       title: "Connect to database",
-      hint: "Connect to an existing database on this server.",
+      hint: "Connect to an existing database on this server",
       nameLabel: "Database name",
       namePlaceholder: "e.g. analytics",
       passwordLabel: "Password",
@@ -179,18 +179,18 @@ export const en = {
         one: "and all {{count}} database under it?",
         other: "and all {{count}} databases under it?",
       },
-      note: "This only removes them from your saved connections — the databases themselves are not deleted.",
+      note: "This only removes them from your saved connections — the databases themselves are not deleted",
       confirm: "Disconnect server",
     },
     deleteConnection: {
       title: "Disconnect database",
       question: "Disconnect",
-      note: "This only removes it from your saved connections on this device — the database itself is not deleted.",
+      note: "This only removes it from your saved connections on this device — the database itself is not deleted",
       confirm: "Disconnect",
     },
     unsavedTabs: {
       title: "Unsaved tabs",
-      line1: "There are SQL tabs with unsaved changes.",
+      line1: "There are SQL tabs with unsaved changes",
       line2: "Save them before closing the app?",
       dontSave: "Don't save",
       save: "Save",
@@ -204,12 +204,12 @@ export const en = {
         error: "Update failed",
         unavailable: "Update available",
       },
-      errorFallback: "The update could not be completed.",
-      errorHelp: "You can download the latest version manually from the website.",
+      errorFallback: "The update could not be completed",
+      errorHelp: "You can download the latest version manually from the website",
       newVersion: "New version available:",
       cannotSelfUpdate:
         "This installation can't update itself. Download the latest version manually from the website.",
-      willRestart: "The app will restart to apply the update.",
+      willRestart: "The app will restart to apply the update",
       checking: "Checking for a new version…",
       installing: "Installing…",
       downloading: "Downloading…",
@@ -218,7 +218,7 @@ export const en = {
   },
   workspace: {
     reconnecting: "Reconnecting…",
-    emptyEditor: "Select a table to open SQL.",
+    emptyEditor: "Select a table to open SQL",
     run: "Run",
     running: "Running…",
     saveTab: "Save SQL tab",
@@ -230,9 +230,9 @@ export const en = {
       noActive: "No active database connection",
       none: "No connections yet",
       description:
-        "Add a database connection to inspect schemas, tables, views, columns, and indexes.",
+        "Add a database connection to inspect schemas, tables, views, columns, and indexes",
       savedConnections: "Saved connections",
-      chooseSession: "Choose a session to unlock the workspace.",
+      chooseSession: "Choose a session to unlock the workspace",
       newConnection: "New Connection",
       connect: "Connect",
       connection: "Connection",
@@ -255,9 +255,9 @@ export const en = {
     pageSizeLocked: "Page size set by the query's LIMIT",
     previousPage: "Previous page",
     nextPage: "Next page",
-    emptyColumns: "Select an object to inspect columns.",
-    emptySchema: "Select an object to inspect its schema.",
-    emptyGrid: "Run a query to inspect result rows.",
+    emptyColumns: "Select an object to inspect columns",
+    emptySchema: "Select an object to inspect its schema",
+    emptyGrid: "Run a query to inspect result rows",
     viewMode: "Result view",
     viewTable: "Table",
     viewJson: "JSON",
@@ -285,7 +285,7 @@ export const en = {
     unique: "unique",
   },
   objectDetails: {
-    empty: "Select an object to inspect details.",
+    empty: "Select an object to inspect details",
     kind: {
       table: "Table",
       view: "View",
@@ -350,9 +350,9 @@ export const en = {
   },
   validation: {
     unexpectedError: "Unexpected error",
-    requiredFields: "Host, port, database, and user are required.",
-    invalidPort: "Port must be a valid positive number.",
-    engineNotSupported: "{{engine}} connections are not supported yet.",
+    requiredFields: "Host, port, database, and user are required",
+    invalidPort: "Port must be a valid positive number",
+    engineNotSupported: "{{engine}} connections are not supported yet",
   },
   editor: {
     completion: {
