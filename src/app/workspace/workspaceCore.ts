@@ -1,5 +1,5 @@
 import { createContext, use } from "react";
-import type { AppSettings, StoredConnectionDraft } from "../databaraService";
+import type { AppSettings, ConfigurationExport, StoredConnectionDraft } from "../databaraService";
 import { translate } from "../i18n/translate";
 import type {
   ColumnDefinition,
@@ -50,7 +50,7 @@ export type BackupRequest = {
   defaultFileName: string;
 };
 
-export type SettingsTab = "general" | "editor" | "connections";
+export type SettingsTab = "general" | "editor" | "connections" | "storage";
 
 export type WorkspaceState = {
   activeConnection: ConnectionProfile | null;
@@ -139,6 +139,8 @@ export type WorkspaceActions = {
   setSettingsTab: (tab: SettingsTab) => void;
   setActivateSiblingConnections: (enabled: boolean) => void;
   setDiscoverServerDatabases: (enabled: boolean) => void;
+  setExportIncludesPasswords: (enabled: boolean) => void;
+  exportConfiguration: (includePasswords: boolean) => Promise<ConfigurationExport>;
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
   setLanguage: (code: Language) => void;
@@ -205,6 +207,8 @@ export function useSettings() {
     setKeepConnectionsActive: actions.setKeepConnectionsActive,
     setActivateSiblingConnections: actions.setActivateSiblingConnections,
     setDiscoverServerDatabases: actions.setDiscoverServerDatabases,
+    setExportIncludesPasswords: actions.setExportIncludesPasswords,
+    exportConfiguration: actions.exportConfiguration,
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
     setLanguage: actions.setLanguage,

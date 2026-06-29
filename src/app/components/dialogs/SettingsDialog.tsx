@@ -1,4 +1,13 @@
-import { Database, Minus, Plus, Settings, SlidersHorizontal, Type, Undo2 } from "lucide-react";
+import {
+  Database,
+  HardDrive,
+  Minus,
+  Plus,
+  Settings,
+  SlidersHorizontal,
+  Type,
+  Undo2,
+} from "lucide-react";
 import { type ComponentType } from "react";
 import {
   BOTTOM_PANEL_HEIGHT_MAX,
@@ -30,6 +39,7 @@ import {
   Switch,
   type SelectFieldOption,
 } from "../ui";
+import { StorageSettingsTab } from "./StorageSettingsTab";
 
 const NOTIFICATION_POSITION_VALUES: NotificationPosition[] = [
   "top-left",
@@ -50,6 +60,7 @@ const TABS: {
   { id: "general", labelKey: "settings.tabs.general", icon: SlidersHorizontal },
   { id: "editor", labelKey: "settings.tabs.editor", icon: Type },
   { id: "connections", labelKey: "settings.tabs.connections", icon: Database },
+  { id: "storage", labelKey: "settings.tabs.storage", icon: HardDrive },
 ];
 
 // Which AppSettings keys each tab owns — used to reset only the active tab.
@@ -57,6 +68,7 @@ const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
   general: ["zoom", "notificationPosition", "language", "sidebarWidth", "bottomPanelHeight"],
   editor: ["editorFontSize"],
   connections: ["keepConnectionsActive", "activateSiblingConnections", "discoverServerDatabases"],
+  storage: ["exportIncludesPasswords"],
 };
 
 const ALL_SETTINGS_KEYS = Object.keys(defaultAppSettings) as (keyof AppSettings)[];
@@ -159,6 +171,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           })}
         </nav>
         <div className="scroll-overlay h-[320px] flex-1 overflow-y-auto p-4">
+          {tab === "storage" ? <StorageSettingsTab /> : null}
           <div className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-5 text-[12px]">
             {tab === "general" ? (
               <>

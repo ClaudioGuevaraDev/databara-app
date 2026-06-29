@@ -15,6 +15,7 @@ import {
   getConnectionPassword,
   getPostgresObjectDetails,
   listPostgresTree,
+  buildConfigurationExport,
   defaultAppSettings,
   loadAppSettings,
   loadServerLabels,
@@ -1701,6 +1702,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({ ...current, activateSiblingConnections: { enabled } })),
       setDiscoverServerDatabases: (enabled) =>
         setSettings((current) => ({ ...current, discoverServerDatabases: { enabled } })),
+      setExportIncludesPasswords: (enabled) =>
+        setSettings((current) => ({ ...current, exportIncludesPasswords: { enabled } })),
+      exportConfiguration: (includePasswords) =>
+        buildConfigurationExport({
+          includePasswords,
+          livePasswords: Object.fromEntries(livePasswordsRef.current),
+        }),
       setZoomLevel: (level) =>
         setSettings((current) => ({
           ...current,

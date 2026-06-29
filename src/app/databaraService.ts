@@ -65,6 +65,9 @@ export type AppSettings = {
   // When enabled, connecting to a database discovers the other databases on the
   // same server and lists them in the sidebar (without connecting them).
   discoverServerDatabases: { enabled: boolean };
+  // When enabled, exporting the configuration includes connection passwords (read
+  // from the OS keychain) in plaintext in the downloaded file. Off by default.
+  exportIncludesPasswords: { enabled: boolean };
   // Font size (in px) of the Monaco SQL editor.
   editorFontSize: { size: number };
   // On-screen corner/edge where toast notifications appear.
@@ -116,6 +119,7 @@ export const defaultAppSettings: AppSettings = {
   keepConnectionsActive: { enabled: false },
   activateSiblingConnections: { enabled: false },
   discoverServerDatabases: { enabled: false },
+  exportIncludesPasswords: { enabled: false },
   editorFontSize: { size: 13 },
   notificationPosition: { position: "top-center" },
   sidebarWidth: { width: SIDEBAR_WIDTH_DEFAULT },
@@ -202,6 +206,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
       "discoverServerDatabases",
       defaultAppSettings.discoverServerDatabases.enabled,
     ),
+    exportIncludesPasswords: normalizeEnabledFlag(
+      raw,
+      "exportIncludesPasswords",
+      defaultAppSettings.exportIncludesPasswords.enabled,
+    ),
     editorFontSize: {
       size: clampEditorFontSize(
         typeof size === "number" ? size : defaultAppSettings.editorFontSize.size,
@@ -280,6 +289,141 @@ export function deleteServerLabel(serverId: string): Record<string, string> {
   delete labels[serverId];
   saveServerLabels(labels);
   return labels;
+}
+
+// Every localStorage key the app owns is namespaced under this prefix. Used to
+// measure and export the app's local footprint without touching unrelated keys.
+const STORAGE_PREFIX = "databara.";
+
+export type StorageCategoryId = "connections" | "settings" | "serverLabels" | "sqlTabs" | "other";
+
+export type StorageCategory = { id: StorageCategoryId; bytes: number; entries: number };
+export type StorageReport = { categories: StorageCategory[]; totalBytes: number };
+
+// Classifies a `databara.*` localStorage key into one of the report categories.
+function storageCategoryFor(key: string): StorageCategoryId {
+  if (
+    key === storedConnectionsKey ||
+    key === legacyStoredConnectionsKey ||
+    key === legacyStoredConnectionKey
+  )
+    return "connections";
+  if (key === settingsStorageKey) return "settings";
+  if (key === serverLabelsKey) return "serverLabels";
+  if (key.startsWith("databara.sqlTabs.v1")) return "sqlTabs";
+  return "other";
+}
+
+// Sums the byte size of the app's localStorage entries, grouped by category.
+// Sizes use UTF-8 byte length (key + value) for an honest on-disk estimate.
+export function getStorageReport(): StorageReport {
+  const totals = new Map<StorageCategoryId, { bytes: number; entries: number }>();
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+    const value = window.localStorage.getItem(key) ?? "";
+    const bytes = new Blob([key, value]).size;
+    const category = storageCategoryFor(key);
+    const current = totals.get(category) ?? { bytes: 0, entries: 0 };
+    current.bytes += bytes;
+    current.entries += 1;
+    totals.set(category, current);
+  }
+  const order: StorageCategoryId[] = [
+    "connections",
+    "settings",
+    "serverLabels",
+    "sqlTabs",
+    "other",
+  ];
+  const categories = order
+    .map((id) => ({ id, ...(totals.get(id) ?? { bytes: 0, entries: 0 }) }))
+    .filter((category) => category.entries > 0);
+  const totalBytes = categories.reduce((sum, category) => sum + category.bytes, 0);
+  return { categories, totalBytes };
+}
+
+// Origin storage usage/quota as reported by the browser/WebView (the headline
+// "used of total" figure). Returns null when the API is unavailable.
+export async function getBrowserStorageEstimate(): Promise<{
+  usage: number;
+  quota: number;
+} | null> {
+  if (!navigator.storage?.estimate) return null;
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    if (typeof usage !== "number" || typeof quota !== "number") return null;
+    return { usage, quota };
+  } catch {
+    return null;
+  }
+}
+
+// The keychain account key for a stored connection. Mirrors `connectionKey` in
+// workspaceContext.utils.ts (kept inline so the data layer has no upward import).
+function connectionAccountKey(connection: StoredConnectionDraft): string {
+  return `${connection.engine}:${connection.host}:${connection.port}:${connection.database}:${connection.user}`;
+}
+
+export type ConfigurationExport = {
+  app: "Databara";
+  schemaVersion: 1;
+  exportedAt: string;
+  includesPasswords: boolean;
+  localStorage: Record<string, unknown>;
+  keychain?: Record<string, string>;
+  note: string;
+};
+
+// Gathers every `databara.*` localStorage entry into a single JSON-serializable
+// object. When `includePasswords` is true, collects each saved connection's
+// password into a `keychain` map (plaintext — used only when the user explicitly
+// opts in): from the OS keychain (populated when "keep connections active" is on)
+// merged with `livePasswords` (the in-memory passwords of connections opened this
+// session). Passwords are excluded by default.
+export async function buildConfigurationExport(options: {
+  includePasswords: boolean;
+  livePasswords?: Record<string, string>;
+}): Promise<ConfigurationExport> {
+  const localStorageData: Record<string, unknown> = {};
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+    const value = window.localStorage.getItem(key);
+    if (value === null) continue;
+    try {
+      localStorageData[key] = JSON.parse(value) as unknown;
+    } catch {
+      localStorageData[key] = value;
+    }
+  }
+
+  const exported: ConfigurationExport = {
+    app: "Databara",
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    includesPasswords: options.includePasswords,
+    localStorage: localStorageData,
+    note: options.includePasswords
+      ? "WARNING: this file contains plaintext connection passwords. Keep it private."
+      : "Passwords are stored in the OS keychain and are intentionally excluded from this export.",
+  };
+
+  if (options.includePasswords) {
+    const keychain: Record<string, string> = {};
+    for (const connection of loadStoredConnections()) {
+      const account = connectionAccountKey(connection);
+      const password = await getConnectionPassword(account);
+      if (password !== null) keychain[account] = password;
+    }
+    // In-memory passwords from this session fill in (and take precedence over)
+    // any keychain entries, so passwords are exported even when "keep connections
+    // active" is off and nothing was persisted to the keychain.
+    Object.assign(keychain, options.livePasswords ?? {});
+    exported.keychain = keychain;
+  }
+
+  return exported;
 }
 
 // Whether this install can apply an in-app update. False for Linux .deb/.rpm

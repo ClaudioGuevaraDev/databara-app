@@ -39,6 +39,7 @@ export const en = {
       general: "General",
       editor: "Editor",
       connections: "Connections",
+      storage: "Storage",
     },
     zoom: {
       title: "Zoom",
@@ -97,6 +98,34 @@ export const en = {
       title: "List databases found on the server",
       description:
         "When you connect to a database, discover the other databases on the same server and list them in the sidebar, without connecting them.",
+    },
+    storage: {
+      usageTitle: "Browser storage",
+      usageLabel: "{{used}} of {{total}} used",
+      usageUnavailable: "Storage usage is not available in this environment.",
+      viewDetails: "View details",
+      hideDetails: "Hide details",
+      categories: {
+        connections: "Saved connections",
+        settings: "Settings",
+        serverLabels: "Server labels",
+        sqlTabs: "SQL tabs",
+        other: "Other",
+      },
+      empty: "No app data stored yet.",
+      total: "Total",
+      export: "Export configuration",
+      exported: "Configuration exported.",
+      passwordsExcludedNote: "Passwords are not included in the file.",
+      includePasswords: {
+        title: "Include passwords in the download",
+        description: "Adds connection passwords, in plaintext, to the exported file.",
+        warning:
+          "The exported file will contain your connection passwords in plaintext. Anyone with the file can read them — keep it private and do not share it.",
+        confirm: "Enable anyway",
+        enabledNote:
+          "The exported file will include connection passwords in plaintext (for connections opened this session or kept active). Keep it private.",
+      },
     },
   },
   dialogs: {
