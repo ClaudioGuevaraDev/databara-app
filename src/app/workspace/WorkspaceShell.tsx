@@ -13,7 +13,7 @@ import { useSettings, useWorkspaceLayout } from "./workspaceCore";
 export function WorkspaceShell() {
   const { t } = useI18n();
   const workspace = useWorkspaceLayout();
-  const { settings, setSidebarWidth } = useSettings();
+  const { settings, setSidebarWidth, setSettingsTab } = useSettings();
   // Live width while dragging; falls back to the persisted setting at rest so
   // localStorage is only written once, on release.
   const [dragWidth, setDragWidth] = useState<number | null>(null);
@@ -50,7 +50,13 @@ export function WorkspaceShell() {
           style={{ left: sidebarWidth }}
         />
       </div>
-      <StatusBar onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })} />
+      <StatusBar
+        onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })}
+        onOpenStorage={() => {
+          workspace.openSettingsDialog();
+          setSettingsTab("storage");
+        }}
+      />
       <DialogsHost />
       <Toaster />
     </div>

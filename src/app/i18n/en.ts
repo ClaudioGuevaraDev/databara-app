@@ -18,6 +18,8 @@ export const en = {
   },
   statusBar: {
     checkForUpdates: "Check for updates",
+    storageUsed: "Storage used",
+    storagePercentUsed: "{{percent}}% used",
   },
   explorer: {
     title: "Explorer",
