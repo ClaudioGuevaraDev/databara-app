@@ -5,6 +5,7 @@ import { ConnectionDialog } from "./ConnectionDialog";
 import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { DeleteServerDialog } from "./DeleteServerDialog";
 import { DownloadBackupDialog } from "./DownloadBackupDialog";
+import { LoadConfigDialog } from "./LoadConfigDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
 import { RenameServerDialog } from "./RenameServerDialog";
 import { SettingsDialog } from "./SettingsDialog";
@@ -33,6 +34,8 @@ export function DialogsHost() {
     saveConnection,
     setConnectionDialogOpen,
     unsavedTabsDialogOpen,
+    loadConfigDialogOpen,
+    closeLoadConfigDialog,
     closeWindowAfterResolution,
     confirmAddDatabase,
     confirmDeleteConnection,
@@ -43,6 +46,11 @@ export function DialogsHost() {
 
   useEffect(() => {
     function closeTopmostDialog() {
+      if (loadConfigDialogOpen) {
+        closeLoadConfigDialog();
+        return;
+      }
+
       if (unsavedTabsDialogOpen) {
         closeUnsavedTabsDialog();
         return;
@@ -91,6 +99,7 @@ export function DialogsHost() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (
+        !loadConfigDialogOpen &&
         !unsavedTabsDialogOpen &&
         !deleteServerRequest &&
         !renameServerRequest &&
@@ -121,6 +130,7 @@ export function DialogsHost() {
     closePasswordDialog,
     closeSettingsDialog,
     closeUnsavedTabsDialog,
+    closeLoadConfigDialog,
     connectionDialogOpen,
     deleteConnectionRequest,
     deleteServerRequest,
@@ -129,6 +139,7 @@ export function DialogsHost() {
     settingsDialogOpen,
     setConnectionDialogOpen,
     unsavedTabsDialogOpen,
+    loadConfigDialogOpen,
   ]);
 
   return (
@@ -191,6 +202,7 @@ export function DialogsHost() {
         />
       ) : null}
       {settingsDialogOpen ? <SettingsDialog onClose={closeSettingsDialog} /> : null}
+      {loadConfigDialogOpen ? <LoadConfigDialog onClose={closeLoadConfigDialog} /> : null}
       {updateDialogOpen && updateProgress ? (
         <UpdateDialog
           progress={updateProgress}

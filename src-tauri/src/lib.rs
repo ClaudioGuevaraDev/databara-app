@@ -933,6 +933,14 @@ fn write_text_file(path: String, content: String) -> Result<(), AppError> {
     std::fs::write(&path, content).map_err(|e| AppError::Connection(e.to_string()))
 }
 
+/// Reads UTF-8 text from a user-chosen path. The frontend picks the path via the
+/// native open dialog (tauri-plugin-dialog) and passes it here so a configuration
+/// file can be loaded, using std::fs directly (no fs-plugin scope needed).
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, AppError> {
+    std::fs::read_to_string(&path).map_err(|e| AppError::Connection(e.to_string()))
+}
+
 /// Event the backup dialog listens on to render live progress (0–100) while the
 /// `.sql` dump is being written.
 const BACKUP_PROGRESS_EVENT: &str = "databara://backup-progress";
@@ -1295,6 +1303,7 @@ pub fn run() {
             updates_supported,
             complete_startup,
             write_text_file,
+            read_text_file,
             backup_database
         ])
         .run(tauri::generate_context!())

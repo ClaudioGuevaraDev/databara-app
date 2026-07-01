@@ -14,16 +14,19 @@ export const en = {
   topBar: {
     tagline: "Database workspace",
     newConnection: "Connection",
+    loadConfiguration: "Load config",
     settings: "Settings",
   },
   statusBar: {
     checkForUpdates: "Check for updates",
     storageUsed: "Storage used",
     storagePercentUsed: "{{percent}}% used",
+    loadConfiguration: "Load configuration",
   },
   explorer: {
     title: "Explorer",
     newConnection: "New connection",
+    loadConfiguration: "Load configuration",
     addDatabase: "Connect to database",
     renameServer: "Rename server",
     disconnectServer: "Disconnect server",
@@ -131,6 +134,26 @@ export const en = {
     },
   },
   dialogs: {
+    loadConfig: {
+      title: "Load configuration",
+      intro:
+        "Import a Databara configuration file you exported earlier. This restores your saved connections, settings, server labels, and SQL tabs from the file.",
+      chooseFile: "Choose file…",
+      choosingFile: "Opening…",
+      summaryTitle: "Ready to restore",
+      exportedAt: "Exported {{date}}",
+      connectionCount: {
+        one: "{{count}} saved connection",
+        other: "{{count}} saved connections",
+      },
+      includesPasswords: "Includes connection passwords",
+      excludesPasswords: "No passwords in file — you'll be asked when connecting",
+      replaceWarning:
+        "Loading this file replaces your current connections, settings, and SQL tabs, then reloads the app. This cannot be undone.",
+      apply: "Load and reload",
+      applying: "Loading…",
+      unavailable: "Loading a configuration file is only available in the desktop app",
+    },
     connection: {
       title: "Database connection",
       engine: "Engine",
@@ -236,6 +259,7 @@ export const en = {
       savedConnections: "Saved connections",
       chooseSession: "Choose a session to unlock the workspace",
       newConnection: "New Connection",
+      loadConfiguration: "Load configuration",
       connect: "Connect",
       connection: "Connection",
     },

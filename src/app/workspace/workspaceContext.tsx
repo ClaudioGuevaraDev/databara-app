@@ -165,6 +165,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [loadConfigDialogOpen, setLoadConfigDialogOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
   // True on startup while saved connections are being reconnected, so the UI can
@@ -1642,6 +1643,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       closePasswordDialog: () => setPasswordConnection(null),
       closeResults: () => setResultsOpen(false),
       closeSettingsDialog: () => setSettingsDialogOpen(false),
+      openLoadConfigDialog: () => setLoadConfigDialogOpen(true),
+      closeLoadConfigDialog: () => setLoadConfigDialogOpen(false),
       closeSqlTab,
       closeUnsavedTabsDialog: () => setCloseWithUnsavedDialogOpen(false),
       closeWindowAfterResolution,
@@ -1779,6 +1782,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         connection: connectionDialogOpen,
         settings: settingsDialogOpen,
         unsavedTabs: closeWithUnsavedDialogOpen,
+        loadConfig: loadConfigDialogOpen,
       },
       passwordConnection,
       settings,

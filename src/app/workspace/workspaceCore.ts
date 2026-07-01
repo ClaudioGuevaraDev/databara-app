@@ -70,6 +70,7 @@ export type WorkspaceState = {
     connection: boolean;
     settings: boolean;
     unsavedTabs: boolean;
+    loadConfig: boolean;
   };
   passwordConnection: StoredConnectionDraft | null;
   settings: AppSettings;
@@ -97,6 +98,8 @@ export type WorkspaceActions = {
   closePasswordDialog: () => void;
   closeRenameServerDialog: () => void;
   closeSettingsDialog: () => void;
+  openLoadConfigDialog: () => void;
+  closeLoadConfigDialog: () => void;
   closeResults: () => void;
   closeSqlTab: (tabId: string) => void;
   officializeSqlTab: (tabId: string) => void;
@@ -193,6 +196,7 @@ export function useWorkspaceLayout() {
     autoReconnecting: meta.autoReconnecting,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openSettingsDialog: actions.openSettingsDialog,
+    openLoadConfigDialog: actions.openLoadConfigDialog,
     requiresConnection: meta.requiresConnection,
     checkForUpdates: actions.startUpdateCheck,
   };
@@ -241,6 +245,7 @@ export function useExplorer() {
     connectedConnectionKeys: meta.connectedConnectionKeys,
     explorerTree: meta.explorerTree,
     openNewConnectionDialog: actions.openNewConnectionDialog,
+    openLoadConfigDialog: actions.openLoadConfigDialog,
     selectedConnectionKey: meta.selectedConnectionKey,
     selectedObjectId: state.selectedObjectId,
     storedConnections: state.storedConnections,
@@ -319,6 +324,7 @@ export function useEmptyWorkspace() {
     hasStoredConnections: meta.hasStoredConnections,
     storedConnections: state.storedConnections,
     openNewConnectionDialog: actions.openNewConnectionDialog,
+    openLoadConfigDialog: actions.openLoadConfigDialog,
     openSavedConnection: actions.openSavedConnection,
   };
 }
@@ -334,6 +340,8 @@ export function useDialogs() {
     dialogInitialDraft: state.dialogInitialDraft,
     passwordConnection: state.passwordConnection,
     unsavedTabsDialogOpen: state.dialogs.unsavedTabs,
+    loadConfigDialogOpen: state.dialogs.loadConfig,
+    closeLoadConfigDialog: actions.closeLoadConfigDialog,
     closeAddDatabaseDialog: actions.closeAddDatabaseDialog,
     closeDeleteConnectionDialog: actions.closeDeleteConnectionDialog,
     closeDeleteServerDialog: actions.closeDeleteServerDialog,

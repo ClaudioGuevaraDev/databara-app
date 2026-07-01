@@ -1,4 +1,4 @@
-import { Database, KeyRound, Plus } from "lucide-react";
+import { Database, KeyRound, Plus, Upload } from "lucide-react";
 import { connectionEngineLabel } from "../../connectionEngines";
 import { useI18n } from "../../i18n/I18nContext";
 import { savedConnectionNodeId, useEmptyWorkspace } from "../../workspace/workspaceCore";
@@ -40,14 +40,24 @@ export function EmptyWorkspace() {
                   {t("workspace.empty.chooseSession")}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={empty.openNewConnectionDialog}
-                className="flex h-8 items-center gap-1.5 self-start rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
-              >
-                <Plus size={13} />
-                {t("workspace.empty.newConnection")}
-              </button>
+              <div className="flex items-center gap-2 self-start">
+                <button
+                  type="button"
+                  onClick={empty.openLoadConfigDialog}
+                  className="flex h-8 items-center gap-1.5 rounded border border-border px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                  <Upload size={13} />
+                  {t("workspace.empty.loadConfiguration")}
+                </button>
+                <button
+                  type="button"
+                  onClick={empty.openNewConnectionDialog}
+                  className="flex h-8 items-center gap-1.5 rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
+                >
+                  <Plus size={13} />
+                  {t("workspace.empty.newConnection")}
+                </button>
+              </div>
             </div>
             <div className="max-h-[360px] overflow-y-auto p-2">
               <div className="grid gap-2">
@@ -86,13 +96,22 @@ export function EmptyWorkspace() {
             </div>
           </div>
         ) : (
-          <button
-            onClick={empty.openNewConnectionDialog}
-            className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
-          >
-            <Plus size={15} />
-            {t("workspace.empty.connection")}
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={empty.openNewConnectionDialog}
+              className="flex h-9 items-center gap-2 rounded bg-primary px-3.5 text-[12px] font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.16)] hover:brightness-110"
+            >
+              <Plus size={15} />
+              {t("workspace.empty.connection")}
+            </button>
+            <button
+              onClick={empty.openLoadConfigDialog}
+              className="flex h-9 items-center gap-2 rounded border border-border px-3.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              <Upload size={15} />
+              {t("workspace.empty.loadConfiguration")}
+            </button>
+          </div>
         )}
       </div>
     </section>

@@ -23,6 +23,7 @@ export function WorkspaceShell() {
     <div className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
       <TopBar
         onNewConnection={workspace.openNewConnectionDialog}
+        onLoadConfiguration={workspace.openLoadConfigDialog}
         onOpenSettings={workspace.openSettingsDialog}
       />
       <div
@@ -56,6 +57,7 @@ export function WorkspaceShell() {
           workspace.openSettingsDialog();
           setSettingsTab("storage");
         }}
+        onLoadConfiguration={workspace.openLoadConfigDialog}
       />
       <DialogsHost />
       <Toaster />

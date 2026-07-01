@@ -426,6 +426,77 @@ export async function buildConfigurationExport(options: {
   return exported;
 }
 
+// A short, human-facing summary of an import file, shown in the load dialog so
+// the user can confirm what they are about to restore.
+export type ConfigurationImportSummary = {
+  connectionCount: number;
+  includesPasswords: boolean;
+  exportedAt: string;
+};
+
+// Parses and validates the text of a configuration file produced by
+// buildConfigurationExport. Throws with a clear message if the payload is not a
+// Databara export of a supported schema version.
+export function parseConfigurationImport(text: string): ConfigurationExport {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return throwInvalidConfig();
+  }
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    (parsed as ConfigurationExport).app !== "Databara" ||
+    (parsed as ConfigurationExport).schemaVersion !== 1 ||
+    typeof (parsed as ConfigurationExport).localStorage !== "object" ||
+    (parsed as ConfigurationExport).localStorage === null
+  ) {
+    return throwInvalidConfig();
+  }
+  return parsed as ConfigurationExport;
+}
+
+function throwInvalidConfig(): never {
+  throw new Error("This file is not a valid Databara configuration export.");
+}
+
+// Derives the load-dialog summary from a parsed configuration export.
+export function summarizeConfigurationImport(
+  config: ConfigurationExport,
+): ConfigurationImportSummary {
+  const connections = config.localStorage[storedConnectionsKey];
+  return {
+    connectionCount: Array.isArray(connections) ? connections.length : 0,
+    includesPasswords: Boolean(config.includesPasswords && config.keychain),
+    exportedAt: config.exportedAt,
+  };
+}
+
+// Restores (replaces) the app's local state from a configuration export: clears
+// every `databara.*` localStorage key, writes the entries from the file, and
+// repopulates the OS keychain with any bundled passwords. The caller is expected
+// to reload the window afterwards so React state re-reads the new localStorage.
+export async function applyConfigurationImport(config: ConfigurationExport): Promise<void> {
+  const staleKeys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (key && key.startsWith(STORAGE_PREFIX)) staleKeys.push(key);
+  }
+  staleKeys.forEach((key) => window.localStorage.removeItem(key));
+
+  for (const [key, value] of Object.entries(config.localStorage)) {
+    if (!key.startsWith(STORAGE_PREFIX)) continue;
+    window.localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+  }
+
+  if (config.keychain) {
+    for (const [account, password] of Object.entries(config.keychain)) {
+      await storeConnectionPassword(account, password);
+    }
+  }
+}
+
 // Whether this install can apply an in-app update. False for Linux .deb/.rpm
 // installs (only an AppImage can self-update). Assume true outside Tauri.
 export async function updatesSupported(): Promise<boolean> {
@@ -535,6 +606,24 @@ export async function pickSavePath(
 // Rust write_text_file command.
 export async function writeTextFile(path: string, content: string): Promise<void> {
   return invoke<void>("write_text_file", { path, content });
+}
+
+// Opens the native open dialog so the user picks a configuration file to load.
+// Returns the chosen absolute path, or null if the dialog was cancelled or we
+// are running outside the desktop app.
+export async function pickOpenPath(): Promise<string | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  const path = await open({
+    multiple: false,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  return typeof path === "string" ? path : null;
+}
+
+// Reads UTF-8 text from an absolute path (chosen via pickOpenPath) through the
+// Rust read_text_file command.
+export async function readTextFile(path: string): Promise<string> {
+  return invoke<string>("read_text_file", { path });
 }
 
 // Opens the native folder picker so the user chooses where a backup lands.
