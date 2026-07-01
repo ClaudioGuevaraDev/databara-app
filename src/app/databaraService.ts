@@ -54,6 +54,12 @@ const settingsStorageKey = "databara.settings.v1";
 // (`server:<engine>:<host>:<port>`). Absent entry → fall back to `host:port`.
 const serverLabelsKey = "databara.serverLabels.v1";
 
+// One-time flag set by a configuration import that bundled plaintext passwords.
+// The next startup honors it to auto-connect every saved connection once (even
+// when "keep connections active" is off), then clears it so later startups
+// revert to the native behavior. Deliberately excluded from exports.
+const importAutoConnectKey = "databara.import.autoConnect.v1";
+
 export type AppSettings = {
   zoom: { level: number };
   // When enabled, connection passwords are stored in the OS keychain so
@@ -389,6 +395,8 @@ export async function buildConfigurationExport(options: {
   for (let i = 0; i < window.localStorage.length; i += 1) {
     const key = window.localStorage.key(i);
     if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+    // Transient one-time flag — never carry it into an export.
+    if (key === importAutoConnectKey) continue;
     const value = window.localStorage.getItem(key);
     if (value === null) continue;
     try {
@@ -490,11 +498,29 @@ export async function applyConfigurationImport(config: ConfigurationExport): Pro
     window.localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
   }
 
-  if (config.keychain) {
+  if (config.keychain && Object.keys(config.keychain).length > 0) {
     for (const [account, password] of Object.entries(config.keychain)) {
       await storeConnectionPassword(account, password);
     }
+    // The file bundled passwords: auto-connect every saved connection once on the
+    // next startup, regardless of the (imported) "keep connections active" setting.
+    markImportAutoConnect();
   }
+}
+
+// One-time "auto-connect after import" flag helpers. Set when applying a config
+// import that bundled passwords; read once and cleared on the next startup so the
+// auto-connect happens exactly once.
+export function markImportAutoConnect(): void {
+  window.localStorage.setItem(importAutoConnectKey, "1");
+}
+
+export function readImportAutoConnectFlag(): boolean {
+  return window.localStorage.getItem(importAutoConnectKey) === "1";
+}
+
+export function clearImportAutoConnectFlag(): void {
+  window.localStorage.removeItem(importAutoConnectKey);
 }
 
 // Whether this install can apply an in-app update. False for Linux .deb/.rpm

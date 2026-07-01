@@ -16,10 +16,12 @@ import {
   getPostgresObjectDetails,
   listPostgresTree,
   buildConfigurationExport,
+  clearImportAutoConnectFlag,
   defaultAppSettings,
   loadAppSettings,
   loadServerLabels,
   loadStoredConnections,
+  readImportAutoConnectFlag,
   saveServerLabel,
   backupDatabase,
   pickDirectory,
@@ -168,10 +170,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [loadConfigDialogOpen, setLoadConfigDialogOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
+  // One-time flag from a configuration import that bundled passwords: this single
+  // startup auto-connects every saved connection even when "keep connections
+  // active" is off. Read once at mount; cleared once the reconnect loop runs.
+  const [importAutoConnect] = useState(() => readImportAutoConnectFlag());
   // True on startup while saved connections are being reconnected, so the UI can
   // hold off the "no connections" view instead of flashing it before reconnect.
   const [autoReconnecting, setAutoReconnecting] = useState(
-    () => settings.keepConnectionsActive.enabled && storedConnections.length > 0,
+    () =>
+      (settings.keepConnectionsActive.enabled || importAutoConnect) && storedConnections.length > 0,
   );
   const [toast, setToast] = useState<Toast | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -389,11 +396,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // Emit real startup progress to the splash: the update check counts as one unit
   // plus one per saved connection the reconnect loop processes.
   useEffect(() => {
-    const target = settings.keepConnectionsActive.enabled ? storedConnections.length : 0;
+    const target =
+      settings.keepConnectionsActive.enabled || importAutoConnect ? storedConnections.length : 0;
     const total = target + 1;
     const completed = (updateCheckDone ? 1 : 0) + Math.min(reconnectedCount, target);
     void emitStartupProgress((completed / total) * 100);
   }, [
+    importAutoConnect,
     reconnectedCount,
     settings.keepConnectionsActive.enabled,
     storedConnections.length,
@@ -757,13 +766,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [connectCore],
   );
 
-  // On startup, when "keep connections active" is on, reconnect each saved
-  // connection whose password is in the keychain. Failures (changed password,
-  // server down, no keychain) just warn and leave that connection inactive.
+  // On startup, when "keep connections active" is on — or once after a config
+  // import that bundled passwords — reconnect each saved connection whose
+  // password is in the keychain. Failures (changed password, server down, no
+  // keychain) just warn and leave that connection inactive.
   useEffect(() => {
     if (didAutoReconnectRef.current) return;
     didAutoReconnectRef.current = true;
-    if (!settings.keepConnectionsActive.enabled) return;
+    if (!settings.keepConnectionsActive.enabled && !importAutoConnect) return;
 
     void (async () => {
       try {
@@ -790,10 +800,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         setAutoReconnecting(false);
+        // Consume the one-time import flag so later startups revert to being
+        // governed solely by the "keep connections active" setting.
+        if (importAutoConnect) clearImportAutoConnectFlag();
       }
     })();
   }, [
     connectAndStoreConnection,
+    importAutoConnect,
     notify,
     settings.keepConnectionsActive.enabled,
     storedConnections,
