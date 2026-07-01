@@ -18,6 +18,9 @@ export function WorkspaceShell() {
   // localStorage is only written once, on release.
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const sidebarWidth = dragWidth ?? settings.sidebarWidth.width;
+  // With no saved connections there's nothing to explore, so hide the sidebar and
+  // let the empty state fill the width.
+  const showSidebar = workspace.hasStoredConnections;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
@@ -28,28 +31,32 @@ export function WorkspaceShell() {
       />
       <div
         className="relative grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]"
-        style={{ gridTemplateColumns: `${sidebarWidth}px minmax(0,1fr)` }}
+        style={{
+          gridTemplateColumns: showSidebar ? `${sidebarWidth}px minmax(0,1fr)` : "minmax(0,1fr)",
+        }}
       >
-        <Explorer />
+        {showSidebar ? <Explorer /> : null}
         <MainWorkspace
           requiresConnection={workspace.requiresConnection}
           autoReconnecting={workspace.autoReconnecting}
         />
         {/* Overlaid on the sidebar/content boundary so it doesn't consume layout width. */}
-        <ResizeHandle
-          axis="x"
-          ariaLabel={t("workspace.resizeSidebar")}
-          value={sidebarWidth}
-          min={SIDEBAR_WIDTH_MIN}
-          max={SIDEBAR_WIDTH_MAX}
-          onResize={setDragWidth}
-          onCommit={(next) => {
-            setSidebarWidth(next);
-            setDragWidth(null);
-          }}
-          className="absolute bottom-0 top-0 -translate-x-1/2"
-          style={{ left: sidebarWidth }}
-        />
+        {showSidebar ? (
+          <ResizeHandle
+            axis="x"
+            ariaLabel={t("workspace.resizeSidebar")}
+            value={sidebarWidth}
+            min={SIDEBAR_WIDTH_MIN}
+            max={SIDEBAR_WIDTH_MAX}
+            onResize={setDragWidth}
+            onCommit={(next) => {
+              setSidebarWidth(next);
+              setDragWidth(null);
+            }}
+            className="absolute bottom-0 top-0 -translate-x-1/2"
+            style={{ left: sidebarWidth }}
+          />
+        ) : null}
       </div>
       <StatusBar
         onCheckForUpdates={() => void workspace.checkForUpdates({ silent: false })}

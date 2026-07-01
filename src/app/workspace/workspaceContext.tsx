@@ -139,9 +139,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [storedConnections, setStoredConnections] = useState<StoredConnectionDraft[]>(() =>
     loadStoredConnections(),
   );
-  const [connectionDialogOpen, setConnectionDialogOpen] = useState(
-    () => storedConnections.length === 0,
-  );
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const [dialogInitialDraft, setDialogInitialDraft] = useState<StoredConnectionDraft | null>(null);
   const [passwordConnection, setPasswordConnection] = useState<StoredConnectionDraft | null>(null);
   const [deleteConnectionRequest, setDeleteConnectionRequest] =
@@ -1462,11 +1460,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setActiveTabId(nextActiveTab?.id ?? "");
         const owner = connectionByKey(nextActiveTab?.connectionKey) ?? nextConnections[0] ?? null;
         setActiveConnectionId(owner?.id ?? "");
-      }
-
-      if (nextStoredConnections.length === 0) {
-        setDialogInitialDraft(null);
-        setConnectionDialogOpen(true);
       }
     },
     [activeConnection, activeTabId, connectionByKey, connections, sqlTabs, storedConnections],

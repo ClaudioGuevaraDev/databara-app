@@ -194,6 +194,7 @@ export function useWorkspaceLayout() {
   return {
     activeConnection: state.activeConnection,
     autoReconnecting: meta.autoReconnecting,
+    hasStoredConnections: meta.hasStoredConnections,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openSettingsDialog: actions.openSettingsDialog,
     openLoadConfigDialog: actions.openLoadConfigDialog,
