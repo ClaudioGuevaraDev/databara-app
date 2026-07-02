@@ -184,7 +184,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             );
           })}
         </nav>
-        <div className="scroll-overlay h-[320px] flex-1 overflow-y-auto p-4">
+        <div className="scroll-overlay h-[370px] flex-1 overflow-y-auto p-4">
           {tab === "storage" ? <StorageSettingsTab /> : null}
           <div className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-5 text-[12px]">
             {tab === "general" ? (
