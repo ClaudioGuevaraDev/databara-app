@@ -9,11 +9,13 @@ export function StatusBar({
   onOpenStorage,
   onLoadConfiguration,
   onDownloadConfiguration,
+  hasStoredConnections,
 }: {
   onCheckForUpdates: () => void;
   onOpenStorage: () => void;
   onLoadConfiguration: () => void;
   onDownloadConfiguration: () => void;
+  hasStoredConnections: boolean;
 }) {
   const { t } = useI18n();
   const [version, setVersion] = useState("");
@@ -62,15 +64,17 @@ export function StatusBar({
         >
           <Upload size={12} />
         </button>
-        <button
-          type="button"
-          onClick={onDownloadConfiguration}
-          title={t("statusBar.downloadConfiguration")}
-          aria-label={t("statusBar.downloadConfiguration")}
-          className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Download size={12} />
-        </button>
+        {hasStoredConnections ? (
+          <button
+            type="button"
+            onClick={onDownloadConfiguration}
+            title={t("statusBar.downloadConfiguration")}
+            aria-label={t("statusBar.downloadConfiguration")}
+            className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Download size={12} />
+          </button>
+        ) : null}
       </div>
       <div className="flex items-center gap-1">
         {version ? <span className="leading-none">v{version}</span> : null}

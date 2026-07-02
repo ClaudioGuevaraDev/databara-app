@@ -6,11 +6,13 @@ export function TopBar({
   onLoadConfiguration,
   onDownloadConfiguration,
   onOpenSettings,
+  hasStoredConnections,
 }: {
   onNewConnection: () => void;
   onLoadConfiguration: () => void;
   onDownloadConfiguration: () => void;
   onOpenSettings: () => void;
+  hasStoredConnections: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -44,15 +46,17 @@ export function TopBar({
           <Upload size={14} />
           {t("topBar.loadConfiguration")}
         </button>
-        <button
-          type="button"
-          onClick={onDownloadConfiguration}
-          title={t("topBar.downloadConfiguration")}
-          className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
-        >
-          <Download size={14} />
-          {t("topBar.downloadConfiguration")}
-        </button>
+        {hasStoredConnections ? (
+          <button
+            type="button"
+            onClick={onDownloadConfiguration}
+            title={t("topBar.downloadConfiguration")}
+            className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
+          >
+            <Download size={14} />
+            {t("topBar.downloadConfiguration")}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenSettings}

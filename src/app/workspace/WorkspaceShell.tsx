@@ -29,6 +29,7 @@ export function WorkspaceShell() {
         onLoadConfiguration={workspace.openLoadConfigDialog}
         onDownloadConfiguration={workspace.openStorageSettings}
         onOpenSettings={workspace.openSettingsDialog}
+        hasStoredConnections={workspace.hasStoredConnections}
       />
       <div
         className="relative grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]"
@@ -64,6 +65,7 @@ export function WorkspaceShell() {
         onOpenStorage={workspace.openStorageSettings}
         onLoadConfiguration={workspace.openLoadConfigDialog}
         onDownloadConfiguration={workspace.openStorageSettings}
+        hasStoredConnections={workspace.hasStoredConnections}
       />
       <DialogsHost />
       <Toaster />
