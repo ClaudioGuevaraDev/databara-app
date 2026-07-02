@@ -166,7 +166,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [loadConfigDialogOpen, setLoadConfigDialogOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
+  const [settingsTab, setSettingsTabState] = useState<SettingsTab>("general");
+  // Tab the gear button reopens on: only manual tab clicks update it, so opening
+  // Storage via the "download configuration" buttons doesn't overwrite it.
+  const [rememberedSettingsTab, setRememberedSettingsTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings>(loadAppSettings);
   // One-time flag from a configuration import that bundled passwords: this single
   // startup auto-connects every saved connection even when "keep connections
@@ -1677,12 +1680,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openSchemaTab,
       openNewConnectionDialog,
       openSavedConnection,
-      openSettingsDialog: () => setSettingsDialogOpen(true),
-      openStorageSettings: () => {
-        setSettingsTab("storage");
+      openSettingsDialog: () => {
+        setSettingsTabState(rememberedSettingsTab);
         setSettingsDialogOpen(true);
       },
-      setSettingsTab,
+      openStorageSettings: () => {
+        setSettingsTabState("storage");
+        setSettingsDialogOpen(true);
+      },
+      setSettingsTab: (tab: SettingsTab) => {
+        setSettingsTabState(tab);
+        setRememberedSettingsTab(tab);
+      },
       officializeSqlTab: officializeSqlTabAction,
       previewObject,
       refreshAll,
