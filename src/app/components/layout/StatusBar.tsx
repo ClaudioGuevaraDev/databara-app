@@ -36,7 +36,7 @@ export function StatusBar({
 
   return (
     <footer className="chrome-panel flex h-6 shrink-0 items-center justify-between border-t border-border px-1.5 text-[11px] text-muted-foreground">
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center">
         <button
           type="button"
           onClick={onOpenStorage}
@@ -56,7 +56,7 @@ export function StatusBar({
           onClick={onLoadConfiguration}
           title={t("statusBar.loadConfiguration")}
           aria-label={t("statusBar.loadConfiguration")}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Upload size={12} />
         </button>

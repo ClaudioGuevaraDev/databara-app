@@ -12,12 +12,12 @@ export function ExplorerHeader() {
       <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {t("explorer.title")}
       </div>
-      <div className="flex items-center gap-0.5">
-        <IconButton title={t("explorer.loadConfiguration")} onClick={openLoadConfigDialog}>
-          <Upload size={14} />
-        </IconButton>
+      <div className="flex items-center">
         <IconButton title={t("explorer.newConnection")} onClick={openNewConnectionDialog}>
           <Plus size={14} />
+        </IconButton>
+        <IconButton title={t("explorer.loadConfiguration")} onClick={openLoadConfigDialog}>
+          <Upload size={14} />
         </IconButton>
       </div>
     </div>

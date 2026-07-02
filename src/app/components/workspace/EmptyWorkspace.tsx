@@ -12,7 +12,7 @@ export function EmptyWorkspace() {
   return (
     <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[hsl(220_13%_8%)] px-8">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.28)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.22)_1px,transparent_1px)] bg-[size:44px_44px] opacity-30" />
-      <div className="relative grid w-full max-w-[520px] justify-items-center gap-5 text-center">
+      <div className="relative grid w-full max-w-[550px] justify-items-center gap-5 text-center">
         {empty.hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
         <div className="grid gap-2">
           <h2 className="text-[18px] font-semibold text-foreground">
@@ -25,8 +25,8 @@ export function EmptyWorkspace() {
           )}
         </div>
         {empty.hasStoredConnections ? (
-          <div className="chrome-panel hairline w-full max-w-[520px] overflow-hidden rounded-lg border border-border text-left shadow-[0_18px_54px_hsl(220_30%_3%/0.34)]">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 border-b border-border px-4 py-3">
+          <div className="chrome-panel hairline w-full max-w-[600px] overflow-hidden rounded-lg border border-border text-left shadow-[0_18px_54px_hsl(220_30%_3%/0.34)]">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-8 gap-y-2 border-b border-border px-4 py-3">
               <div className="max-w-[280px]">
                 <div className="flex items-center gap-2">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -43,19 +43,19 @@ export function EmptyWorkspace() {
               <div className="flex items-center gap-2 self-start">
                 <button
                   type="button"
-                  onClick={empty.openLoadConfigDialog}
-                  className="flex h-8 items-center gap-1.5 rounded border border-border px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
-                >
-                  <Upload size={13} />
-                  {t("workspace.empty.loadConfiguration")}
-                </button>
-                <button
-                  type="button"
                   onClick={empty.openNewConnectionDialog}
                   className="flex h-8 items-center gap-1.5 rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
                 >
                   <Plus size={13} />
                   {t("workspace.empty.newConnection")}
+                </button>
+                <button
+                  type="button"
+                  onClick={empty.openLoadConfigDialog}
+                  className="flex h-8 items-center gap-1.5 rounded border border-border px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                  <Upload size={13} />
+                  {t("workspace.empty.loadConfiguration")}
                 </button>
               </div>
             </div>
