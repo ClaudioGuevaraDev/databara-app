@@ -148,7 +148,7 @@ export function SelectField<TValue extends string>({
                 width: position.width,
                 transform: position.placement === "up" ? "translateY(-100%)" : undefined,
               }}
-              className="z-50 max-h-60 overflow-y-auto rounded border border-border bg-[hsl(var(--panel-raised))] p-1 shadow-[0_12px_32px_hsl(220_30%_3%/0.38)]"
+              className="z-50 max-h-60 overflow-y-auto rounded border border-border bg-[hsl(var(--panel-raised))] p-1 shadow-[0_12px_32px_hsl(var(--shadow-strong)/0.38)]"
             >
               {options.map((option) => {
                 const selected = option.value === value;

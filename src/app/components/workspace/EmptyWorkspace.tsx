@@ -10,7 +10,7 @@ export function EmptyWorkspace() {
   const empty = useEmptyWorkspace();
 
   return (
-    <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[hsl(220_13%_8%)] px-8">
+    <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background px-8">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.28)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.22)_1px,transparent_1px)] bg-[size:44px_44px] opacity-30" />
       <div className="relative grid w-full max-w-[550px] justify-items-center gap-5 text-center">
         {empty.hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
@@ -25,7 +25,7 @@ export function EmptyWorkspace() {
           )}
         </div>
         {empty.hasStoredConnections ? (
-          <div className="chrome-panel hairline w-full max-w-[600px] overflow-hidden rounded-lg border border-border text-left shadow-[0_18px_54px_hsl(220_30%_3%/0.34)]">
+          <div className="chrome-panel hairline w-full max-w-[600px] overflow-hidden rounded-lg border border-border text-left shadow-[0_8px_22px_hsl(var(--shadow-strong)/0.14)] dark:shadow-[0_18px_54px_hsl(var(--shadow-strong)/0.34)]">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-8 gap-y-2 border-b border-border px-4 py-3">
               <div className="max-w-[280px]">
                 <div className="flex items-center gap-2">

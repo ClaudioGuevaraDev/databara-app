@@ -1,13 +1,16 @@
 import type { Monaco } from "@monaco-editor/react";
 
 export const DATABARA_EDITOR_THEME = "databara-dark";
+export const DATABARA_EDITOR_THEME_LIGHT = "databara-light";
 
 let defined = false;
 
 /**
- * Defines the Databara Monaco theme: deep-navy canvas with a cyan-led SQL
- * palette that mirrors the app's design tokens (see src/styles/globals.css),
- * replacing the generic built-in "vs-dark" look. Idempotent.
+ * Defines the Databara Monaco themes: a deep-navy dark canvas and a clean
+ * near-white light canvas, both with a cyan-led SQL palette that mirrors the
+ * app's design tokens (see src/styles/globals.css), replacing the generic
+ * built-in "vs-dark"/"vs" looks. Idempotent. Pick the theme name to apply with
+ * `resolveEditorTheme(isDark)`.
  */
 export function defineDatabaraTheme(monaco: Monaco) {
   if (defined) return;
@@ -79,5 +82,77 @@ export function defineDatabaraTheme(monaco: Monaco) {
     },
   });
 
+  monaco.editor.defineTheme(DATABARA_EDITOR_THEME_LIGHT, {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "", foreground: "1f2a37" },
+      { token: "keyword", foreground: "0b8fa1", fontStyle: "bold" },
+      { token: "keyword.sql", foreground: "0b8fa1", fontStyle: "bold" },
+      { token: "operator", foreground: "5b6b7a" },
+      { token: "operator.sql", foreground: "5b6b7a" },
+      { token: "delimiter", foreground: "5b6b7a" },
+      { token: "delimiter.sql", foreground: "5b6b7a" },
+      { token: "string", foreground: "1f8a54" },
+      { token: "string.sql", foreground: "1f8a54" },
+      { token: "number", foreground: "a2661f" },
+      { token: "number.sql", foreground: "a2661f" },
+      { token: "comment", foreground: "8a97a6", fontStyle: "italic" },
+      { token: "comment.sql", foreground: "8a97a6", fontStyle: "italic" },
+      { token: "predefined", foreground: "2f6fb0" },
+      { token: "predefined.sql", foreground: "2f6fb0" },
+      { token: "type", foreground: "1f8a9a" },
+      { token: "type.sql", foreground: "1f8a9a" },
+      { token: "identifier", foreground: "1f2a37" },
+    ],
+    colors: {
+      "editor.background": "#fbfcfd",
+      "editor.foreground": "#1f2a37",
+      "editorCursor.foreground": "#0b8fa1",
+      "editor.lineHighlightBackground": "#eef2f6",
+      "editor.lineHighlightBorder": "#00000000",
+      "editor.selectionBackground": "#0b8fa133",
+      "editor.inactiveSelectionBackground": "#0b8fa11f",
+      "editor.selectionHighlightBackground": "#0b8fa122",
+      "editorLineNumber.foreground": "#aab4c0",
+      "editorLineNumber.activeForeground": "#0b8fa1",
+      "editorIndentGuide.background1": "#e2e8f0",
+      "editorIndentGuide.activeBackground1": "#c7d0dc",
+      "editorBracketMatch.background": "#0b8fa122",
+      "editorBracketMatch.border": "#0b8fa155",
+      "editorBracketHighlight.foreground1": "#0b8fa1",
+      "editorBracketHighlight.foreground2": "#a2661f",
+      "editorBracketHighlight.foreground3": "#1f8a54",
+      "editorGutter.background": "#fbfcfd",
+      "editorWhitespace.foreground": "#dbe2ea",
+      "editorWidget.background": "#ffffff",
+      "editorWidget.border": "#e2e8f0",
+      "editorHoverWidget.background": "#ffffff",
+      "editorHoverWidget.border": "#e2e8f0",
+      "editorSuggestWidget.background": "#ffffff",
+      "editorSuggestWidget.border": "#e2e8f0",
+      "editorSuggestWidget.foreground": "#1f2a37",
+      "editorSuggestWidget.selectedForeground": "#0f1720",
+      "editorSuggestWidget.selectedBackground": "#0b8fa11f",
+      "editorSuggestWidget.focusHighlightForeground": "#0b8fa1",
+      "editorSuggestWidget.highlightForeground": "#0b8fa1",
+      "symbolIcon.keywordForeground": "#0b8fa1",
+      "symbolIcon.functionForeground": "#2f6fb0",
+      "symbolIcon.typeParameterForeground": "#1f8a9a",
+      "symbolIcon.structForeground": "#a2661f",
+      "symbolIcon.fieldForeground": "#1f8a54",
+      "symbolIcon.snippetForeground": "#5b6b7a",
+      "scrollbar.shadow": "#00000000",
+      "scrollbarSlider.background": "#5b6b7a2e",
+      "scrollbarSlider.hoverBackground": "#0e9bb0c6",
+      "scrollbarSlider.activeBackground": "#0e9bb0",
+    },
+  });
+
   defined = true;
+}
+
+/** Resolves the Monaco theme name for the current effective app theme. */
+export function resolveEditorTheme(isDark: boolean): string {
+  return isDark ? DATABARA_EDITOR_THEME : DATABARA_EDITOR_THEME_LIGHT;
 }

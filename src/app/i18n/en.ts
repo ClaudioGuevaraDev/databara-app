@@ -72,6 +72,15 @@ export const en = {
     languages: {
       en: "English",
     },
+    theme: {
+      title: "Theme",
+      description: "Application color theme",
+    },
+    themes: {
+      dark: "Dark",
+      light: "Light",
+      system: "System",
+    },
     sidebar: {
       title: "Sidebar width",
       description: "Width of the explorer sidebar",

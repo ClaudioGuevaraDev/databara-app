@@ -27,17 +27,17 @@ function classify(token: string, source: string, end: number): JsonTone {
 function toneClass(tone: JsonTone): string {
   switch (tone) {
     case "key":
-      return "text-[hsl(188_72%_72%)]";
+      return "text-[hsl(188_70%_32%)] dark:text-[hsl(188_72%_72%)]";
     case "string":
-      return "text-[hsl(150_52%_66%)]";
+      return "text-[hsl(150_50%_30%)] dark:text-[hsl(150_52%_66%)]";
     case "number":
-      return "text-[hsl(22_95%_72%)]";
+      return "text-[hsl(22_85%_42%)] dark:text-[hsl(22_95%_72%)]";
     case "boolean":
-      return "font-semibold text-[hsl(280_62%_75%)]";
+      return "font-semibold text-[hsl(280_55%_45%)] dark:text-[hsl(280_62%_75%)]";
     case "null":
-      return "italic text-[hsl(215_16%_58%)]";
+      return "italic text-[hsl(215_16%_45%)] dark:text-[hsl(215_16%_58%)]";
     default:
-      return "text-[hsl(215_16%_58%)]";
+      return "text-[hsl(215_16%_45%)] dark:text-[hsl(215_16%_58%)]";
   }
 }
 
@@ -86,8 +86,8 @@ export function JsonView({ queryResult }: { queryResult: QueryResult | null }) {
 
   return (
     <div className="h-full overflow-auto bg-[hsl(var(--panel-soft)/0.2)] p-3">
-      <div className="min-h-full rounded-md border border-border/70 bg-[hsl(var(--panel-soft)/0.74)] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(220_35%_6%/0.18)]">
-        <pre className="min-h-full overflow-auto p-3 font-mono text-[12px] leading-6 text-[hsl(215_20%_78%)]">
+      <div className="min-h-full rounded-md border border-border/70 bg-[hsl(var(--panel-soft)/0.74)] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.03),0_10px_24px_hsl(var(--shadow-strong)/0.18)]">
+        <pre className="min-h-full overflow-auto p-3 font-mono text-[12px] leading-6 text-[hsl(215_20%_32%)] dark:text-[hsl(215_20%_78%)]">
           <code>{renderJson(json)}</code>
         </pre>
       </div>

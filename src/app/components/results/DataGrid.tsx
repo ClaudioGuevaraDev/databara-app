@@ -29,7 +29,7 @@ export function DataGrid({ queryResult }: { queryResult: QueryResult | null }) {
             {row.map((cell, cellIndex) => (
               <td
                 key={`${cell ?? "NULL"}-${cellIndex}`}
-                className="max-w-64 truncate border-b border-r border-border px-2 py-1.5 text-[hsl(210_20%_88%)]"
+                className="max-w-64 truncate border-b border-r border-border px-2 py-1.5 text-foreground"
               >
                 {cell ?? "NULL"}
               </td>

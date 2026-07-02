@@ -18,6 +18,7 @@ import type {
   Language,
   NotificationPosition,
   SslMode,
+  ThemePreference,
 } from "./types";
 
 export type StoredConnectionDraft = Omit<ConnectionDraft, "password">;
@@ -84,9 +85,13 @@ export type AppSettings = {
   bottomPanelHeight: { height: number };
   // Language code for the interface.
   language: { code: Language };
+  // Application color theme (dark / light / follow the OS).
+  theme: { preference: ThemePreference };
 };
 
 export const SUPPORTED_LANGUAGES: readonly Language[] = ["en"];
+
+export const THEME_PREFERENCES: readonly ThemePreference[] = ["dark", "light", "system"];
 
 export const NOTIFICATION_POSITIONS: readonly NotificationPosition[] = [
   "top-left",
@@ -131,6 +136,7 @@ export const defaultAppSettings: AppSettings = {
   sidebarWidth: { width: SIDEBAR_WIDTH_DEFAULT },
   bottomPanelHeight: { height: BOTTOM_PANEL_HEIGHT_DEFAULT },
   language: { code: "en" },
+  theme: { preference: "dark" },
 };
 
 export function clampZoomLevel(level: number): number {
@@ -193,6 +199,9 @@ function normalizeAppSettings(raw: unknown): AppSettings {
   const language = (raw as { language?: unknown }).language;
   const code =
     language && typeof language === "object" ? (language as { code?: unknown }).code : undefined;
+  const theme = (raw as { theme?: unknown }).theme;
+  const preference =
+    theme && typeof theme === "object" ? (theme as { preference?: unknown }).preference : undefined;
   return {
     zoom: {
       level: clampZoomLevel(typeof level === "number" ? level : defaultAppSettings.zoom.level),
@@ -241,6 +250,11 @@ function normalizeAppSettings(raw: unknown): AppSettings {
       code: SUPPORTED_LANGUAGES.includes(code as Language)
         ? (code as Language)
         : defaultAppSettings.language.code,
+    },
+    theme: {
+      preference: THEME_PREFERENCES.includes(preference as ThemePreference)
+        ? (preference as ThemePreference)
+        : defaultAppSettings.theme.preference,
     },
   };
 }

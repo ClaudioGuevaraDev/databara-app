@@ -4,6 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Databara</title>
+    <script>
+      // Apply the saved color theme before React mounts to avoid a flash of the
+      // wrong theme. Mirrors databaraService's `databara.settings.v1` shape and
+      // defaults to dark when the preference is absent or unparseable.
+      (function () {
+        try {
+          var preference = "dark";
+          var raw = window.localStorage.getItem("databara.settings.v1");
+          if (raw) {
+            var stored = JSON.parse(raw);
+            var p = stored && stored.theme && stored.theme.preference;
+            if (p === "light" || p === "dark" || p === "system") preference = p;
+          }
+          var dark =
+            preference === "dark" ||
+            (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

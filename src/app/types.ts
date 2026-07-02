@@ -124,6 +124,9 @@ export type NotificationPosition =
   | "bottom-center"
   | "bottom-right";
 
+// Application color theme. "system" follows the OS `prefers-color-scheme`.
+export type ThemePreference = "dark" | "light" | "system";
+
 export const QUERY_PAGE_SIZES = [50, 100, 200, 500] as const;
 
 export type QueryPagination = {

@@ -20,6 +20,7 @@ import {
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_STEP,
+  THEME_PREFERENCES,
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
@@ -28,7 +29,7 @@ import {
 import { cn } from "../../../lib/utils";
 import { useI18n } from "../../i18n/I18nContext";
 import type { TranslationKey } from "../../i18n/translate";
-import type { Language, NotificationPosition } from "../../types";
+import type { Language, NotificationPosition, ThemePreference } from "../../types";
 import { useSettings, type SettingsTab } from "../../workspace/workspaceCore";
 import {
   DialogActions,
@@ -65,7 +66,14 @@ const TABS: {
 
 // Which AppSettings keys each tab owns — used to reset only the active tab.
 const TAB_RESET_KEYS: Record<SettingsTab, (keyof AppSettings)[]> = {
-  general: ["zoom", "notificationPosition", "language", "sidebarWidth", "bottomPanelHeight"],
+  general: [
+    "theme",
+    "zoom",
+    "notificationPosition",
+    "language",
+    "sidebarWidth",
+    "bottomPanelHeight",
+  ],
   editor: ["editorFontSize"],
   connections: ["keepConnectionsActive", "activateSiblingConnections", "discoverServerDatabases"],
   storage: ["exportIncludesPasswords"],
@@ -86,6 +94,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     setEditorFontSize,
     setNotificationPosition,
     setLanguage,
+    setThemePreference,
     setSidebarWidth,
     setBottomPanelHeight,
     resetSettings,
@@ -98,6 +107,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { size: editorFontSize } = settings.editorFontSize;
   const { position: notificationPosition } = settings.notificationPosition;
   const { code: language } = settings.language;
+  const { preference: themePreference } = settings.theme;
   const { width: sidebarWidth } = settings.sidebarWidth;
   const { height: bottomPanelHeight } = settings.bottomPanelHeight;
 
@@ -109,6 +119,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const languageOptions: SelectFieldOption<Language>[] = LANGUAGE_VALUES.map((value) => ({
     value,
     label: t(`settings.languages.${value}` as TranslationKey),
+  }));
+  const themeOptions: SelectFieldOption<ThemePreference>[] = THEME_PREFERENCES.map((value) => ({
+    value,
+    label: t(`settings.themes.${value}` as TranslationKey),
   }));
 
   const isDefault = (keys: (keyof AppSettings)[]) =>
@@ -175,6 +189,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-5 text-[12px]">
             {tab === "general" ? (
               <>
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.theme.title")}
+                  </div>
+                  <div className="text-muted-foreground">{t("settings.theme.description")}</div>
+                </div>
+                <SelectField
+                  label=""
+                  className="w-36 justify-self-end"
+                  value={themePreference}
+                  onChange={setThemePreference}
+                  options={themeOptions}
+                />
                 <div className="grid gap-0.5">
                   <div className="text-[13px] font-semibold text-foreground">
                     {t("settings.language.title")}

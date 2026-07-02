@@ -68,7 +68,7 @@ export function DownloadMenu({
         {t("results.download")}
       </button>
       {open ? (
-        <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-border bg-[hsl(var(--panel-soft))] p-3 shadow-[0_12px_28px_hsl(220_35%_6%/0.4)]">
+        <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-border bg-[hsl(var(--panel-soft))] p-3 shadow-[0_12px_28px_hsl(var(--shadow-strong)/0.4)]">
           <Group label={t("results.downloadFormat")}>
             {formats.map((option) => (
               <Choice

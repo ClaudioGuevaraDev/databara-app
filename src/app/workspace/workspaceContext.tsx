@@ -253,6 +253,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     saveAppSettings(settings);
   }, [settings]);
 
+  // Apply the color theme by toggling the `.dark` class on <html> (Tailwind's
+  // class strategy). For "system" we resolve `prefers-color-scheme` and keep the
+  // app in sync live via a media-query listener. Runs on mount so a saved theme
+  // is restored (the inline script in index.html already sets the initial class
+  // to avoid a flash before React mounts).
+  useEffect(() => {
+    const preference = settings.theme.preference;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = preference === "dark" || (preference === "system" && media.matches);
+      document.documentElement.classList.toggle("dark", dark);
+    };
+    apply();
+    if (preference !== "system") return;
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [settings.theme.preference]);
+
   // Keep the live-connections mirror current for background orchestration.
   useEffect(() => {
     connectionsRef.current = connections;
@@ -1752,6 +1770,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setSettings((current) => ({
           ...current,
           language: { code },
+        })),
+      setThemePreference: (preference) =>
+        setSettings((current) => ({
+          ...current,
+          theme: { preference },
         })),
       setSidebarWidth: (width) =>
         setSettings((current) => ({

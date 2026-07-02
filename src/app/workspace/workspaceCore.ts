@@ -9,6 +9,7 @@ import type {
   DatabaseTreeNode,
   Language,
   NotificationPosition,
+  ThemePreference,
   QueryPagination,
   QueryState,
   QueryResult,
@@ -150,6 +151,7 @@ export type WorkspaceActions = {
   setEditorFontSize: (size: number) => void;
   setNotificationPosition: (position: NotificationPosition) => void;
   setLanguage: (code: Language) => void;
+  setThemePreference: (preference: ThemePreference) => void;
   setSidebarWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
   resetSettings: () => void;
@@ -222,6 +224,7 @@ export function useSettings() {
     setEditorFontSize: actions.setEditorFontSize,
     setNotificationPosition: actions.setNotificationPosition,
     setLanguage: actions.setLanguage,
+    setThemePreference: actions.setThemePreference,
     setSidebarWidth: actions.setSidebarWidth,
     setBottomPanelHeight: actions.setBottomPanelHeight,
     resetSettings: actions.resetSettings,

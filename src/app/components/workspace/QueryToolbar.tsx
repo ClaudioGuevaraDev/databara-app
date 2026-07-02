@@ -32,7 +32,7 @@ export function QueryToolbar({
           className={cn(
             "ml-1 flex h-7 items-center gap-1.5 rounded px-3 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45",
             canSave
-              ? "bg-emerald-500/14 hover:bg-emerald-500/22 text-emerald-200 shadow-[inset_0_0_0_1px_hsl(160_84%_39%/.36)]"
+              ? "dark:bg-emerald-500/14 dark:hover:bg-emerald-500/22 bg-emerald-500/15 text-emerald-700 shadow-[inset_0_0_0_1px_hsl(160_84%_39%/.5)] hover:bg-emerald-500/25 dark:text-emerald-200 dark:shadow-[inset_0_0_0_1px_hsl(160_84%_39%/.36)]"
               : "bg-muted/60 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]",
           )}
         >

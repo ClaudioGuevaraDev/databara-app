@@ -4,8 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Databara</title>
+    <script>
+      // Match the splash to the saved app theme (see index.html for the shared
+      // logic). Defaults to dark when the preference is absent or unparseable.
+      (function () {
+        try {
+          var preference = "dark";
+          var raw = window.localStorage.getItem("databara.settings.v1");
+          if (raw) {
+            var stored = JSON.parse(raw);
+            var p = stored && stored.theme && stored.theme.preference;
+            if (p === "light" || p === "dark" || p === "system") preference = p;
+          }
+          var dark =
+            preference === "dark" ||
+            (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
     <style>
+      /* Light is the default; dark overrides live under `.dark`, toggled by the
+         inline script above. Mirrors the token subset from src/styles/globals.css. */
       :root {
+        --background: 210 20% 98%;
+        --foreground: 218 30% 13%;
+        --muted-foreground: 218 10% 40%;
+        --primary: 184 82% 40%;
+        --panel-raised: 210 20% 99%;
+      }
+
+      .dark {
         --background: 218 27% 6%;
         --foreground: 210 22% 91%;
         --muted-foreground: 216 11% 63%;

@@ -1,6 +1,6 @@
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
-import { useCallback, useEffect, useRef } from "react";
-import { DATABARA_EDITOR_THEME, defineDatabaraTheme } from "../../editor/databaraTheme";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { defineDatabaraTheme, resolveEditorTheme } from "../../editor/databaraTheme";
 import { registerSqlCompletionProvider } from "../../editor/sqlCompletion";
 import type { DatabaseObjectDetails } from "../../types";
 import { useSettings, useSqlEditor } from "../../workspace/workspaceCore";
@@ -12,6 +12,23 @@ export function TabsEditor() {
   const editor = useSqlEditor();
   const { settings } = useSettings();
   const editorFontSize = settings.editorFontSize.size;
+  const themePreference = settings.theme.preference;
+
+  // Match the editor theme to the app's effective theme. For "system" we track
+  // the OS `prefers-color-scheme` so the editor re-themes live with the app.
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    if (themePreference !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemDark(media.matches);
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [themePreference]);
+  const isDark = themePreference === "dark" || (themePreference === "system" && systemDark);
+  const editorTheme = resolveEditorTheme(isDark);
   const selectedObjectRef = useRef<DatabaseObjectDetails | null>(editor.completionObject);
   const runQueryRef = useRef(editor.runQuery);
   const saveActiveSqlTabRef = useRef(editor.saveActiveSqlTab);
@@ -72,7 +89,7 @@ export function TabsEditor() {
             defaultLanguage="sql"
             loading={<div className="h-full w-full bg-background" />}
             value={editor.activeTab.sql}
-            theme={DATABARA_EDITOR_THEME}
+            theme={editorTheme}
             beforeMount={defineDatabaraTheme}
             onChange={(value) => editor.updateActiveSql(value ?? "")}
             onMount={handleEditorMount}
