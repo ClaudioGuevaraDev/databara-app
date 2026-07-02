@@ -1,4 +1,4 @@
-import { ChevronRight, Download, Loader2 } from "lucide-react";
+import { ChevronRight, HardDriveDownload, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getBrowserStorageEstimate,
@@ -219,7 +219,11 @@ export function StorageSettingsTab() {
           disabled={exporting}
           className="flex h-8 items-center gap-1.5 justify-self-start rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          {exporting ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <HardDriveDownload size={14} />
+          )}
           {t("settings.storage.export")}
         </button>
 

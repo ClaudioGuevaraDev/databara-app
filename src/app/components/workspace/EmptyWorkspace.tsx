@@ -1,4 +1,4 @@
-import { Database, KeyRound, Plus, Upload } from "lucide-react";
+import { Database, HardDriveUpload, KeyRound, Plus } from "lucide-react";
 import { connectionEngineLabel } from "../../connectionEngines";
 import { useI18n } from "../../i18n/I18nContext";
 import { savedConnectionNodeId, useEmptyWorkspace } from "../../workspace/workspaceCore";
@@ -54,7 +54,7 @@ export function EmptyWorkspace() {
                   onClick={empty.openLoadConfigDialog}
                   className="flex h-8 items-center gap-1.5 rounded border border-border px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
-                  <Upload size={13} />
+                  <HardDriveUpload size={13} />
                   {t("workspace.empty.loadConfiguration")}
                 </button>
               </div>
@@ -108,7 +108,7 @@ export function EmptyWorkspace() {
               onClick={empty.openLoadConfigDialog}
               className="flex h-9 items-center gap-2 rounded border border-border px-3.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
             >
-              <Upload size={15} />
+              <HardDriveUpload size={15} />
               {t("workspace.empty.loadConfiguration")}
             </button>
           </div>

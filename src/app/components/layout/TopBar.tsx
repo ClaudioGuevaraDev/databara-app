@@ -1,4 +1,4 @@
-import { Database, Download, Plus, Settings, Upload } from "lucide-react";
+import { Database, HardDriveDownload, HardDriveUpload, Plus, Settings } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 
 export function TopBar({
@@ -43,7 +43,7 @@ export function TopBar({
           title={t("topBar.loadConfiguration")}
           className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
         >
-          <Upload size={14} />
+          <HardDriveUpload size={14} />
           {t("topBar.loadConfiguration")}
         </button>
         {hasStoredConnections ? (
@@ -53,7 +53,7 @@ export function TopBar({
             title={t("topBar.downloadConfiguration")}
             className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
           >
-            <Download size={14} />
+            <HardDriveDownload size={14} />
             {t("topBar.downloadConfiguration")}
           </button>
         ) : null}

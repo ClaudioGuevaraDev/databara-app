@@ -1,4 +1,4 @@
-import { FileText, Loader2, Upload } from "lucide-react";
+import { FileText, HardDriveUpload, Loader2 } from "lucide-react";
 import { useState } from "react";
 import {
   applyConfigurationImport,
@@ -80,7 +80,7 @@ export function LoadConfigDialog({ onClose }: { onClose: () => void }) {
       <DialogHeader
         title={
           <>
-            <Upload size={16} className="shrink-0 text-primary" />
+            <HardDriveUpload size={16} className="shrink-0 text-primary" />
             <span className="truncate">{t("dialogs.loadConfig.title")}</span>
           </>
         }

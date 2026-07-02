@@ -1,4 +1,4 @@
-import { Download, HardDrive, RefreshCw, Upload } from "lucide-react";
+import { HardDrive, HardDriveDownload, HardDriveUpload, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getBrowserStorageEstimate } from "../../databaraService";
 import { useI18n } from "../../i18n/I18nContext";
@@ -62,7 +62,7 @@ export function StatusBar({
           aria-label={t("statusBar.loadConfiguration")}
           className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
-          <Upload size={12} />
+          <HardDriveUpload size={12} />
         </button>
         {hasStoredConnections ? (
           <button
@@ -72,7 +72,7 @@ export function StatusBar({
             aria-label={t("statusBar.downloadConfiguration")}
             className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
           >
-            <Download size={12} />
+            <HardDriveDownload size={12} />
           </button>
         ) : null}
       </div>
