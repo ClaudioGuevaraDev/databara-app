@@ -180,6 +180,8 @@ export const zhCN: Translations = {
       sslMode: "SSL 模式",
       passwordHint: "密码仅用于本次会话，不会被保存",
       passwordPlaceholder: "输入密码",
+      filePath: "数据库文件",
+      browse: "浏览",
       test: "测试连接",
     },
     password: {
@@ -391,6 +393,7 @@ export const zhCN: Translations = {
     unexpectedError: "意外错误",
     requiredFields: "主机、端口、数据库和用户为必填项",
     invalidPort: "端口必须是有效的正数",
+    requiredFile: "需要一个数据库文件",
     engineNotSupported: "暂不支持 {{engine}} 连接",
   },
   editor: {

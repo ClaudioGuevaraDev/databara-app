@@ -184,6 +184,8 @@ export const ptBR: Translations = {
       sslMode: "Modo SSL",
       passwordHint: "A senha é usada apenas nesta sessão e não é salva",
       passwordPlaceholder: "Digite a senha",
+      filePath: "Arquivo de banco de dados",
+      browse: "Procurar",
       test: "Testar conexão",
     },
     password: {
@@ -398,6 +400,7 @@ export const ptBR: Translations = {
     unexpectedError: "Erro inesperado",
     requiredFields: "Host, porta, banco de dados e usuário são obrigatórios",
     invalidPort: "A porta deve ser um número positivo válido",
+    requiredFile: "É necessário um arquivo de banco de dados",
     engineNotSupported: "Conexões {{engine}} ainda não são compatíveis",
   },
   editor: {

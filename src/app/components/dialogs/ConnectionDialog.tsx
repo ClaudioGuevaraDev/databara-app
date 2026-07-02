@@ -1,11 +1,16 @@
-import { Activity, KeyRound, Loader2 } from "lucide-react";
+import { Activity, FolderOpen, KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
 import {
   connectionEngines,
   getConnectionEngineConfig,
+  isFileEngine,
   normalizeDatabaseEngine,
 } from "../../connectionEngines";
-import { testPostgresConnection, type StoredConnectionDraft } from "../../databaraService";
+import {
+  pickDatabaseFilePath,
+  testPostgresConnection,
+  type StoredConnectionDraft,
+} from "../../databaraService";
 import { useI18n } from "../../i18n/I18nContext";
 import type { ConnectionDraft, DatabaseEngine, SslMode } from "../../types";
 import {
@@ -39,6 +44,7 @@ export function ConnectionDialog({
   const defaultDraft: ConnectionFormDraft = {
     database: "",
     engine: defaultEngine.id,
+    filePath: "",
     host: "",
     name: "",
     password: "",
@@ -63,6 +69,7 @@ export function ConnectionDialog({
       : null),
   });
   const engineConfig = getConnectionEngineConfig(draft.engine);
+  const isFile = isFileEngine(draft.engine);
   const engineOptions = connectionEngines.map((engine) => ({
     label: engine.label,
     value: engine.id,
@@ -77,6 +84,11 @@ export function ConnectionDialog({
       ...current,
       [key]: value,
     }));
+  }
+
+  async function browseForFile() {
+    const path = await pickDatabaseFilePath();
+    if (path) updateDraft("filePath", path);
   }
 
   function updateEngine(engine: DatabaseEngine) {
@@ -159,44 +171,69 @@ export function ConnectionDialog({
             options={engineOptions}
             value={draft.engine}
           />
-          <Field
-            autoFocus
-            label={t("dialogs.connection.host")}
-            onChange={(value) => updateDraft("host", value)}
-            placeholder={engineConfig.placeholders.host}
-            value={draft.host}
-          />
-          <Field
-            label={t("dialogs.connection.port")}
-            onChange={(value) => updateDraft("port", value)}
-            placeholder={String(engineConfig.defaultPort)}
-            value={draft.port}
-          />
-          <Field
-            label={t("dialogs.connection.user")}
-            onChange={(value) => updateDraft("user", value)}
-            placeholder={engineConfig.placeholders.user}
-            value={draft.user}
-          />
-          <Field
-            label={t("dialogs.connection.password")}
-            onChange={(value) => updateDraft("password", value)}
-            placeholder={t("dialogs.connection.passwordPlaceholder")}
-            type="password"
-            value={draft.password}
-          />
-          <Field
-            label={t("dialogs.connection.database")}
-            onChange={(value) => updateDraft("database", value)}
-            placeholder={engineConfig.placeholders.database}
-            value={draft.database}
-          />
-          <SelectField<SslMode>
-            label={t("dialogs.connection.sslMode")}
-            onChange={(value) => updateDraft("sslMode", value)}
-            options={sslModeOptions}
-            value={draft.sslMode}
-          />
+          {isFile ? (
+            <div className="col-span-2 flex items-end gap-2">
+              <Field
+                autoFocus
+                className="flex-1"
+                label={t("dialogs.connection.filePath")}
+                onChange={(value) => updateDraft("filePath", value)}
+                placeholder={engineConfig.placeholders.filePath}
+                value={draft.filePath ?? ""}
+              />
+              <button
+                type="button"
+                onClick={() => void browseForFile()}
+                className="control flex h-8 items-center gap-1.5 rounded px-3 text-[12px]"
+              >
+                <FolderOpen size={14} />
+                {t("dialogs.connection.browse")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <Field
+                autoFocus
+                label={t("dialogs.connection.host")}
+                onChange={(value) => updateDraft("host", value)}
+                placeholder={engineConfig.placeholders.host}
+                value={draft.host}
+              />
+              <Field
+                label={t("dialogs.connection.port")}
+                onChange={(value) => updateDraft("port", value)}
+                placeholder={String(engineConfig.defaultPort)}
+                value={draft.port}
+              />
+              <Field
+                label={t("dialogs.connection.user")}
+                onChange={(value) => updateDraft("user", value)}
+                placeholder={engineConfig.placeholders.user}
+                value={draft.user}
+              />
+              <Field
+                label={t("dialogs.connection.password")}
+                onChange={(value) => updateDraft("password", value)}
+                placeholder={t("dialogs.connection.passwordPlaceholder")}
+                type="password"
+                value={draft.password}
+              />
+              <Field
+                label={t("dialogs.connection.database")}
+                onChange={(value) => updateDraft("database", value)}
+                placeholder={engineConfig.placeholders.database}
+                value={draft.database}
+              />
+              {sslModeOptions.length > 0 ? (
+                <SelectField<SslMode>
+                  label={t("dialogs.connection.sslMode")}
+                  onChange={(value) => updateDraft("sslMode", value)}
+                  options={sslModeOptions}
+                  value={draft.sslMode}
+                />
+              ) : null}
+            </>
+          )}
           <div className="col-span-2">
             {formMessage ? (
               <FormAlert tone={formMessage.tone}>{formMessage.text}</FormAlert>

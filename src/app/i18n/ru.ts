@@ -185,6 +185,8 @@ export const ru: Translations = {
       sslMode: "Режим SSL",
       passwordHint: "Пароль используется только для этого сеанса и не сохраняется",
       passwordPlaceholder: "Введите пароль",
+      filePath: "Файл базы данных",
+      browse: "Обзор",
       test: "Проверить подключение",
     },
     password: {
@@ -398,6 +400,7 @@ export const ru: Translations = {
     unexpectedError: "Непредвиденная ошибка",
     requiredFields: "Хост, порт, база данных и пользователь обязательны",
     invalidPort: "Порт должен быть допустимым положительным числом",
+    requiredFile: "Требуется файл базы данных",
     engineNotSupported: "Подключения {{engine}} пока не поддерживаются",
   },
   editor: {

@@ -4,6 +4,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   defaultDatabaseEngine,
   ensureSupportedConnectionEngine,
+  isFileEngine,
   normalizeDatabaseEngine,
 } from "./connectionEngines";
 import type {
@@ -23,7 +24,7 @@ import type {
 
 export type StoredConnectionDraft = Omit<ConnectionDraft, "password">;
 
-type BackendConnectionDraft = Omit<ConnectionDraft, "engine">;
+type BackendConnectionDraft = ConnectionDraft;
 
 type BackendConnectionProfile = Omit<ConnectionProfile, "engine"> & {
   engine: DatabaseEngine | "PostgreSQL";
@@ -676,6 +677,17 @@ export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }
 
+// Opens the native open dialog so the user picks a SQLite database file. Returns
+// the chosen absolute path, or null if cancelled / outside the desktop app.
+export async function pickDatabaseFilePath(): Promise<string | null> {
+  if (!("__TAURI_INTERNALS__" in window)) return null;
+  const path = await open({
+    multiple: false,
+    filters: [{ name: "SQLite database", extensions: ["db", "sqlite", "sqlite3", "db3"] }],
+  });
+  return typeof path === "string" ? path : null;
+}
+
 // Opens the native folder picker so the user chooses where a backup lands.
 // Returns the chosen absolute directory, or null if the dialog was cancelled.
 export async function pickDirectory(): Promise<string | null> {
@@ -707,13 +719,33 @@ export async function listenBackupProgress(
   return listen<BackupProgress>(BACKUP_PROGRESS_EVENT, (event) => onProgress(event.payload));
 }
 
-// Lists the other (non-template, connectable) databases living on the same
-// server as the given live connection, excluding the one it is connected to.
-export async function fetchServerDatabaseNames(connectionId: string): Promise<string[]> {
-  const result = await runPostgresQuery(
-    connectionId,
-    "SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true AND datname <> current_database() ORDER BY datname",
-  );
+// Catalog query that lists sibling databases on the same server, per engine.
+// SQLite is file-based (one file = one database) so it has no siblings → null.
+function serverDatabaseListSql(engine: DatabaseEngine): string | null {
+  switch (engine) {
+    case "postgresql":
+      return "SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true AND datname <> current_database() ORDER BY datname";
+    case "mysql":
+    case "mariadb":
+      return "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql','information_schema','performance_schema','sys') AND schema_name <> database() ORDER BY schema_name";
+    case "mssql":
+      return "SELECT name FROM sys.databases WHERE database_id > 4 AND name <> DB_NAME() ORDER BY name";
+    case "sqlite":
+    default:
+      return null;
+  }
+}
+
+// Lists the other (connectable) databases living on the same server as the given
+// live connection, excluding the one it is connected to. Returns [] for engines
+// without a sibling-database concept (SQLite).
+export async function fetchServerDatabaseNames(
+  connectionId: string,
+  engine: DatabaseEngine,
+): Promise<string[]> {
+  const sql = serverDatabaseListSql(engine);
+  if (!sql) return [];
+  const result = await runPostgresQuery(connectionId, sql);
   return result.rows.map((row) => row[0]).filter((value): value is string => value !== null);
 }
 
@@ -852,16 +884,12 @@ function saveStoredConnections(connections: StoredConnectionDraft[]) {
   window.localStorage.setItem(storedConnectionsKey, JSON.stringify(connections));
 }
 
+// The backend now dispatches on `engine`, so (unlike before) we forward it along
+// with the engine-specific fields (`filePath` for SQLite, `trustServerCert` for
+// SQL Server). The Rust `ConnectionDraft` treats the fields it doesn't need as
+// optional, so a full draft is safe to send for every engine.
 function toBackendDraft(draft: ConnectionDraft): BackendConnectionDraft {
-  return {
-    database: draft.database,
-    host: draft.host,
-    name: draft.name,
-    password: draft.password,
-    port: draft.port,
-    sslMode: draft.sslMode,
-    user: draft.user,
-  };
+  return { ...draft };
 }
 
 function normalizeTreeForEngine(
@@ -885,8 +913,31 @@ function normalizeStoredConnection(connection: unknown): StoredConnectionDraft |
   const candidate = connection as Partial<StoredConnectionDraft> & {
     sslMode?: SslMode;
   };
+  if (typeof candidate.name !== "string") return null;
+
+  const engine = normalizeDatabaseEngine(candidate.engine);
+
+  // File engines (SQLite) have no host/port/user; they're identified by a path.
+  // `host` carries the path (identity) and `database` the file name (tree label),
+  // mirroring what the connection form and the Rust profile builder produce.
+  if (isFileEngine(engine)) {
+    if (typeof candidate.filePath !== "string" || candidate.filePath.trim() === "") {
+      return null;
+    }
+    const filePath = candidate.filePath;
+    return {
+      database: filePath.split(/[\\/]/).pop() || filePath,
+      engine,
+      filePath,
+      host: filePath,
+      name: candidate.name,
+      port: 0,
+      sslMode: "Disable",
+      user: "",
+    };
+  }
+
   if (
-    typeof candidate.name !== "string" ||
     typeof candidate.host !== "string" ||
     typeof candidate.port !== "number" ||
     typeof candidate.database !== "string" ||
@@ -897,11 +948,14 @@ function normalizeStoredConnection(connection: unknown): StoredConnectionDraft |
 
   return {
     database: candidate.database,
-    engine: normalizeDatabaseEngine(candidate.engine),
+    engine,
     host: candidate.host,
     name: candidate.name,
     port: candidate.port,
     sslMode: candidate.sslMode ?? "Prefer",
     user: candidate.user,
+    ...(typeof candidate.trustServerCert === "boolean"
+      ? { trustServerCert: candidate.trustServerCert }
+      : {}),
   };
 }

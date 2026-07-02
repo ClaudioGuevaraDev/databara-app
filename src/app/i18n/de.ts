@@ -183,6 +183,8 @@ export const de: Translations = {
       sslMode: "SSL-Modus",
       passwordHint: "Das Passwort wird nur für diese Sitzung verwendet und nicht gespeichert",
       passwordPlaceholder: "Passwort eingeben",
+      filePath: "Datenbankdatei",
+      browse: "Durchsuchen",
       test: "Verbindung testen",
     },
     password: {
@@ -397,6 +399,7 @@ export const de: Translations = {
     unexpectedError: "Unerwarteter Fehler",
     requiredFields: "Host, Port, Datenbank und Benutzer sind erforderlich",
     invalidPort: "Der Port muss eine gültige positive Zahl sein",
+    requiredFile: "Eine Datenbankdatei ist erforderlich",
     engineNotSupported: "{{engine}}-Verbindungen werden noch nicht unterstützt",
   },
   editor: {

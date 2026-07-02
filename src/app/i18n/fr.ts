@@ -185,6 +185,8 @@ export const fr: Translations = {
       passwordHint:
         "Le mot de passe est utilisé uniquement pour cette session et n'est pas enregistré",
       passwordPlaceholder: "Saisissez le mot de passe",
+      filePath: "Fichier de base de données",
+      browse: "Parcourir",
       test: "Tester la connexion",
     },
     password: {
@@ -398,6 +400,7 @@ export const fr: Translations = {
     unexpectedError: "Erreur inattendue",
     requiredFields: "L'hôte, le port, la base de données et l'utilisateur sont obligatoires",
     invalidPort: "Le port doit être un nombre positif valide",
+    requiredFile: "Un fichier de base de données est requis",
     engineNotSupported: "Les connexions {{engine}} ne sont pas encore prises en charge",
   },
   editor: {

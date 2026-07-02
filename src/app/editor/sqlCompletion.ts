@@ -563,17 +563,21 @@ const postgresqlSnippets: SqlCompletionSnippet[] = [
   },
 ];
 
-const sqlCompletionProfiles: Record<DatabaseEngine, SqlCompletionProfile> = {
-  postgresql: {
-    functions: [...postgresqlFunctions],
-    keywords: [...postgresqlKeywords],
-    snippets: postgresqlSnippets,
-    types: [...postgresqlTypes],
-  },
+const postgresqlProfile: SqlCompletionProfile = {
+  functions: [...postgresqlFunctions],
+  keywords: [...postgresqlKeywords],
+  snippets: postgresqlSnippets,
+  types: [...postgresqlTypes],
 };
 
-function getSqlCompletionProfile(engine: DatabaseEngine | undefined) {
-  return sqlCompletionProfiles[engine ?? "postgresql"];
+// Per-engine completion profiles. Engines without a dedicated profile fall back
+// to the PostgreSQL one (broad ANSI-SQL coverage) via `getSqlCompletionProfile`.
+const sqlCompletionProfiles: Partial<Record<DatabaseEngine, SqlCompletionProfile>> = {
+  postgresql: postgresqlProfile,
+};
+
+function getSqlCompletionProfile(engine: DatabaseEngine | undefined): SqlCompletionProfile {
+  return sqlCompletionProfiles[engine ?? "postgresql"] ?? postgresqlProfile;
 }
 
 function getCompletionRange(

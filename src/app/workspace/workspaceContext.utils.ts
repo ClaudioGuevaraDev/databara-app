@@ -1,7 +1,7 @@
 import { connectionEngineLabel } from "../connectionEngines";
 import type { StoredConnectionDraft } from "../databaraService";
 import { translate } from "../i18n/translate";
-import type { ConnectionDraft, DatabaseTreeNode } from "../types";
+import type { ConnectionDraft, DatabaseEngine, DatabaseTreeNode } from "../types";
 import { savedConnectionNodeId } from "./workspaceCore";
 
 export function serverNodeId(connection: Pick<ConnectionDraft, "engine" | "host" | "port">) {
@@ -167,8 +167,14 @@ function parseDatabaseObjectId(objectId: string) {
   };
 }
 
-export function buildDefaultObjectSql(objectId: string, limit: number) {
+export function buildDefaultObjectSql(objectId: string, limit: number, engine: DatabaseEngine) {
   const object = parseDatabaseObjectId(objectId);
+  // SQL Server uses `TOP n` instead of a trailing `LIMIT n`.
+  if (engine === "mssql") {
+    return object
+      ? `SELECT TOP ${limit} * FROM ${object.qualifiedName};`
+      : `SELECT TOP ${limit} *;`;
+  }
   return object
     ? `SELECT * FROM ${object.qualifiedName} LIMIT ${limit};`
     : `SELECT * LIMIT ${limit};`;
@@ -195,7 +201,13 @@ export function isReadQuery(sql: string): boolean {
  * becomes the pagination page size while we still page over the full result set.
  * Returns `null` when there's no trailing limit (e.g. a `LIMIT` only in a subquery).
  */
-export function parseTrailingLimit(sql: string): { pageSize: number; baseSql: string } | null {
+export function parseTrailingLimit(
+  sql: string,
+  engine: DatabaseEngine,
+): { pageSize: number; baseSql: string } | null {
+  // SQL Server has no trailing `LIMIT`; its paging uses OFFSET/FETCH, so there's
+  // nothing to strip here.
+  if (engine === "mssql") return null;
   const normalized = normalizeBaseSql(sql);
   const match = normalized.match(/\s+limit\s+(\d+)\s*(?:offset\s+\d+\s*)?$/i);
   if (!match || match.index === undefined) return null;
@@ -214,8 +226,18 @@ export function parseTrailingLimit(sql: string): { pageSize: number; baseSql: st
  * Note: an `ORDER BY` inside `baseSql` is preserved by PostgreSQL in practice
  * but is not guaranteed by the SQL standard for subqueries — accepted limitation.
  */
-export function buildPageSql(baseSql: string, pageSize: number, page: number): string {
+export function buildPageSql(
+  baseSql: string,
+  pageSize: number,
+  page: number,
+  engine: DatabaseEngine,
+): string {
   const offset = page * pageSize;
+  // SQL Server requires an ORDER BY for OFFSET/FETCH; `ORDER BY (SELECT NULL)`
+  // satisfies it without imposing a real sort key.
+  if (engine === "mssql") {
+    return `SELECT * FROM (${baseSql}) AS _databara_q ORDER BY (SELECT NULL) OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY`;
+  }
   return `SELECT * FROM (${baseSql}) AS _databara_q LIMIT ${pageSize} OFFSET ${offset}`;
 }
 

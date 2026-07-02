@@ -183,6 +183,8 @@ export const ja: Translations = {
       sslMode: "SSL モード",
       passwordHint: "パスワードはこのセッションでのみ使用され、保存されません",
       passwordPlaceholder: "パスワードを入力",
+      filePath: "データベースファイル",
+      browse: "参照",
       test: "接続をテスト",
     },
     password: {
@@ -396,6 +398,7 @@ export const ja: Translations = {
     unexpectedError: "予期しないエラー",
     requiredFields: "ホスト、ポート、データベース、ユーザーは必須です",
     invalidPort: "ポートは有効な正の数値である必要があります",
+    requiredFile: "データベースファイルが必要です",
     engineNotSupported: "{{engine}} 接続はまだサポートされていません",
   },
   editor: {

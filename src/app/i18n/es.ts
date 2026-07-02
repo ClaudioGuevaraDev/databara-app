@@ -184,6 +184,8 @@ export const es: Translations = {
       sslMode: "Modo SSL",
       passwordHint: "La contraseña se usa solo en esta sesión y no se guarda",
       passwordPlaceholder: "Introduce la contraseña",
+      filePath: "Archivo de base de datos",
+      browse: "Examinar",
       test: "Probar conexión",
     },
     password: {
@@ -398,6 +400,7 @@ export const es: Translations = {
     unexpectedError: "Error inesperado",
     requiredFields: "Host, puerto, base de datos y usuario son obligatorios",
     invalidPort: "El puerto debe ser un número positivo válido",
+    requiredFile: "Se requiere un archivo de base de datos",
     engineNotSupported: "Las conexiones {{engine}} aún no son compatibles",
   },
   editor: {

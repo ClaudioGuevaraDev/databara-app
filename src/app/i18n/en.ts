@@ -183,6 +183,8 @@ export const en = {
       sslMode: "SSL mode",
       passwordHint: "Password is used for this session only and is not saved",
       passwordPlaceholder: "Enter password",
+      filePath: "Database file",
+      browse: "Browse",
       test: "Test connection",
     },
     password: {
@@ -396,6 +398,7 @@ export const en = {
     unexpectedError: "Unexpected error",
     requiredFields: "Host, port, database, and user are required",
     invalidPort: "Port must be a valid positive number",
+    requiredFile: "A database file is required",
     engineNotSupported: "{{engine}} connections are not supported yet",
   },
   editor: {

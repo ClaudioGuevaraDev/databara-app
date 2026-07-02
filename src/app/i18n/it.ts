@@ -185,6 +185,8 @@ export const it: Translations = {
       sslMode: "Modalità SSL",
       passwordHint: "La password viene usata solo per questa sessione e non viene salvata",
       passwordPlaceholder: "Inserisci la password",
+      filePath: "File del database",
+      browse: "Sfoglia",
       test: "Prova connessione",
     },
     password: {
@@ -400,6 +402,7 @@ export const it: Translations = {
     unexpectedError: "Errore imprevisto",
     requiredFields: "Host, porta, database e utente sono obbligatori",
     invalidPort: "La porta deve essere un numero positivo valido",
+    requiredFile: "È richiesto un file del database",
     engineNotSupported: "Le connessioni {{engine}} non sono ancora supportate",
   },
   editor: {

@@ -1,5 +1,5 @@
 export type ConnectionStatus = "connected" | "disconnected";
-export type DatabaseEngine = "postgresql";
+export type DatabaseEngine = "postgresql" | "mysql" | "mariadb" | "sqlite" | "mssql";
 export type DatabaseObjectKind = "database" | "schema" | "table" | "view";
 export type ResultPanelTab = "results" | "columns" | "schema";
 export type ResultViewMode = "table" | "json";
@@ -21,6 +21,10 @@ export type ConnectionProfile = {
   latencyMs: number;
   defaultSchema: string;
   sslMode: SslMode;
+  // SQLite only: absolute path to the database file (host/port/user are unused).
+  filePath?: string;
+  // SQL Server only: trust a self-signed server certificate (common in dev).
+  trustServerCert?: boolean;
 };
 
 export type DatabaseTreeNode = {
@@ -146,6 +150,10 @@ export type ConnectionDraft = {
   user: string;
   password: string;
   sslMode: SslMode;
+  // SQLite only: absolute path to the database file.
+  filePath?: string;
+  // SQL Server only: trust a self-signed server certificate.
+  trustServerCert?: boolean;
 };
 
 export type ConnectionTestResult = {

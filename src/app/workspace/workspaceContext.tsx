@@ -100,6 +100,7 @@ import {
   officializeSqlTab,
   saveSqlTabsForConnection,
 } from "./workspaceSqlTabs";
+import { defaultDatabaseEngine, isFileEngine } from "../connectionEngines";
 
 // Per-tab, in-memory query state (never persisted to localStorage).
 type TabResult = {
@@ -736,7 +737,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // connecting). Runs before "activate" so the saved set it reads is complete.
       if (discover) {
         try {
-          const names = await fetchServerDatabaseNames(result.connection.id);
+          const names = await fetchServerDatabaseNames(
+            result.connection.id,
+            result.connection.engine,
+          );
           let nextStored = loadStoredConnections();
           let changed = false;
           for (const database of names) {
@@ -799,9 +803,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         for (const connection of storedConnections) {
           try {
             const password = await getConnectionPassword(connectionKey(connection));
-            if (password) {
+            // File engines (SQLite) have no stored password but can still reconnect.
+            if (password || isFileEngine(connection.engine)) {
               await connectAndStoreConnection(
-                { ...connection, password },
+                { ...connection, password: password ?? "" },
                 { skipOrchestration: true, announce: false },
               );
             }
@@ -856,102 +861,110 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setActiveConnectionId(connection.id);
   }, []);
 
-  const openTemporaryObjectTab = useCallback((objectId: string, tabConnectionKey: string) => {
-    if (!tabConnectionKey) return;
+  const openTemporaryObjectTab = useCallback(
+    (objectId: string, tabConnectionKey: string) => {
+      if (!tabConnectionKey) return;
 
-    const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-    const label = buildObjectTabLabel(objectId);
+      const engine = connectionByKey(tabConnectionKey)?.engine ?? defaultDatabaseEngine;
+      const sql = buildDefaultObjectSql(objectId, defaultRowLimit, engine);
+      const label = buildObjectTabLabel(objectId);
 
-    setSqlTabs((tabs) => {
-      // Clicking an object that's already open (official or preview) just focuses
-      // its tab instead of spawning a duplicate — and never clobbers its edits.
-      const existingObjectTab = tabs.find(
-        (currentTab) =>
-          currentTab.objectId === objectId && currentTab.connectionKey === tabConnectionKey,
-      );
-      if (existingObjectTab) {
-        setActiveTabId(existingObjectTab.id);
-        return tabs;
-      }
+      setSqlTabs((tabs) => {
+        // Clicking an object that's already open (official or preview) just focuses
+        // its tab instead of spawning a duplicate — and never clobbers its edits.
+        const existingObjectTab = tabs.find(
+          (currentTab) =>
+            currentTab.objectId === objectId && currentTab.connectionKey === tabConnectionKey,
+        );
+        if (existingObjectTab) {
+          setActiveTabId(existingObjectTab.id);
+          return tabs;
+        }
 
-      const reusableTemporaryTab = tabs.find(
-        (currentTab) =>
-          currentTab.state === "temporary" &&
-          !currentTab.dirty &&
-          currentTab.connectionKey === tabConnectionKey,
-      );
+        const reusableTemporaryTab = tabs.find(
+          (currentTab) =>
+            currentTab.state === "temporary" &&
+            !currentTab.dirty &&
+            currentTab.connectionKey === tabConnectionKey,
+        );
 
-      if (reusableTemporaryTab) {
+        if (reusableTemporaryTab) {
+          const nextTab: SqlTab = {
+            ...reusableTemporaryTab,
+            label,
+            objectId,
+            savedSql: sql,
+            sql,
+          };
+          setActiveTabId(nextTab.id);
+          return tabs.map((currentTab) =>
+            currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab,
+          );
+        }
+
         const nextTab: SqlTab = {
-          ...reusableTemporaryTab,
+          connectionKey: tabConnectionKey,
+          dirty: false,
+          id: buildTemporaryObjectTabId(tabConnectionKey, objectId),
           label,
           objectId,
           savedSql: sql,
           sql,
+          state: "temporary",
         };
         setActiveTabId(nextTab.id);
-        return tabs.map((currentTab) =>
-          currentTab.id === reusableTemporaryTab.id ? nextTab : currentTab,
-        );
-      }
-
-      const nextTab: SqlTab = {
-        connectionKey: tabConnectionKey,
-        dirty: false,
-        id: buildTemporaryObjectTabId(tabConnectionKey, objectId),
-        label,
-        objectId,
-        savedSql: sql,
-        sql,
-        state: "temporary",
-      };
-      setActiveTabId(nextTab.id);
-      return [...tabs, nextTab];
-    });
-  }, []);
-
-  const makeObjectTabOfficial = useCallback((objectId: string, tabConnectionKey: string) => {
-    if (!tabConnectionKey) return;
-
-    const label = buildObjectTabLabel(objectId);
-    const sql = buildDefaultObjectSql(objectId, defaultRowLimit);
-    const officialTabId = buildOfficialObjectTabId(tabConnectionKey, objectId);
-
-    setSqlTabs((tabs) => {
-      const existingOfficialTab = tabs.find(
-        (tab) =>
-          tab.state === "official" &&
-          tab.objectId === objectId &&
-          tab.connectionKey === tabConnectionKey,
-      );
-      if (existingOfficialTab) {
-        setActiveTabId(existingOfficialTab.id);
-        return tabs;
-      }
-
-      const temporaryTab = tabs.find(
-        (tab) =>
-          tab.state === "temporary" &&
-          tab.objectId === objectId &&
-          tab.connectionKey === tabConnectionKey,
-      );
-      if (temporaryTab) {
-        setActiveTabId(officialTabId);
-        return officializeSqlTab(tabs, temporaryTab.id, tabConnectionKey).tabs;
-      }
-
-      const officialTab = createOfficialSqlTab({
-        connectionKey: tabConnectionKey,
-        dirty: false,
-        label,
-        objectId,
-        savedSql: sql,
-        sql,
+        return [...tabs, nextTab];
       });
-      setActiveTabId(officialTabId);
-      return [...tabs, officialTab];
-    });
-  }, []);
+    },
+    [connectionByKey],
+  );
+
+  const makeObjectTabOfficial = useCallback(
+    (objectId: string, tabConnectionKey: string) => {
+      if (!tabConnectionKey) return;
+
+      const engine = connectionByKey(tabConnectionKey)?.engine ?? defaultDatabaseEngine;
+      const label = buildObjectTabLabel(objectId);
+      const sql = buildDefaultObjectSql(objectId, defaultRowLimit, engine);
+      const officialTabId = buildOfficialObjectTabId(tabConnectionKey, objectId);
+
+      setSqlTabs((tabs) => {
+        const existingOfficialTab = tabs.find(
+          (tab) =>
+            tab.state === "official" &&
+            tab.objectId === objectId &&
+            tab.connectionKey === tabConnectionKey,
+        );
+        if (existingOfficialTab) {
+          setActiveTabId(existingOfficialTab.id);
+          return tabs;
+        }
+
+        const temporaryTab = tabs.find(
+          (tab) =>
+            tab.state === "temporary" &&
+            tab.objectId === objectId &&
+            tab.connectionKey === tabConnectionKey,
+        );
+        if (temporaryTab) {
+          setActiveTabId(officialTabId);
+          return officializeSqlTab(tabs, temporaryTab.id, tabConnectionKey).tabs;
+        }
+
+        const officialTab = createOfficialSqlTab({
+          connectionKey: tabConnectionKey,
+          dirty: false,
+          label,
+          objectId,
+          savedSql: sql,
+          sql,
+        });
+        setActiveTabId(officialTabId);
+        return [...tabs, officialTab];
+      });
+    },
+    [connectionByKey],
+  );
 
   const selectObject = useCallback(
     (objectId: string, objectConnectionKey?: string) => {
@@ -991,7 +1004,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     ) => {
       patchTabResult(tabId, { state: "running", error: null });
       try {
-        const pageSql = buildPageSql(baseSql, pageSize, page);
+        const engine =
+          connectionsRef.current.find((item) => item.id === connectionId)?.engine ??
+          defaultDatabaseEngine;
+        const pageSql = buildPageSql(baseSql, pageSize, page, engine);
         const execution = await runPostgresQuery(connectionId, pageSql);
         patchTabResult(tabId, {
           state: "success",
@@ -1070,7 +1086,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         // Pagination is always on for read queries. Page size = the user's own
         // trailing LIMIT if present (locked), otherwise the selector default. We
         // strip that trailing LIMIT so COUNT/OFFSET page over the full result set.
-        const parsed = parseTrailingLimit(baseSql);
+        const parsed = parseTrailingLimit(baseSql, connection.engine);
         const pageSize = parsed?.pageSize ?? defaultRowLimit;
         const querySql = parsed?.baseSql ?? baseSql;
         const locked = parsed !== null;
@@ -1347,10 +1363,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const connection = storedConnections.find((item) => savedConnectionNodeId(item) === nodeId);
       if (!connection) return;
 
+      // File engines (SQLite) have no password — connect directly, skip the prompt.
+      if (isFileEngine(connection.engine)) {
+        void (async () => {
+          try {
+            await connectAndStoreConnection({
+              ...connection,
+              name: connectionDisplayName(connection),
+              password: "",
+            });
+          } catch (error) {
+            notify(readErrorMessage(error), "warning");
+          }
+        })();
+        return;
+      }
+
       // The password dialog already prompts for the password — no toast needed.
       setPasswordConnection(connection);
     },
-    [storedConnections],
+    [connectAndStoreConnection, notify, storedConnections],
   );
 
   const connectStoredConnection = useCallback(
