@@ -46,11 +46,11 @@ export function StatusBar({
           onClick={onOpenStorage}
           title={t("statusBar.storageUsed")}
           aria-label={t("statusBar.storageUsed")}
-          className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="flex shrink-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
-          <HardDrive size={12} />
+          <HardDrive size={12} className="shrink-0" />
           {usedPercent !== null ? (
-            <span className="tabular-nums leading-none">
+            <span className="whitespace-nowrap tabular-nums leading-none">
               {t("statusBar.storagePercentUsed", { percent: usedPercent })}
             </span>
           ) : null}
@@ -76,8 +76,8 @@ export function StatusBar({
           </button>
         ) : null}
       </div>
-      <div className="flex items-center gap-1">
-        {version ? <span className="leading-none">v{version}</span> : null}
+      <div className="flex shrink-0 items-center gap-1">
+        {version ? <span className="whitespace-nowrap leading-none">v{version}</span> : null}
         <button
           type="button"
           onClick={onCheckForUpdates}

@@ -111,13 +111,13 @@ export function ResultsPanel({
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={cn(
-                  "relative flex h-full items-center gap-1.5 border-r border-border px-3 text-[12px]",
+                  "relative flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-r border-border px-3 text-[12px]",
                   active
                     ? "bg-background text-foreground before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary before:shadow-[0_0_12px_hsl(var(--primary)/0.6)] before:content-['']"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon size={14} className={cn(active && "text-primary")} />
+                <Icon size={14} className={cn("shrink-0", active && "text-primary")} />
                 {tab.label}
               </button>
             );

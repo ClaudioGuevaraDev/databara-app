@@ -68,7 +68,7 @@ export function DownloadMenu({
         {t("results.download")}
       </button>
       {open ? (
-        <div className="absolute right-0 z-20 mt-1.5 w-52 rounded-lg border border-border bg-[hsl(var(--panel-soft))] p-3 shadow-[0_12px_28px_hsl(var(--shadow-strong)/0.4)]">
+        <div className="absolute right-0 z-20 mt-1.5 w-60 rounded-lg border border-border bg-[hsl(var(--panel-soft))] p-3 shadow-[0_12px_28px_hsl(var(--shadow-strong)/0.4)]">
           <Group label={t("results.downloadFormat")}>
             {formats.map((option) => (
               <Choice
@@ -95,7 +95,7 @@ export function DownloadMenu({
               setOpen(false);
               onDownload(format, scope);
             }}
-            className="mt-1 flex h-8 w-full items-center justify-center gap-1.5 rounded border border-primary/45 bg-gradient-to-b from-primary/20 to-primary/[0.12] text-[12px] font-medium text-foreground transition-colors hover:from-primary/25 hover:to-primary/15"
+            className="mt-1 flex h-8 w-full items-center justify-center gap-1.5 rounded border border-primary/45 bg-gradient-to-b from-primary/20 to-primary/[0.12] px-3 text-[12px] font-medium text-foreground transition-colors hover:from-primary/25 hover:to-primary/15"
           >
             <Download size={13} className="text-primary" />
             {t("results.downloadConfirm")}
@@ -130,14 +130,15 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
+      title={label}
       className={cn(
-        "flex h-7 flex-1 items-center justify-center rounded border px-2 text-[12px] transition-colors",
+        "flex h-7 min-w-0 flex-1 items-center justify-center rounded border px-2 text-[12px] transition-colors",
         selected
           ? "border-primary/45 bg-[hsl(var(--primary)/0.16)] font-medium text-foreground"
           : "border-border text-muted-foreground hover:text-foreground",
       )}
     >
-      {label}
+      <span className="truncate">{label}</span>
     </button>
   );
 }

@@ -51,7 +51,7 @@ const NOTIFICATION_POSITION_VALUES: NotificationPosition[] = [
   "bottom-right",
 ];
 
-const LANGUAGE_VALUES: Language[] = ["en"];
+const LANGUAGE_VALUES: Language[] = ["en", "es", "fr", "de", "pt-BR", "it", "zh-CN", "ja", "ru"];
 
 const TABS: {
   id: SettingsTab;
@@ -191,29 +191,29 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               <>
                 <div className="grid gap-0.5">
                   <div className="text-[13px] font-semibold text-foreground">
-                    {t("settings.theme.title")}
-                  </div>
-                  <div className="text-muted-foreground">{t("settings.theme.description")}</div>
-                </div>
-                <SelectField
-                  label=""
-                  className="w-36 justify-self-end"
-                  value={themePreference}
-                  onChange={setThemePreference}
-                  options={themeOptions}
-                />
-                <div className="grid gap-0.5">
-                  <div className="text-[13px] font-semibold text-foreground">
                     {t("settings.language.title")}
                   </div>
                   <div className="text-muted-foreground">{t("settings.language.description")}</div>
                 </div>
                 <SelectField
                   label=""
-                  className="w-36 justify-self-end"
+                  className="w-44 justify-self-end"
                   value={language}
                   onChange={setLanguage}
                   options={languageOptions}
+                />
+                <div className="grid gap-0.5">
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {t("settings.theme.title")}
+                  </div>
+                  <div className="text-muted-foreground">{t("settings.theme.description")}</div>
+                </div>
+                <SelectField
+                  label=""
+                  className="w-44 justify-self-end"
+                  value={themePreference}
+                  onChange={setThemePreference}
+                  options={themeOptions}
                 />
                 <div className="grid gap-0.5">
                   <div className="text-[13px] font-semibold text-foreground">
@@ -225,7 +225,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 </div>
                 <SelectField
                   label=""
-                  className="w-36 justify-self-end"
+                  className="w-44 justify-self-end"
                   value={notificationPosition}
                   onChange={setNotificationPosition}
                   options={notificationPositionOptions}

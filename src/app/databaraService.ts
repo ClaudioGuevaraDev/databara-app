@@ -89,7 +89,17 @@ export type AppSettings = {
   theme: { preference: ThemePreference };
 };
 
-export const SUPPORTED_LANGUAGES: readonly Language[] = ["en"];
+export const SUPPORTED_LANGUAGES: readonly Language[] = [
+  "en",
+  "es",
+  "fr",
+  "de",
+  "pt-BR",
+  "it",
+  "zh-CN",
+  "ja",
+  "ru",
+];
 
 export const THEME_PREFERENCES: readonly ThemePreference[] = ["dark", "light", "system"];
 

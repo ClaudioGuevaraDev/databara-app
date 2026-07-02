@@ -18,24 +18,26 @@ export function TopBar({
   const { t } = useI18n();
   return (
     <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/15 text-primary ring-1 ring-primary/20">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary/15 text-primary ring-1 ring-primary/20">
           <Database size={16} />
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Databara
           </div>
-          <div className="text-[13px] text-foreground">{t("topBar.tagline")}</div>
+          <div className="truncate text-[13px] text-foreground" title={t("topBar.tagline")}>
+            {t("topBar.tagline")}
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={onNewConnection}
-          className="flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition hover:brightness-110"
+          className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition hover:brightness-110"
         >
-          <Plus size={14} />
+          <Plus size={14} className="shrink-0" />
           {t("topBar.newConnection")}
         </button>
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />

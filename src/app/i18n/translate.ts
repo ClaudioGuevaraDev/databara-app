@@ -1,7 +1,22 @@
 import type { Language } from "../types";
 import { en } from "./en";
+import { es } from "./es";
+import { fr } from "./fr";
+import { de } from "./de";
+import { ptBR } from "./pt-BR";
+import { it } from "./it";
+import { zhCN } from "./zh-CN";
+import { ja } from "./ja";
+import { ru } from "./ru";
 
-export type Translations = typeof en;
+// Widens the `as const` English catalog (whose leaves are string *literals*)
+// into a structural type whose leaves are plain `string`. Without this, a
+// locale would have to repeat the exact English text to satisfy the type;
+// with it, every locale must supply the same keys (completeness is still
+// enforced) but any string value is accepted.
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+
+export type Translations = Widen<typeof en>;
 
 // A leaf that carries singular/plural variants selected by a `count` parameter.
 type PluralLeaf = { one: string; other: string };
@@ -22,9 +37,19 @@ export type TranslationKey = DotKeys<Translations>;
 
 export type TranslationParams = Record<string, string | number>;
 
-// Locale catalogs. Only English is supported today; new locales are added here
-// and `setActiveLocale` starts resolving them with no other code change.
-const catalogs: Record<Language, Translations> = { en };
+// Locale catalogs. English is the default; new locales are added here and
+// `setActiveLocale` starts resolving them with no other code change.
+const catalogs: Record<Language, Translations> = {
+  en,
+  es,
+  fr,
+  de,
+  "pt-BR": ptBR,
+  it,
+  "zh-CN": zhCN,
+  ja,
+  ru,
+};
 
 let activeCatalog: Translations = en;
 

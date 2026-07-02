@@ -34,7 +34,7 @@ export function ObjectDetails({
     <aside className="chrome-panel flex min-h-0 flex-col border-l border-border">
       <div className="border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded border border-primary/25 bg-primary/10">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-primary/25 bg-primary/10">
             {details.kind === "view" ? (
               <Braces size={17} className="text-primary" />
             ) : (
@@ -43,7 +43,7 @@ export function ObjectDetails({
           </div>
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold">{objectLabel}</div>
-            <div className="text-[12px] text-muted-foreground">
+            <div className="truncate text-[12px] text-muted-foreground">
               {objectKindLabel} - {details.engine}
             </div>
           </div>

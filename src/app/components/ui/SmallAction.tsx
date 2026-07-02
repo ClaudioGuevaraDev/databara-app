@@ -12,10 +12,11 @@ export function SmallAction({
   return (
     <button
       onClick={onClick}
-      className="control flex h-8 items-center gap-1.5 rounded px-2 text-[12px]"
+      title={label}
+      className="control flex h-8 min-w-0 items-center gap-1.5 rounded px-2 text-[12px]"
     >
-      <Icon size={14} />
-      {label}
+      <Icon size={14} className="shrink-0" />
+      <span className="truncate">{label}</span>
     </button>
   );
 }

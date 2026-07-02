@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { useSettings } from "../workspace/workspaceCore";
 import { I18nContext, type I18nContextValue } from "./I18nContext";
 import { setActiveLocale, translate } from "./translate";
@@ -11,6 +11,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   // validation messages) in sync with the active language. Doing it during
   // render keeps it consistent for the children rendered in the same pass.
   setActiveLocale(language);
+
+  // Reflect the active language on the document for accessibility/semantics.
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const value = useMemo<I18nContextValue>(
     () => ({ language, t: (key, params) => translate(key, params) }),

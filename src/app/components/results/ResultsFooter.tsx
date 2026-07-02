@@ -28,24 +28,24 @@ export function ResultsFooter({
 
   return (
     <div className="chrome-panel flex h-9 shrink-0 items-center justify-between border-t border-border px-3 text-[12px] text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <span className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex items-center gap-2 whitespace-nowrap">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
           <span className="tabular-nums text-foreground">{totalRows.toLocaleString()}</span>{" "}
           {t("results.rowsWord")}
         </span>
         <span className="text-border">·</span>
-        <span className="tabular-nums">
+        <span className="whitespace-nowrap tabular-nums">
           {durationMs} {t("results.ms")}
         </span>
       </div>
-      <div className="flex items-center gap-2">
-        <span>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="whitespace-nowrap">
           {t("results.rowsWord")} {firstRow.toLocaleString()}–{lastRow.toLocaleString()}{" "}
           {t("results.of")} <span className="text-foreground">{totalRows.toLocaleString()}</span>
         </span>
         <span className="text-border">·</span>
-        <label className="flex items-center gap-1.5">
+        <label className="flex items-center gap-1.5 whitespace-nowrap">
           {t("results.rowsLabel")}
           <select
             value={pageSize}
@@ -68,7 +68,7 @@ export function ResultsFooter({
         >
           <ChevronLeft size={16} />
         </IconButton>
-        <span className="tabular-nums">
+        <span className="whitespace-nowrap tabular-nums">
           {t("results.pageWord")} <span className="text-foreground">{page + 1}</span>{" "}
           {t("results.of")} {totalPages}
         </span>

@@ -45,13 +45,13 @@ export function ResultsViewBar({
                 aria-selected={selected}
                 onClick={() => onViewModeChange(mode.id)}
                 className={cn(
-                  "relative z-10 flex h-6 min-w-[64px] items-center justify-center gap-1.5 px-3 text-[12px] transition-colors",
+                  "relative z-10 flex h-6 min-w-[64px] flex-1 basis-0 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-[12px] transition-colors",
                   selected
                     ? "font-medium text-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon size={13} className={cn(selected && "text-primary")} />
+                <Icon size={13} className={cn("shrink-0", selected && "text-primary")} />
                 {mode.label}
               </button>
             );

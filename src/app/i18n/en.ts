@@ -71,6 +71,14 @@ export const en = {
     },
     languages: {
       en: "English",
+      es: "Español",
+      fr: "Français",
+      de: "Deutsch",
+      "pt-BR": "Português (Brasil)",
+      it: "Italiano",
+      "zh-CN": "简体中文",
+      ja: "日本語",
+      ru: "Русский",
     },
     theme: {
       title: "Theme",
