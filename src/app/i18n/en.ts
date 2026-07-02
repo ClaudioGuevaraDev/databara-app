@@ -26,10 +26,8 @@ export const en = {
     downloadConfiguration: "Download configuration",
   },
   explorer: {
-    title: "Explorer",
     newConnection: "New connection",
-    loadConfiguration: "Load configuration",
-    downloadConfiguration: "Download configuration",
+    loadConfiguration: "Load config",
     addDatabase: "Connect to database",
     renameServer: "Rename server",
     disconnectServer: "Disconnect server",

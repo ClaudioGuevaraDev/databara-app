@@ -1,40 +1,29 @@
-import { HardDriveDownload, HardDriveUpload, Plus } from "lucide-react";
+import { HardDriveUpload, Plus } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 import { useExplorer } from "../../workspace/workspaceCore";
-import { IconButton } from "../ui";
 
 export function ExplorerHeader() {
   const { t } = useI18n();
-  const { openNewConnectionDialog, openLoadConfigDialog, openStorageSettings } = useExplorer();
+  const { openNewConnectionDialog, openLoadConfigDialog } = useExplorer();
 
   return (
-    <div className="flex h-9 items-center justify-between border-b border-border px-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {t("explorer.title")}
-      </div>
-      <div className="flex items-center">
-        <IconButton
-          title={t("explorer.newConnection")}
-          onClick={openNewConnectionDialog}
-          className="h-5 w-5 hover:bg-transparent"
-        >
-          <Plus size={12} />
-        </IconButton>
-        <IconButton
-          title={t("explorer.loadConfiguration")}
-          onClick={openLoadConfigDialog}
-          className="h-5 w-5 hover:bg-transparent"
-        >
-          <HardDriveUpload size={12} />
-        </IconButton>
-        <IconButton
-          title={t("explorer.downloadConfiguration")}
-          onClick={openStorageSettings}
-          className="h-5 w-5 hover:bg-transparent"
-        >
-          <HardDriveDownload size={12} />
-        </IconButton>
-      </div>
+    <div className="flex items-center gap-1.5 border-b border-border p-1.5">
+      <button
+        type="button"
+        onClick={openNewConnectionDialog}
+        className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded border border-primary/25 bg-[hsl(var(--primary)/0.08)] text-[12px] font-semibold text-primary transition-colors hover:bg-[hsl(var(--primary)/0.14)]"
+      >
+        <Plus size={14} className="shrink-0" />
+        <span className="truncate">{t("explorer.newConnection")}</span>
+      </button>
+      <button
+        type="button"
+        onClick={openLoadConfigDialog}
+        className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded border border-border text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
+      >
+        <HardDriveUpload size={14} className="shrink-0" />
+        <span className="truncate">{t("explorer.loadConfiguration")}</span>
+      </button>
     </div>
   );
 }
