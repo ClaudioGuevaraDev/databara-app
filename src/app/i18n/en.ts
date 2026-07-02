@@ -15,6 +15,7 @@ export const en = {
     tagline: "Database workspace",
     newConnection: "Connection",
     loadConfiguration: "Load config",
+    downloadConfiguration: "Download config",
     settings: "Settings",
   },
   statusBar: {
@@ -22,11 +23,13 @@ export const en = {
     storageUsed: "Storage used",
     storagePercentUsed: "{{percent}}% used",
     loadConfiguration: "Load configuration",
+    downloadConfiguration: "Download configuration",
   },
   explorer: {
     title: "Explorer",
     newConnection: "New connection",
     loadConfiguration: "Load configuration",
+    downloadConfiguration: "Download configuration",
     addDatabase: "Connect to database",
     renameServer: "Rename server",
     disconnectServer: "Disconnect server",

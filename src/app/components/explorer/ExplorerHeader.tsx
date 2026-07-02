@@ -1,11 +1,11 @@
-import { Plus, Upload } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
 import { useExplorer } from "../../workspace/workspaceCore";
 import { IconButton } from "../ui";
 
 export function ExplorerHeader() {
   const { t } = useI18n();
-  const { openNewConnectionDialog, openLoadConfigDialog } = useExplorer();
+  const { openNewConnectionDialog, openLoadConfigDialog, openStorageSettings } = useExplorer();
 
   return (
     <div className="flex h-9 items-center justify-between border-b border-border px-3">
@@ -18,6 +18,9 @@ export function ExplorerHeader() {
         </IconButton>
         <IconButton title={t("explorer.loadConfiguration")} onClick={openLoadConfigDialog}>
           <Upload size={14} />
+        </IconButton>
+        <IconButton title={t("explorer.downloadConfiguration")} onClick={openStorageSettings}>
+          <Download size={14} />
         </IconButton>
       </div>
     </div>

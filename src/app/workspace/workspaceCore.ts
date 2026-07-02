@@ -128,6 +128,7 @@ export type WorkspaceActions = {
   openNewConnectionDialog: () => void;
   openSavedConnection: (nodeId: string) => void;
   openSettingsDialog: () => void;
+  openStorageSettings: () => void;
   previewObject: (objectId?: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   refreshConnection: (connectionKey?: string) => Promise<void>;
@@ -197,6 +198,7 @@ export function useWorkspaceLayout() {
     hasStoredConnections: meta.hasStoredConnections,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openSettingsDialog: actions.openSettingsDialog,
+    openStorageSettings: actions.openStorageSettings,
     openLoadConfigDialog: actions.openLoadConfigDialog,
     requiresConnection: meta.requiresConnection,
     checkForUpdates: actions.startUpdateCheck,
@@ -247,6 +249,7 @@ export function useExplorer() {
     explorerTree: meta.explorerTree,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openLoadConfigDialog: actions.openLoadConfigDialog,
+    openStorageSettings: actions.openStorageSettings,
     selectedConnectionKey: meta.selectedConnectionKey,
     selectedObjectId: state.selectedObjectId,
     storedConnections: state.storedConnections,

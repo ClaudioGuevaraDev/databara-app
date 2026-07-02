@@ -1678,6 +1678,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       openNewConnectionDialog,
       openSavedConnection,
       openSettingsDialog: () => setSettingsDialogOpen(true),
+      openStorageSettings: () => {
+        setSettingsTab("storage");
+        setSettingsDialogOpen(true);
+      },
       setSettingsTab,
       officializeSqlTab: officializeSqlTabAction,
       previewObject,

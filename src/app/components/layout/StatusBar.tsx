@@ -1,4 +1,4 @@
-import { HardDrive, RefreshCw, Upload } from "lucide-react";
+import { Download, HardDrive, RefreshCw, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getBrowserStorageEstimate } from "../../databaraService";
 import { useI18n } from "../../i18n/I18nContext";
@@ -8,10 +8,12 @@ export function StatusBar({
   onCheckForUpdates,
   onOpenStorage,
   onLoadConfiguration,
+  onDownloadConfiguration,
 }: {
   onCheckForUpdates: () => void;
   onOpenStorage: () => void;
   onLoadConfiguration: () => void;
+  onDownloadConfiguration: () => void;
 }) {
   const { t } = useI18n();
   const [version, setVersion] = useState("");
@@ -59,6 +61,15 @@ export function StatusBar({
           className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Upload size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={onDownloadConfiguration}
+          title={t("statusBar.downloadConfiguration")}
+          aria-label={t("statusBar.downloadConfiguration")}
+          className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Download size={12} />
         </button>
       </div>
       <div className="flex items-center gap-1">
