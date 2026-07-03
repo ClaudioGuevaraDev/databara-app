@@ -48,7 +48,7 @@ export function ConnectionDialog({
     host: "",
     name: "",
     password: "",
-    port: String(defaultEngine.defaultPort),
+    port: "",
     sslMode: defaultEngine.defaultSslMode,
     user: "",
   };
@@ -96,7 +96,6 @@ export function ConnectionDialog({
     setDraft((current) => ({
       ...current,
       engine,
-      port: current.port || String(nextConfig.defaultPort),
       sslMode: nextConfig.sslModes.includes(current.sslMode)
         ? current.sslMode
         : nextConfig.defaultSslMode,
