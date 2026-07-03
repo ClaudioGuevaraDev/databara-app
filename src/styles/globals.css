@@ -104,6 +104,20 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Explicit selection color so the highlight is legible and brand-consistent in
+   both themes and across platforms. Without this, WebKitGTK (Tauri on Linux)
+   inherits the GTK theme's selection color, which renders as an unreadable
+   near-black block. `--primary`/`--foreground` flip with the theme, so one rule
+   covers light and dark. */
+::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--foreground));
+}
+::-moz-selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--foreground));
+}
+
 button,
 input,
 select {
