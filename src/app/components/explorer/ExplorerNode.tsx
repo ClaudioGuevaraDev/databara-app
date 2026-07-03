@@ -10,6 +10,7 @@ import {
   ServerOff,
   Unlink,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { cn } from "../../../lib/utils";
 import { useI18n } from "../../i18n/I18nContext";
 import type { DatabaseTreeNode } from "../../types";
@@ -49,6 +50,18 @@ export function ExplorerNode({
   // connection to avoid two same-named objects acting as one.
   const selected =
     node.id === explorer.selectedObjectId && nodeConnectionKey === explorer.selectedConnectionKey;
+  const rowRef = useRef<HTMLButtonElement>(null);
+  // Cuando esta fila es la seleccionada (p. ej. al cargar/reconectar y expandir
+  // hasta la tabla activa), centrarla en el sidebar para que sea fácil de ubicar.
+  useEffect(() => {
+    if (!selected) return;
+    // rAF: esperar a que los nodos hermanos terminen de montar/expandir para
+    // que el cálculo de scroll use el layout final del árbol.
+    const raf = requestAnimationFrame(() => {
+      rowRef.current?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
   // Servers start expanded; databases and everything below start collapsed.
   // A database is expanded explicitly (its key seeded into `toggledNodes`) when
   // it has open tabs or when the user connects it from a dialog. `toggledNodes`
@@ -61,6 +74,7 @@ export function ExplorerNode({
   return (
     <div>
       <button
+        ref={rowRef}
         onClick={() => {
           if (hasChildren) explorer.toggleNode(nodeKey);
           if (selectable) explorer.selectObject(node.id, nodeConnectionKey);
