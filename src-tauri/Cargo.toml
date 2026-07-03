@@ -1,6 +1,6 @@
 [package]
 name = "databara"
-version = "1.34.2"
+version = "1.35.0"
 description = "A modern desktop database manager."
 authors = ["Databara"]
 edition = "2021"
@@ -18,6 +18,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
