@@ -166,6 +166,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [closeWithUnsavedDialogOpen, setCloseWithUnsavedDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const [loadConfigDialogOpen, setLoadConfigDialogOpen] = useState(false);
   const [settingsTab, setSettingsTabState] = useState<SettingsTab>("general");
   // Tab the gear button reopens on: only manual tab clicks update it, so opening
@@ -1703,6 +1704,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       closePasswordDialog: () => setPasswordConnection(null),
       closeResults: () => setResultsOpen(false),
       closeSettingsDialog: () => setSettingsDialogOpen(false),
+      openShortcutsDialog: () => setShortcutsDialogOpen(true),
+      closeShortcutsDialog: () => setShortcutsDialogOpen(false),
       openLoadConfigDialog: () => setLoadConfigDialogOpen(true),
       closeLoadConfigDialog: () => setLoadConfigDialogOpen(false),
       closeSqlTab,
@@ -1856,6 +1859,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       dialogs: {
         connection: connectionDialogOpen,
         settings: settingsDialogOpen,
+        shortcuts: shortcutsDialogOpen,
         unsavedTabs: closeWithUnsavedDialogOpen,
         loadConfig: loadConfigDialogOpen,
       },

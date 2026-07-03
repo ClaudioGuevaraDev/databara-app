@@ -9,6 +9,7 @@ import { LoadConfigDialog } from "./LoadConfigDialog";
 import { PasswordConnectionDialog } from "./PasswordConnectionDialog";
 import { RenameServerDialog } from "./RenameServerDialog";
 import { SettingsDialog } from "./SettingsDialog";
+import { ShortcutsDialog } from "./ShortcutsDialog";
 import { UnsavedTabsDialog } from "./UnsavedTabsDialog";
 import { UpdateDialog } from "./UpdateDialog";
 
@@ -36,6 +37,8 @@ export function DialogsHost() {
     unsavedTabsDialogOpen,
     loadConfigDialogOpen,
     closeLoadConfigDialog,
+    shortcutsDialogOpen,
+    closeShortcutsDialog,
     closeWindowAfterResolution,
     confirmAddDatabase,
     confirmDeleteConnection,
@@ -46,6 +49,11 @@ export function DialogsHost() {
 
   useEffect(() => {
     function closeTopmostDialog() {
+      if (shortcutsDialogOpen) {
+        closeShortcutsDialog();
+        return;
+      }
+
       if (loadConfigDialogOpen) {
         closeLoadConfigDialog();
         return;
@@ -99,6 +107,7 @@ export function DialogsHost() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (
+        !shortcutsDialogOpen &&
         !loadConfigDialogOpen &&
         !unsavedTabsDialogOpen &&
         !deleteServerRequest &&
@@ -140,6 +149,8 @@ export function DialogsHost() {
     setConnectionDialogOpen,
     unsavedTabsDialogOpen,
     loadConfigDialogOpen,
+    shortcutsDialogOpen,
+    closeShortcutsDialog,
   ]);
 
   return (
@@ -202,6 +213,7 @@ export function DialogsHost() {
         />
       ) : null}
       {settingsDialogOpen ? <SettingsDialog onClose={closeSettingsDialog} /> : null}
+      {shortcutsDialogOpen ? <ShortcutsDialog onClose={closeShortcutsDialog} /> : null}
       {loadConfigDialogOpen ? <LoadConfigDialog onClose={closeLoadConfigDialog} /> : null}
       {updateDialogOpen && updateProgress ? (
         <UpdateDialog

@@ -70,6 +70,7 @@ export type WorkspaceState = {
   dialogs: {
     connection: boolean;
     settings: boolean;
+    shortcuts: boolean;
     unsavedTabs: boolean;
     loadConfig: boolean;
   };
@@ -99,6 +100,8 @@ export type WorkspaceActions = {
   closePasswordDialog: () => void;
   closeRenameServerDialog: () => void;
   closeSettingsDialog: () => void;
+  openShortcutsDialog: () => void;
+  closeShortcutsDialog: () => void;
   openLoadConfigDialog: () => void;
   closeLoadConfigDialog: () => void;
   closeResults: () => void;
@@ -200,6 +203,7 @@ export function useWorkspaceLayout() {
     hasStoredConnections: meta.hasStoredConnections,
     openNewConnectionDialog: actions.openNewConnectionDialog,
     openSettingsDialog: actions.openSettingsDialog,
+    openShortcutsDialog: actions.openShortcutsDialog,
     openStorageSettings: actions.openStorageSettings,
     openLoadConfigDialog: actions.openLoadConfigDialog,
     requiresConnection: meta.requiresConnection,
@@ -348,6 +352,8 @@ export function useDialogs() {
     passwordConnection: state.passwordConnection,
     unsavedTabsDialogOpen: state.dialogs.unsavedTabs,
     loadConfigDialogOpen: state.dialogs.loadConfig,
+    shortcutsDialogOpen: state.dialogs.shortcuts,
+    closeShortcutsDialog: actions.closeShortcutsDialog,
     closeLoadConfigDialog: actions.closeLoadConfigDialog,
     closeAddDatabaseDialog: actions.closeAddDatabaseDialog,
     closeDeleteConnectionDialog: actions.closeDeleteConnectionDialog,

@@ -8,12 +8,14 @@ import { Toaster } from "../components/ui/Toaster";
 import { MainWorkspace } from "../components/workspace/MainWorkspace";
 import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../databaraService";
 import { useI18n } from "../i18n/I18nContext";
+import { useGlobalShortcuts } from "./useGlobalShortcuts";
 import { useSettings, useWorkspaceLayout } from "./workspaceCore";
 
 export function WorkspaceShell() {
   const { t } = useI18n();
   const workspace = useWorkspaceLayout();
   const { settings, setSidebarWidth } = useSettings();
+  useGlobalShortcuts();
   // Live width while dragging; falls back to the persisted setting at rest so
   // localStorage is only written once, on release.
   const [dragWidth, setDragWidth] = useState<number | null>(null);
@@ -29,6 +31,7 @@ export function WorkspaceShell() {
         onLoadConfiguration={workspace.openLoadConfigDialog}
         onDownloadConfiguration={workspace.openStorageSettings}
         onOpenSettings={workspace.openSettingsDialog}
+        onOpenShortcuts={workspace.openShortcutsDialog}
         hasStoredConnections={workspace.hasStoredConnections}
       />
       <div

@@ -1,18 +1,26 @@
-import { Database, HardDriveDownload, HardDriveUpload, Plus, Settings } from "lucide-react";
+import {
+  Database,
+  HardDriveDownload,
+  HardDriveUpload,
+  Keyboard,
+  Plus,
+  Settings,
+} from "lucide-react";
 import { useI18n } from "../../i18n/I18nContext";
-import { IconButton } from "../ui";
 
 export function TopBar({
   onNewConnection,
   onLoadConfiguration,
   onDownloadConfiguration,
   onOpenSettings,
+  onOpenShortcuts,
   hasStoredConnections,
 }: {
   onNewConnection: () => void;
   onLoadConfiguration: () => void;
   onDownloadConfiguration: () => void;
   onOpenSettings: () => void;
+  onOpenShortcuts: () => void;
   hasStoredConnections: boolean;
 }) {
   const { t } = useI18n();
@@ -72,9 +80,29 @@ export function TopBar({
           ) : null}
         </div>
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-        <IconButton title={t("topBar.settings")} onClick={onOpenSettings} className="h-8 w-8">
-          <Settings size={16} />
-        </IconButton>
+        {/* Settings / Shortcuts as a segmented control, matching the import/export
+            pill above so all secondary toolbar buttons share one look. */}
+        <div className="flex h-8 items-center rounded border border-border bg-[hsl(var(--panel-soft)/0.82)]">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title={t("topBar.settings")}
+            aria-label={t("topBar.settings")}
+            className="flex h-full items-center rounded-l px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Settings size={14} />
+          </button>
+          <span className="h-5 w-px bg-border" aria-hidden />
+          <button
+            type="button"
+            onClick={onOpenShortcuts}
+            title={t("topBar.shortcuts")}
+            aria-label={t("topBar.shortcuts")}
+            className="flex h-full items-center rounded-r px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Keyboard size={14} />
+          </button>
+        </div>
       </div>
     </header>
   );
