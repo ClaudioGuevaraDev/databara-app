@@ -18,6 +18,10 @@ import { savedConnectionNodeId, useExplorer } from "../../workspace/workspaceCor
 import { connectionKey, findStoredConnectionForNode } from "./treeUtils";
 import { TreeIcon } from "./TreeIcon";
 
+// One-shot por sesión: el sidebar auto-centra la fila seleccionada solo la primera
+// vez (carga inicial). Se reinicia únicamente al recargar la app.
+let sidebarAutoScrolled = false;
+
 export function ExplorerNode({
   depth,
   node,
@@ -51,14 +55,17 @@ export function ExplorerNode({
   const selected =
     node.id === explorer.selectedObjectId && nodeConnectionKey === explorer.selectedConnectionKey;
   const rowRef = useRef<HTMLButtonElement>(null);
-  // Cuando esta fila es la seleccionada (p. ej. al cargar/reconectar y expandir
-  // hasta la tabla activa), centrarla en el sidebar para que sea fácil de ubicar.
+  // Centrar la fila seleccionada en el sidebar SOLO la primera vez de la sesión
+  // (al cargar/reconectar y expandir hasta la tabla activa). De la segunda
+  // selección en adelante no se mueve el scroll.
   useEffect(() => {
-    if (!selected) return;
-    // rAF: esperar a que los nodos hermanos terminen de montar/expandir para
-    // que el cálculo de scroll use el layout final del árbol.
+    if (!selected || sidebarAutoScrolled) return;
+    // rAF: esperar a que los nodos hermanos terminen de montar/expandir para que
+    // el cálculo use el layout final. Marcar el one-shot DENTRO del rAF (tras el
+    // scroll) para que un re-montaje que cancele el rAF no lo queme sin centrar.
     const raf = requestAnimationFrame(() => {
       rowRef.current?.scrollIntoView({ block: "center" });
+      sidebarAutoScrolled = true;
     });
     return () => cancelAnimationFrame(raf);
   }, [selected]);
