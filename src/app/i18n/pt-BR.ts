@@ -27,6 +27,9 @@ export const ptBR: Translations = {
     downloadConfiguration: "Baixar configuração",
   },
   explorer: {
+    filterPlaceholder: "Filtrar tabelas…",
+    clearFilter: "Limpar filtro",
+    noMatches: "Nenhuma tabela correspondente",
     newConnection: "Nova conexão",
     loadConfiguration: "Carregar configuração",
     addDatabase: "Conectar ao banco de dados",

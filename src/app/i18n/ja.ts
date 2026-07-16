@@ -27,6 +27,9 @@ export const ja: Translations = {
     downloadConfiguration: "設定をダウンロード",
   },
   explorer: {
+    filterPlaceholder: "テーブルを絞り込み…",
+    clearFilter: "フィルターをクリア",
+    noMatches: "一致するテーブルがありません",
     newConnection: "新しい接続",
     loadConfiguration: "設定を読み込む",
     addDatabase: "データベースに接続",

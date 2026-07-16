@@ -59,6 +59,7 @@ export type WorkspaceState = {
   activeTab: SqlTab | null;
   activeTabId: string;
   toggledNodes: Set<string>;
+  explorerFilter: string;
   completionObject: DatabaseObjectDetails | null;
   connections: ConnectionProfile[];
   addDatabaseRequest: AddDatabaseRequest | null;
@@ -140,6 +141,7 @@ export type WorkspaceActions = {
   saveActiveSqlTab: () => Promise<void>;
   saveConnection: (draft: ConnectionDraft) => Promise<void>;
   selectObject: (objectId: string, connectionKey?: string) => void;
+  setExplorerFilter: (value: string) => void;
   selectResultTab: (tab: ResultPanelTab) => void;
   selectResultViewMode: (mode: ResultViewMode) => void;
   selectSqlTab: (tabId: string) => void;
@@ -252,6 +254,8 @@ export function useExplorer() {
   return {
     activeConnection: state.activeConnection,
     toggledNodes: state.toggledNodes,
+    explorerFilter: state.explorerFilter,
+    setExplorerFilter: actions.setExplorerFilter,
     connectedConnectionKeys: meta.connectedConnectionKeys,
     explorerTree: meta.explorerTree,
     openNewConnectionDialog: actions.openNewConnectionDialog,

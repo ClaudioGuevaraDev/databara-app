@@ -76,7 +76,14 @@ export function ExplorerNode({
   const defaultExpanded = node.id.startsWith("server:");
   const nodeKey = `${nodeConnectionKey ?? ""}::${node.id}`;
   const userToggled = explorer.toggledNodes.has(nodeKey);
-  const collapsed = defaultExpanded ? userToggled : !userToggled;
+  // While filtering, force every branch open so matching tables are visible even
+  // under a collapsed schema/database — without mutating `toggledNodes`, so the
+  // real expand/collapse state is restored once the filter clears.
+  const collapsed = explorer.explorerFilter.trim()
+    ? false
+    : defaultExpanded
+      ? userToggled
+      : !userToggled;
 
   return (
     <div>

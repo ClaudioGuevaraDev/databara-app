@@ -154,6 +154,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeConnectionId, setActiveConnectionId] = useState("");
   const [activeExplorerTree, setActiveExplorerTree] = useState<DatabaseTreeNode[]>([]);
   const [toggledNodes, setToggledNodes] = useState<Set<string>>(new Set());
+  // Transient (in-memory) sidebar table filter; never persisted.
+  const [explorerFilter, setExplorerFilter] = useState("");
   const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedObjectConnectionId, setSelectedObjectConnectionId] = useState("");
   const [selectedObject, setSelectedObject] = useState<DatabaseObjectDetails | null>(null);
@@ -1717,6 +1719,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       confirmRenameServer,
       confirmObjectTab,
       connectStoredConnection,
+      setExplorerFilter,
       copySchema,
       copyObjectName,
       copyResult,
@@ -1848,6 +1851,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       activeTab,
       activeTabId,
       toggledNodes,
+      explorerFilter,
       completionObject,
       connections,
       addDatabaseRequest,

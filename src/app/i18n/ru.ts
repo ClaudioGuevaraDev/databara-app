@@ -29,6 +29,9 @@ export const ru: Translations = {
     downloadConfiguration: "Скачать конфигурацию",
   },
   explorer: {
+    filterPlaceholder: "Фильтр таблиц…",
+    clearFilter: "Очистить фильтр",
+    noMatches: "Нет совпадающих таблиц",
     newConnection: "Новое подключение",
     loadConfiguration: "Загрузить конфигурацию",
     addDatabase: "Подключиться к базе данных",

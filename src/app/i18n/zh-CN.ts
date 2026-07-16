@@ -27,6 +27,9 @@ export const zhCN: Translations = {
     downloadConfiguration: "下载配置",
   },
   explorer: {
+    filterPlaceholder: "筛选表…",
+    clearFilter: "清除筛选",
+    noMatches: "没有匹配的表",
     newConnection: "新建连接",
     loadConfiguration: "加载配置",
     addDatabase: "连接到数据库",

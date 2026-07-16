@@ -27,6 +27,9 @@ export const en = {
     downloadConfiguration: "Download configuration",
   },
   explorer: {
+    filterPlaceholder: "Filter tables…",
+    clearFilter: "Clear filter",
+    noMatches: "No matching tables",
     newConnection: "New connection",
     loadConfiguration: "Load config",
     addDatabase: "Connect to database",
