@@ -13,7 +13,15 @@ export function EmptyWorkspace() {
     <section className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background px-8">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.28)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.22)_1px,transparent_1px)] bg-[size:44px_44px] opacity-30" />
       <div className="relative grid w-full max-w-[550px] justify-items-center gap-5 text-center">
-        {empty.hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
+        <div className="relative flex items-center justify-center">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 m-auto h-32 w-40 rounded-[50%] bg-[radial-gradient(closest-side,hsl(var(--primary)/0.2),transparent)]"
+          />
+          <span className="relative">
+            {empty.hasStoredConnections ? <SavedConnectionEmptySvg /> : <NoConnectionEmptySvg />}
+          </span>
+        </div>
         <div className="grid gap-2">
           <h2 className="text-[18px] font-semibold text-foreground">
             {empty.hasStoredConnections ? t("workspace.empty.noActive") : t("workspace.empty.none")}

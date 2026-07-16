@@ -1,10 +1,6 @@
 export function SavedConnectionEmptySvg() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 180 136"
-      className="h-28 w-40 text-primary drop-shadow-[0_0_24px_hsl(var(--primary)/0.16)]"
-    >
+    <svg aria-hidden="true" viewBox="0 0 180 136" className="h-28 w-40 text-primary">
       <rect
         x="28"
         y="26"
