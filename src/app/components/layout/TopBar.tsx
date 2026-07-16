@@ -25,7 +25,7 @@ export function TopBar({
 }) {
   const { t } = useI18n();
   return (
-    <header className="chrome-panel flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
+    <header className="chrome-panel flex h-11 shrink-0 select-none items-center justify-between border-b border-border px-3">
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary/15 text-primary ring-1 ring-primary/20">
           <Database size={16} />

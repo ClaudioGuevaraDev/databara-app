@@ -25,6 +25,7 @@
   --panel-soft: 218 16% 95%;
   --destructive: 0 72% 50%;
   --destructive-foreground: 0 0% 100%;
+  --selection: 185 53% 81%;
 
   --backdrop: 210 20% 96%;
   --editor-bg: 210 20% 99%;
@@ -55,6 +56,7 @@
   --panel-soft: 218 17% 13%;
   --destructive: 0 74% 58%;
   --destructive-foreground: 0 0% 100%;
+  --selection: 187 55% 19%;
 
   --backdrop: 218 24% 7%;
   --editor-bg: 218 27% 6%;
@@ -107,14 +109,17 @@ body {
 /* Explicit selection color so the highlight is legible and brand-consistent in
    both themes and across platforms. Without this, WebKitGTK (Tauri on Linux)
    inherits the GTK theme's selection color, which renders as an unreadable
-   near-black block. `--primary`/`--foreground` flip with the theme, so one rule
-   covers light and dark. */
+   near-black block. The background must be fully OPAQUE: WebKitGTK composites
+   semi-transparent `::selection` backgrounds unreliably during drag-select
+   repaints, falling back to the near-black GTK highlight on some lines. So
+   `--selection` is a solid muted-teal token (approximating a subtle 30% primary
+   tint) that flips with the theme, alongside `--foreground`, covering both. */
 ::selection {
-  background: hsl(var(--primary) / 0.3);
+  background: hsl(var(--selection));
   color: hsl(var(--foreground));
 }
 ::-moz-selection {
-  background: hsl(var(--primary) / 0.3);
+  background: hsl(var(--selection));
   color: hsl(var(--foreground));
 }
 

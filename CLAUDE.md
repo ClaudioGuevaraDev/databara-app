@@ -31,6 +31,7 @@ There is **no test framework**. The validation gate for any change is: `pnpm run
 ## Commits & security
 
 - Use Conventional Commit messages (e.g. `feat: add connection dialog layout`, `fix: ignore tauri target in vite watcher`, `chore: configure prettier`). PRs should include a short summary, screenshots for UI changes, and the validation commands run.
+- **Bump the app version on every `/conventional-commit`.** When the user asks to run `/conventional-commit`, bump the version `A.B.C` as part of that commit (stage the bumped files together with the change so it ships in the same commit). **Never increase `A`** (major stays fixed). Increase `B` (minor) — resetting `C` to `0` — for `feat` commits; otherwise increase `C` (patch). Use judgment for mixed changes. Keep the version byte-for-byte identical across all declaration sites: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and the `name = "databara"` entry in `src-tauri/Cargo.lock`. There are no hardcoded version strings in the frontend (the StatusBar reads the latest GitHub release at runtime), so no UI edits are needed. See `RELEASING.md` for the release checklist.
 - Never commit credentials, local database URLs, build output, or logs. Connection passwords live only in transient frontend state and are never persisted (the long-term plan is the OS keychain, never plain text — see Persistence below).
 
 ## Architecture
